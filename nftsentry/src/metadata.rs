@@ -5,7 +5,7 @@ pub type TokenId = String;
 #[serde(crate = "near_sdk::serde")]
 pub struct Payout {
     pub payout: HashMap<AccountId, U128>,
-} 
+}
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -20,6 +20,8 @@ pub struct NFTContractMetadata {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Debug)]
+#[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenMetadata {
     pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
@@ -37,6 +39,8 @@ pub struct TokenMetadata {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Debug)]
+#[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LicenseData {
     pub i_agree: bool,
@@ -51,6 +55,7 @@ pub struct LicenseData {
 
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenLicense {
     // pub test: u8,
@@ -67,6 +72,7 @@ pub struct TokenLicense {
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
 }
 
+#[derive(Debug)]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Token {
     // token_id: TokenId,
@@ -83,6 +89,8 @@ pub struct Token {
 
 //The Json token is what will be returned from view calls. 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
+#[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonToken {
     //token ID
@@ -92,7 +100,7 @@ pub struct JsonToken {
     //token metadata
     pub metadata: TokenMetadata,
     // license metadata
-    pub license: TokenLicense,
+    pub license: Option<TokenLicense>,
     // proposed license 
     // pub proposed_license: TokenLicense,
     //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
@@ -103,6 +111,8 @@ pub struct JsonToken {
 
 //The Json token is what will be returned from view calls. 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
+#[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonTokenLicense {
     //token ID

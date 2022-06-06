@@ -17,15 +17,15 @@ pub use crate::events::*;
 pub use crate::license::*;
 
 mod internal;
-mod approval; 
+pub mod approval;
 mod enumeration; 
-mod metadata; 
-mod mint; 
-mod nft_core; 
+pub mod metadata;
+pub mod mint;
+pub mod nft_core;
 mod royalty; 
 mod events;
-mod license;
-mod test;
+pub mod license;
+mod tests;
 
 /// This spec can be treated like a version of the standard.
 pub const NFT_METADATA_SPEC: &str = "nft-1.0.0";
@@ -59,6 +59,8 @@ pub struct Contract {
 
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<NFTContractMetadata>,
+
+    pub disable_events: bool,
 }
 
 /// Helper structure for keys of the persistent collections.
@@ -127,6 +129,7 @@ impl Contract {
                 StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
             ),
+            disable_events: false,
         };
 
         //return the Contract object

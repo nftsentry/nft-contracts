@@ -3,7 +3,14 @@ use crate::*;
 #[near_bindgen]
 impl Contract {
     #[payable]
-    pub fn nft_mint(&mut self, token_id: TokenId, metadata: TokenMetadata, license: TokenLicense, receiver_id: AccountId, perpetual_royalties: Option<HashMap<AccountId, u32>>,) {
+    pub fn nft_mint(
+        &mut self,
+        token_id: TokenId,
+        metadata: TokenMetadata,
+        receiver_id: AccountId,
+        license: Option<TokenLicense>,
+        perpetual_royalties: Option<HashMap<AccountId, u32>>,
+    ) -> JsonToken {
         //we add an optional parameter for perpetual royalties
         //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
@@ -24,7 +31,7 @@ impl Contract {
 
         //specify the token struct that contains the owner ID 
         let token = Token {
-            token_id: token_id,
+            token_id: token_id.clone(),
             //set the owner ID equal to the receiver ID passed into the function
             owner_id: receiver_id,
             //we set the approved account IDs to the default value (an empty map)
@@ -32,7 +39,7 @@ impl Contract {
             //the next approval ID is set to 0
             next_approval_id: 0,
             //the map of perpetual royalties for the token (The owner will get 100% - total perpetual royalties)
-            royalty,
+            royalty: royalty.clone(),
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
@@ -43,8 +50,10 @@ impl Contract {
 
         //insert the token ID and metadata
         self.token_metadata_by_id.insert(&token.token_id, &metadata);
-        //insert the token ID and license
-        self.token_license_by_id.insert(&token.token_id, &license);
+        if let Some(ref license) = license {
+            //insert the token ID and license
+            self.token_license_by_id.insert(&token.token_id, &license);
+        }
         //insert the token ID and license
         //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
 
@@ -69,13 +78,21 @@ impl Contract {
         };
 
         // Log the serialized json.
-        env::log_str(&nft_mint_log.to_string());
+        self.log_event(&nft_mint_log.to_string());
 
         //calculate the required storage which was the used - initial
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
         refund_deposit(required_storage_in_bytes);
+        JsonToken{
+            token_id: token_id.clone(),
+            owner_id: token.owner_id,
+            metadata,
+            license,
+            approved_account_ids: token.approved_account_ids,
+            royalty: royalty.clone(),
+        }
     }
 
 }

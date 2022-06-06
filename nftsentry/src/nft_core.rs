@@ -199,7 +199,7 @@ impl NonFungibleTokenCore for Contract {
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
             let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
-            let license = self.token_license_by_id.get(&token_id).unwrap();
+            let license = self.token_license_by_id.get(&token_id);
         //    let proposed_license = self.token_proposed_license_by_id.get(&token_id).unwrap();
             //we return the JsonToken (wrapped by Some since we return an option)
             Some(JsonToken {
@@ -311,7 +311,7 @@ impl NonFungibleTokenResolver for Contract {
         };
 
         //we perform the actual logging
-        env::log_str(&nft_transfer_log.to_string());
+        self.log_event(&nft_transfer_log.to_string());
 
         //return false
         false

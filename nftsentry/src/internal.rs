@@ -201,7 +201,7 @@ impl Contract {
 
         //if there was some memo attached, we log it. 
         if let Some(memo) = memo.as_ref() {
-            env::log_str(&format!("Memo: {}", memo).to_string());
+            self.log_event(&format!("Memo: {}", memo).to_string())
         }
 
         // Default the authorized ID to be None for the logs.
@@ -233,8 +233,8 @@ impl Contract {
         };
 
         // Log the serialized json.
-        env::log_str(&nft_transfer_log.to_string());
-        
+        self.log_event(&nft_transfer_log.to_string());
+
         //return the preivous token object that was transferred.
         token
     }

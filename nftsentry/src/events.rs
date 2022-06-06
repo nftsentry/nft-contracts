@@ -1,6 +1,7 @@
 use std::fmt;
 
 use near_sdk::serde::{Deserialize, Serialize};
+use crate::*;
 
 /// Enum that represents the data type of the EventLog.
 /// The enum can either be an NftMint or an NftTransfer.
@@ -185,4 +186,13 @@ mod tests {
         };
         assert_eq!(expected, log.to_string());
     }
-} 
+}
+
+#[near_bindgen]
+impl Contract {
+    pub(crate) fn log_event(&self, msg: &str) {
+        if !self.disable_events {
+            env::log_str(msg);
+        }
+    }
+}

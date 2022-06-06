@@ -1,9 +1,9 @@
 use crate::*;
 
-use near_sdk::{ext_contract, Gas, PromiseResult, PromiseOrValue};
+use near_sdk::{Gas};
 
-const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
-const NO_DEPOSIT: Balance = 0;
+// const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
+// const NO_DEPOSIT: Balance = 0;
 const MIN_GAS_FOR_LICENSE_APPROVE_CALL: Gas = Gas(100_000_000_000_000);
 
 
@@ -43,7 +43,7 @@ impl Contract {
         };
 
         // Log the serialized json.
-        env::log_str(&nft_license_update_log.to_string());
+        self.log_event(&nft_license_update_log.to_string());
 
         //calculate the required storage which was the used - initial
         let storage_usage = env::storage_usage();
@@ -88,7 +88,7 @@ impl Contract {
         };
 
         // Log the serialized json.
-        env::log_str(&nft_license_update_log.to_string());
+        self.log_event(&nft_license_update_log.to_string());
 
         //calculate the required storage which was the used - initial
         let storage_usage = env::storage_usage();
@@ -126,7 +126,7 @@ impl Contract {
         };
 
         // Log the serialized json.
-        env::log_str(&nft_propose_license_log.to_string());
+        self.log_event(&nft_propose_license_log.to_string());
 
         //calculate the required storage which was the used - initial
         let storage_usage = env::storage_usage();
@@ -158,7 +158,7 @@ impl Contract {
         //if there is some token ID in the tokens_by_id collection
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
-            let license = self.token_license_by_id.get(&token_id).unwrap();
+            // let license = self.token_license_by_id.get(&token_id).unwrap();
             let license = self.token_proposed_license_by_id.get(&token_id).unwrap();
             //we return the JsonTokenLicense (wrapped by Some since we return an option)
             Some(JsonTokenLicense {
@@ -171,20 +171,20 @@ impl Contract {
         }
     }
     pub fn internal_propose_license(&mut self, account_id: &AccountId, token_id: &TokenId, proposed_license: &TokenLicense) {
-        println!("==>internal_propose_license");
+        println!("==>internal_propose_license, account={}", account_id);
         self.token_proposed_license_by_id.remove(&token_id);
         self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
     }
 
     pub fn internal_update_license(&mut self, account_id: &AccountId, token_id: &TokenId) {
-        println!("==>internal_update_license");
+        println!("==>internal_update_license, account={}", account_id);
         let proposed_license = self.token_proposed_license_by_id.get(&token_id).unwrap();
         self.token_license_by_id.remove(&token_id);
         self.token_license_by_id.insert(&token_id, &proposed_license);
     }
 
     pub fn internal_replace_license(&mut self, account_id: &AccountId, token_id: &TokenId, license: &TokenLicense) {
-        println!("==>internal_replace_license");
+        println!("==>internal_replace_license, account={}", account_id);
         self.token_license_by_id.remove(&token_id);
         self.token_license_by_id.insert(&token_id, &license);
     }
@@ -198,7 +198,10 @@ impl Contract {
         deposit: Balance, 
         gas_limit: Gas,
     ) -> bool {
-        println!("==>license_authorization");
+        println!(
+            "==>license_authorization, sender={}, account={}, token={}, deposit={}, gas_limit={}",
+            sender_id, account_id, token_id, deposit, serde_json::to_string(&gas_limit).unwrap(),
+        );
         assert_one_yocto();
 
         //get the GAS attached to the call
