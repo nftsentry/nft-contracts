@@ -13,3 +13,4 @@ Cargo.lock
 contract.json
 tokens.json
 target/
+res/
