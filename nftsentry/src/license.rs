@@ -141,13 +141,16 @@ impl Contract {
         //if there is some token ID in the tokens_by_id collection
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
-            let license = self.token_license_by_id.get(&token_id).unwrap();
-            //we return the JsonTokenLicense (wrapped by Some since we return an option)
-            Some(JsonTokenLicense {
-                token_id,
-                owner_id: token.owner_id,
-                license,
-            })
+            if let Some(license) = self.token_license_by_id.get(&token_id) {
+                //we return the JsonTokenLicense (wrapped by Some since we return an option)
+                Some(JsonTokenLicense {
+                    token_id,
+                    owner_id: token.owner_id,
+                    license,
+                })
+            } else {
+                None
+            }
         } else { //if there wasn't a token ID in the tokens_by_id collection, we return None
             None
         }
