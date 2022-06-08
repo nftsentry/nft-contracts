@@ -77,14 +77,15 @@ impl Contract {
             }]),
         };
 
-        // Log the serialized json.
-        self.log_event(&nft_mint_log.to_string());
-
         //calculate the required storage which was the used - initial
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
         refund_deposit(required_storage_in_bytes);
+
+        // Log the serialized json.
+        self.log_event(&nft_mint_log.to_string());
+
         JsonToken{
             token_id: token_id.clone(),
             owner_id: token.owner_id,
