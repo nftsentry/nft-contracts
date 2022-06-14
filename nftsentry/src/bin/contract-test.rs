@@ -206,7 +206,7 @@ fn test_mint(args: Args, contract: &mut Contract) {
             reference: None,
             reference_hash: None
         },
-        accounts(0),
+        AccountId::new_unchecked(args.owner_id),
         None,
         None,
     );
@@ -268,6 +268,12 @@ fn main() {
 
     } else if args.action == "nft_metadata" {
         println!("{}", serde_json::to_string(&contract.nft_metadata()).unwrap());
+    } else if args.action == "nft_tokens" {
+        println!("{}", serde_json::to_string(&contract.nft_tokens(None, None)).unwrap());
+    } else if args.action == "nft_tokens_for_owner" {
+        println!("{}", serde_json::to_string(&contract.nft_tokens_for_owner(
+            AccountId::new_unchecked(args.account_id), None, None)
+        ).unwrap());
     } else if args.action == "nft_token" {
         let token = contract.nft_token(args.token_id.clone());
         if let Some(token) = token {
