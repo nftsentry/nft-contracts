@@ -1,10 +1,10 @@
 use crate::*;
 use near_sdk::{ext_contract, Gas, PromiseResult};
 
-const GAS_FOR_RESOLVE_TRANSFER: Gas = Gas(10_000_000_000_000);
-const GAS_FOR_NFT_TRANSFER_CALL: Gas = Gas(25_000_000_000_000 + GAS_FOR_RESOLVE_TRANSFER.0);
+// const GAS_FOR_RESOLVE_TRANSFER: Gas = Gas(10_000_000_000_000);
+// const GAS_FOR_NFT_TRANSFER_CALL: Gas = Gas(25_000_000_000_000 + GAS_FOR_RESOLVE_TRANSFER.0);
+// const NO_DEPOSIT: Balance = 0;
 const MIN_GAS_FOR_NFT_TRANSFER_CALL: Gas = Gas(100_000_000_000_000);
-const NO_DEPOSIT: Balance = 0;
 
 pub trait NonFungibleTokenCore {
     //transfers an NFT to a receiver ID
@@ -33,7 +33,7 @@ pub trait NonFungibleTokenCore {
     fn nft_token(&self, token_id: TokenId) -> Option<JsonToken>;
 }
 
-#[ext_contract(ext_non_fungible_token_receiver)]
+#[ext_contract(ext_nft_receiver)]
 trait NonFungibleTokenReceiver {
     //Method stored on the receiver contract that is called via cross contract call when nft_transfer_call is called
     /// Returns `true` if the token should be returned back to the sender.
@@ -67,25 +67,6 @@ trait NonFungibleTokenResolver {
     ) -> bool;
 }
 
-/*
-    resolves the promise of the cross contract call to the receiver contract
-    this is stored on THIS contract and is meant to analyze what happened in the cross contract call when nft_on_transfer was called
-    as part of the nft_transfer_call method
-*/ 
-trait NonFungibleTokenResolver {
-    fn nft_resolve_transfer(
-        &mut self,
-        //we introduce an authorized ID for logging the transfer event
-        authorized_id: Option<String>,
-        owner_id: AccountId,
-        receiver_id: AccountId,
-        token_id: TokenId,
-        //we introduce the approval map so we can keep track of what the approvals were before the transfer
-        approved_account_ids: HashMap<AccountId, u64>,
-        //we introduce a memo for logging the transfer event
-        memo: Option<String>,
-    ) -> bool;
-}
 
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
@@ -169,27 +150,25 @@ impl NonFungibleTokenCore for Contract {
             authorized_id = Some(sender_id.to_string());
         }
 
+        let sender_id = env::predecessor_account_id();
+
         // Initiating receiver's call and the callback
-        ext_non_fungible_token_receiver::nft_on_transfer(
-            sender_id,
+        ext_nft_receiver::ext(receiver_id.clone())
+        .nft_on_transfer(
+            sender_id.clone(),
             previous_token.owner_id.clone(),
             token_id.clone(),
             msg,
-            receiver_id.clone(), //contract account to make the call to
-            NO_DEPOSIT, //attached deposit
-            env::prepaid_gas() - GAS_FOR_NFT_TRANSFER_CALL, //attached GAS
         )
         //we then resolve the promise and call nft_resolve_transfer on our own contract
-        .then(ext_self::nft_resolve_transfer(
+        .then(ext_self::ext(sender_id.clone())
+        .nft_resolve_transfer(
             authorized_id, // we introduce an authorized ID so that we can log the transfer
             previous_token.owner_id,
             receiver_id,
             token_id,
             previous_token.approved_account_ids,
             memo, // we introduce a memo for logging in the events standard
-            env::current_account_id(), //contract account to make the call to
-            NO_DEPOSIT, //attached deposit
-            GAS_FOR_RESOLVE_TRANSFER, //GAS attached to the call
         )).into()
     }
 

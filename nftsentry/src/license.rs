@@ -1,6 +1,6 @@
 use crate::*;
 
-use near_sdk::{Gas};
+use near_sdk::{log,Gas};
 
 // const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
 // const NO_DEPOSIT: Balance = 0;
@@ -162,33 +162,51 @@ impl Contract {
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
             // let license = self.token_license_by_id.get(&token_id).unwrap();
-            let license = self.token_proposed_license_by_id.get(&token_id).unwrap();
+            if let Some(license) = self.token_proposed_license_by_id.get(&token_id) {
             //we return the JsonTokenLicense (wrapped by Some since we return an option)
-            Some(JsonTokenLicense {
-                token_id,
-                owner_id: token.owner_id,
-                license,
-            })
+                Some(JsonTokenLicense {
+                    token_id,
+                    owner_id: token.owner_id,
+                    license,
+                })
+            } else {
+                None
+            }
         } else { //if there wasn't a token ID in the tokens_by_id collection, we return None
             None
         }
     }
+
     pub fn internal_propose_license(&mut self, account_id: &AccountId, token_id: &TokenId, proposed_license: &TokenLicense) {
         println!("==>internal_propose_license, account={}", account_id);
-        self.token_proposed_license_by_id.remove(&token_id);
+        if let Some(_license) = self.token_proposed_license_by_id.get(&token_id) {
+            self.token_proposed_license_by_id.remove(&token_id);
+        }
         self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
     }
 
     pub fn internal_update_license(&mut self, account_id: &AccountId, token_id: &TokenId) {
         println!("==>internal_update_license, account={}", account_id);
-        let proposed_license = self.token_proposed_license_by_id.get(&token_id).unwrap();
-        self.token_license_by_id.remove(&token_id);
-        self.token_license_by_id.insert(&token_id, &proposed_license);
+        if let Some(proposed_license) = self.token_proposed_license_by_id.get(&token_id) {
+            self.token_proposed_license_by_id.remove(&token_id );
+            if let Some(_license) = self.token_license_by_id.get(&token_id) {
+                self.token_license_by_id.remove(&token_id);
+             }
+             self.token_license_by_id.insert(&token_id, &proposed_license);
+            
+        } else {
+            log!("No proposed license i the token");
+            
+            panic!("No propose license in the token");
+        }
     }
 
     pub fn internal_replace_license(&mut self, account_id: &AccountId, token_id: &TokenId, license: &TokenLicense) {
         println!("==>internal_replace_license, account={}", account_id);
-        self.token_license_by_id.remove(&token_id);
+        if let Some(_license) = self.token_license_by_id.get(&token_id) {
+            self.token_license_by_id.remove(&token_id);
+        
+        }
         self.token_license_by_id.insert(&token_id, &license);
     }
 
@@ -222,6 +240,8 @@ impl Contract {
         
         approve
     }
+}
+
 /*
     pub fn request_approval(
         &mut self, 
@@ -254,4 +274,3 @@ impl Contract {
 
     }
 */
-}

@@ -1,8 +1,8 @@
 use crate::*;
-use near_sdk::{ext_contract, Gas};
+use near_sdk::{ext_contract};
 
-const GAS_FOR_NFT_APPROVE: Gas = Gas(10_000_000_000_000);
-const NO_DEPOSIT: Balance = 0;
+// const GAS_FOR_NFT_APPROVE: Gas = Gas(10_000_000_000_000);
+// const NO_DEPOSIT: Balance = 0;
 
 pub trait NonFungibleTokenCore {
     //approve an account ID to transfer a token on your behalf
@@ -23,7 +23,7 @@ pub trait NonFungibleTokenCore {
     fn nft_revoke_all(&mut self, token_id: TokenId);
 }
 
-#[ext_contract(ext_non_fungible_approval_receiver)]
+#[ext_contract(ext_nft_approval_receiver)]
 trait NonFungibleTokenApprovalsReceiver {
     //cross contract call to an external contract that is initiated during nft_approve
     fn nft_on_approve(
@@ -91,14 +91,12 @@ impl NonFungibleTokenCore for Contract {
         //if some message was passed into the function, we initiate a cross contract call on the
         //account we're giving access to. 
         if let Some(msg) = msg {
-            ext_non_fungible_approval_receiver::nft_on_approve(
+            ext_nft_approval_receiver::ext(account_id.clone())
+            .nft_on_approve(
                 token_id,
                 token.owner_id,
                 approval_id,
                 msg,
-                account_id, //contract account we're calling
-                NO_DEPOSIT, //NEAR deposit we attach to the call
-                env::prepaid_gas() - GAS_FOR_NFT_APPROVE, //GAS we're attaching
             )
             .as_return(); // Returning this promise
         }
