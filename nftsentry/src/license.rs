@@ -23,7 +23,7 @@ impl Contract {
         let current_account_id = env::current_account_id();
         let token = self.tokens_by_id.get(&token_id).expect("No token");
 
-        if ( predecessor_id != current_account_id ) ||  ( predecessor_id != token.owner_id ) {
+        if ( predecessor_id != current_account_id ) || ( predecessor_id != token.owner_id ) {
             panic!("License can only be updated directly by the minter while the minter owns the token");
         }
        
@@ -67,7 +67,7 @@ impl Contract {
        //measure the initial storage being used on the contract
         // assert_one_yocto();
 
-       let initial_storage_usage = env::storage_usage();
+        let initial_storage_usage = env::storage_usage();
 
         let token = self.tokens_by_id.get(&token_id).expect("No token");
         let predecessor_id = env::predecessor_account_id();
@@ -77,10 +77,8 @@ impl Contract {
             panic!("Only the token owner can approve a license update");
         }
     
-       
-       //let master_id = env::predecessor_account_id();
-
-       self.internal_update_license(&predecessor_id, &token_id); 
+              
+        self.internal_update_license(&predecessor_id, &token_id); 
     
         // Construct the mint log as per the events standard.
         let nft_license_update_log: EventLog = EventLog {
