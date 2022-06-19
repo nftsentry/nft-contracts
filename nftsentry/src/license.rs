@@ -13,8 +13,7 @@ impl Contract {
     
     #[payable]
     pub fn nft_update_license(
-        &mut self, 
-        authorized_id: Option<String>, 
+        &mut self,  
         token_id: TokenId, 
         license: TokenLicense, 
     ){
@@ -41,7 +40,7 @@ impl Contract {
             version: NFT_LICENSE_SPEC.to_string(),
             // The data related with the event stored in a vector.
             event: EventLogVariant::NftUpdateLicense(vec![NftUpdateLicenseLog {
-                authorized_id,
+                owner_id: token.owner_id.to_string(),
                 // Owner of the token.
                 token_ids: vec![token_id.to_string()],
                 // An optional memo to include.
@@ -63,7 +62,7 @@ impl Contract {
     
 
     #[payable]
-    pub fn nft_approve_license(&mut self, authorized_id: Option<String>, token_id: TokenId){
+    pub fn nft_approve_license(&mut self, token_id: TokenId){
        //measure the initial storage being used on the contract
         // assert_one_yocto();
 
@@ -89,9 +88,8 @@ impl Contract {
             // The data related with the event stored in a vector.
             
             event: EventLogVariant::NftApproveLicense(vec![NftApproveLicenseLog {
-                authorized_id,
+                owner_id: token.owner_id.to_string(),
                 // Owner of the token.
-                
                 token_ids: vec![token_id.to_string()],
                 // An optional memo to include.
                 memo: None,
@@ -110,12 +108,14 @@ impl Contract {
     }
 
     #[payable]
-    pub fn nft_propose_license(&mut self, authorized_id: Option<String>,token_id: TokenId, proposed_license: TokenLicense){
+    pub fn nft_propose_license(&mut self, token_id: TokenId, proposed_license: TokenLicense){
        //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
         
         let predecessor_id = env::predecessor_account_id();
         let current_account_id = env::current_account_id();
+        let token = self.tokens_by_id.get(&token_id).expect("No token");
+
 
         if predecessor_id != current_account_id {
             panic!("Only the contract owner can propose a license update");
@@ -131,7 +131,7 @@ impl Contract {
             version: NFT_LICENSE_SPEC.to_string(),
             // The data related with the event stored in a vector.
             event: EventLogVariant::NftProposeLicense(vec![NftProposeLicenseLog {
-                authorized_id,
+                owner_id: token.owner_id.to_string(),
                 // Owner of the token.
                 token_ids: vec![token_id.to_string()],
                 // An optional memo to include.
