@@ -15,13 +15,6 @@ impl Contract {
         //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
 
-        let predecessor_id = env::predecessor_account_id();
-        let current_account_id = env::current_account_id();
-
-        if predecessor_id != current_account_id {
-            panic!("Only the contract owner can mint tokens");
-        }
-
         // create a royalty map to store in the token
         let mut royalty = HashMap::new();
 
