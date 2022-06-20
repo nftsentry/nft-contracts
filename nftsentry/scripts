@@ -14,25 +14,25 @@ near deploy --wasmFile out/main.wasm --accountId $NFT_CONTRACT_ID
 
 near call $NFT_CONTRACT_ID new_default_meta '{"owner_id":"'$NFT_CONTRACT_ID'"}' --accountId $NFT_CONTRACT_ID
 
-near call $NFT_CONTRACT_ID nft_mint '{"token_id": "001", "metadata": {"title": "Demo Token #1", "description": "NFTSentry Demo Token #1", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "license": {}, "receiver_id": "'$NFT_CONTRACT_ID'"}' --accountId $NFT_CONTRACT_ID --amount 0.1
+near call $NFT_CONTRACT_ID nft_mint '{"token_id": "001", "metadata": {"title": "Demo Token #1", "description": "NFTSentry Demo Token #1", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "receiver_id": "'$NFT_CONTRACT_ID'", "license": {}}' --accountId $NFT_CONTRACT_ID --amount 0.1
 
-near call $NFT_CONTRACT_ID nft_mint '{"token_id": "002", "metadata": {"title": "Demo Token #2", "description": "NFTSentry Demo Token #2", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "license": {}, "receiver_id": "'$NFT_CONTRACT_ID'"}' --accountId $NFT_CONTRACT_ID --amount 0.1
+near call $NFT_CONTRACT_ID nft_mint '{"token_id": "002", "metadata": {"title": "Demo Token #2", "description": "NFTSentry Demo Token #2", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "receiver_id": "'$NFT_CONTRACT_ID'", "license": {}}' --accountId $NFT_CONTRACT_ID --amount 0.1
 
-near call $NFT_CONTRACT_ID nft_mint '{"token_id": "003", "metadata": {"title": "Demo Token #3", "description": "NFTSentry Demo Token #3", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "license": {}, "receiver_id": "'$NFT_CONTRACT_ID'"}' --accountId $NFT_CONTRACT_ID --amount 0.1
+near call $NFT_CONTRACT_ID nft_mint '{"token_id": "003", "metadata": {"title": "Demo Token #3", "description": "NFTSentry Demo Token #3", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "receiver_id": "'$NFT_CONTRACT_ID'", "license": {}}' --accountId $NFT_CONTRACT_ID --amount 0.1
 
-near call $NFT_CONTRACT_ID nft_license_update '{"token_id": "001", "license": {"title": "A", "description": "B"}, "receiver_id": "'$NFT_CONTRACT_ID'"}' --accountId $NFT_CONTRACT_ID --amount 0.1
+near call $NFT_CONTRACT_ID nft_license_update '{"token_id": "001", "license": {"title": "A", "description": "B"}}' --accountId $NFT_CONTRACT_ID --amount 0.1
 
-near call $NFT_CONTRACT_ID nft_propose_license '{"token_id": "002", "proposed_license": {"title": "A", "description": "B"}, "receiver_id": "'$NFT_CONTRACT_ID'"}' --accountId $NFT_CONTRACT_ID --amount 0.1
+near call $NFT_CONTRACT_ID nft_propose_license '{"token_id": "002", "proposed_license": {"title": "A", "description": "B"}}' --accountId $NFT_CONTRACT_ID --amount 0.1
 
 near call $NFT_CONTRACT_ID nft_transfer '{"receiver_id": "'$TEST1_CONTRACT_ACCOUNT'", "token_id": "001", "memo": "You are the owner of #001"}' --accountId $NFT_CONTRACT_ID --depositYocto 1
 
-near call $NFT_CONTRACT_ID nft_license_proposed_update '{"token_id":"001", "receiver_id": "'$TEST1_CONTRACT_ID'"}' --accountId $NFT_CONTRACT_ID --depositYocto 0.1
+near call $NFT_CONTRACT_ID nft_license_proposed_update '{"token_id":"001"}' --accountId $NFT_CONTRACT_ID --depositYocto 0.1
 
 near call $NFT_CONTRACT_ID nft_transfer '{"receiver_id": "'$NFTSENTRY_ID'", "token_id": "001", "memo": "You are the owner of #001"}' --accountId $NFT_CONTRACT_ID --depositYocto 1
 
 
 near call test1.lsheiba.testnet nft_propose_license '{"token_id": "002", "proposed_license": {"title": "LEVEL 1 NONEXCLUSIVE NON-COMMERCIAL LICENSE AGREEMENT", "description": "template level1_ne","issuer_id":"'test1.lsheiba.testnet'","uri":"https://nftstorage.link/ipfs/bafybeifp2k76qi33znp2c4d6yavg6ypnvrtotd5aq77rqyxoregxclfrki"}, "receiver_id": "'test2.lsheiba.testnet'"}' --accountId test1.lsheiba.testnet --amount 0.1
-near call test1.lsheiba.testnet nft_approve_license '{"token_id":"002", "receiver_id": "'test2.lsheiba.testnet'"}' --accountId $NFT_CONTRACT_ID --depositYocto 0.1
+near call test1.lsheiba.testnet nft_approve_license '{"token_id":"002"}' --accountId $NFT_CONTRACT_ID --depositYocto 0.1
 
 
 near call test1.lsheiba.testnet nft_mint '{"token_id": "003", "metadata": {"title": "Demo Token #3", "description": "NFTSentry Demo Token #3", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "license": {}, "receiver_id": "'test1.lsheiba.testnet'"}' --accountId test1.lsheiba.testnet --amount 0.1
@@ -56,20 +56,18 @@ near call test1.lsheiba.testnet nft_transfer '{"receiver_id": "'test2.lsheiba.te
 3.
 near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'
 4.
-near call test1.lsheiba.testnet nft_propose_license '{"token_id": "001", "proposed_license": {"title": "LEVEL 1 NONEXCLUSIVE NON-COMMERCIAL LICENSE AGREEMENT", "description": "template level1_ne","issuer_id":"'test1.lsheiba.testnet'","uri":"https://nftstorage.link/ipfs/bafybeifp2k76qi33znp2c4d6yavg6ypnvrtotd5aq77rqyxoregxclfrki"}, "receiver_id": "'test2.lsheiba.testnet'"}' --accountId test1.lsheiba.testnet --amount 0.1
+near call test1.lsheiba.testnet nft_propose_license '{"token_id": "001", "proposed_license": {"title": "LEVEL 1 NONEXCLUSIVE NON-COMMERCIAL LICENSE AGREEMENT", "description": "template level1_ne","issuer_id":"'test1.lsheiba.testnet'","uri":"https://nftstorage.link/ipfs/bafybeifp2k76qi33znp2c4d6yavg6ypnvrtotd5aq77rqyxoregxclfrki"}}' --accountId test1.lsheiba.testnet --amount 0.1
 5.
 near view test1.lsheiba.testnet nft_proposed_license '{"token_id": "001"}
 6.
-near call test1.lsheiba.testnet nft_approve_license '{"token_id":"001", "receiver_id": "'test2.lsheiba.testnet'"}' --accountId test1.lsheiba.testnet --amount 0.1
+near call test1.lsheiba.testnet nft_approve_license '{"token_id":"001"}' --accountId test1.lsheiba.testnet --amount 0.1
 7.
- near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'
-
- 
-
- ear call test1.lsheiba.testnet nft_propose_license '{"token_id": "001", "proposed_license": {}, "receiver_id": "'test2.lsheiba.testnet'"}' --accountId test1.lsheiba.testnet --amount 0.1
-5.
-near view test1.lsheiba.testnet nft_proposed_license '{"token_id": "001"}
-6.
-near call test1.lsheiba.testnet nft_approve_license '{"token_id":"001", "receiver_id": "'test2.lsheiba.testnet'"}' --accountId test1.lsheiba.testnet --amount 0.1
-7.
+near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'
+8.
+near call test1.lsheiba.testnet nft_propose_license '{"token_id": "001", "proposed_license": {}}' --accountId test1.lsheiba.testnet --amount 0.1
+9.
+near view test1.lsheiba.testnet nft_proposed_license '{"token_id": "001"}''
+10.
+near call test1.lsheiba.testnet nft_approve_license '{"token_id":"001"}' --accountId test1.lsheiba.testnet --amount 0.1
+11.
  near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'

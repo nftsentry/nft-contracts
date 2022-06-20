@@ -29,7 +29,7 @@ pub enum EventLogVariant {
 pub struct EventLog {
     pub standard: String,
     pub version: String,
-
+    
     // `flatten` to not have "event": {<EventLogVariant>} in the JSON, just have the contents of {<EventLogVariant>}.
     #[serde(flatten)]
     pub event: EventLogVariant,
@@ -92,9 +92,6 @@ pub struct NftTransferLog {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct NftUpdateLicenseLog {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorized_id: Option<String>,
-
     pub owner_id: String,
     pub token_ids: Vec<String>,
 
@@ -105,9 +102,6 @@ pub struct NftUpdateLicenseLog {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct NftProposeLicenseLog {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorized_id: Option<String>,
-
     pub owner_id: String,
     pub token_ids: Vec<String>,
 
@@ -118,9 +112,6 @@ pub struct NftProposeLicenseLog {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct NftApproveLicenseLog {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorized_id: Option<String>,
-
     pub owner_id: String,
     pub token_ids: Vec<String>,
 

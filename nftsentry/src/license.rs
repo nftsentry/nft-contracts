@@ -9,20 +9,27 @@ const MIN_GAS_FOR_LICENSE_APPROVE_CALL: Gas = Gas(100_000_000_000_000);
 
 #[near_bindgen]
 impl Contract {
+    
+    
     #[payable]
     pub fn nft_update_license(
-        &mut self, 
-        authorized_id: Option<String>, 
+        &mut self,  
         token_id: TokenId, 
         license: TokenLicense, 
-        receiver_id: AccountId
     ){
-       //measure the initial storage being used on the contract
-        let initial_storage_usage = env::storage_usage();
+       
+        let predecessor_id = env::predecessor_account_id();
+        let token = self.tokens_by_id.get(&token_id).expect("No token");
 
-        let master_id = env::predecessor_account_id();
-    
-        self.internal_replace_license(&master_id,&token_id,&license);
+        if predecessor_id != token.owner_id {
+            panic!("License can only be updated directly by the token owner");
+        }
+       
+        //measure the initial storage being used on the contract
+        let initial_storage_usage = env::storage_usage();
+        
+                
+        self.internal_replace_license(&predecessor_id,&token_id,&license);
     
         // Construct the mint log as per the events standard.
         let nft_license_update_log: EventLog = EventLog {
@@ -32,10 +39,8 @@ impl Contract {
             version: NFT_LICENSE_SPEC.to_string(),
             // The data related with the event stored in a vector.
             event: EventLogVariant::NftUpdateLicense(vec![NftUpdateLicenseLog {
-                authorized_id,
+                owner_id: token.owner_id.to_string(),
                 // Owner of the token.
-                owner_id: receiver_id.to_string(),
-                // Vector of token IDs that were minted.
                 token_ids: vec![token_id.to_string()],
                 // An optional memo to include.
                 memo: None,
@@ -53,21 +58,25 @@ impl Contract {
         }
     }
 
+    
+
     #[payable]
-    pub fn nft_approve_license(&mut self, authorized_id: Option<String>, token_id: TokenId, receiver_id: AccountId){
+    pub fn nft_approve_license(&mut self, token_id: TokenId){
        //measure the initial storage being used on the contract
         // assert_one_yocto();
 
-       let initial_storage_usage = env::storage_usage();
+        let initial_storage_usage = env::storage_usage();
 
-       let token = self.tokens_by_id.get(&token_id).expect("No token");
-       if receiver_id != token.owner_id {
-           panic!("Only the owner can approve a license");
-       }
-
-       let master_id = env::predecessor_account_id();
-
-       self.internal_update_license(&master_id, &token_id); 
+        let token = self.tokens_by_id.get(&token_id).expect("No token");
+        let predecessor_id = env::predecessor_account_id();
+        
+        
+        if predecessor_id != token.owner_id {
+            panic!("Only the token owner can approve a license update");
+        }
+    
+              
+        self.internal_update_license(&predecessor_id, &token_id); 
     
         // Construct the mint log as per the events standard.
         let nft_license_update_log: EventLog = EventLog {
@@ -76,11 +85,10 @@ impl Contract {
             // Version of the standard ("nft-1.0.0").
             version: NFT_LICENSE_SPEC.to_string(),
             // The data related with the event stored in a vector.
+            
             event: EventLogVariant::NftApproveLicense(vec![NftApproveLicenseLog {
-                authorized_id,
+                owner_id: token.owner_id.to_string(),
                 // Owner of the token.
-                owner_id: receiver_id.to_string(),
-                // Vector of token IDs that were minted.
                 token_ids: vec![token_id.to_string()],
                 // An optional memo to include.
                 memo: None,
@@ -99,13 +107,14 @@ impl Contract {
     }
 
     #[payable]
-    pub fn nft_propose_license(&mut self, authorized_id: Option<String>,token_id: TokenId, proposed_license: TokenLicense, receiver_id: AccountId){
+    pub fn nft_propose_license(&mut self, token_id: TokenId, proposed_license: TokenLicense){
        //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
         
-        let master_id = env::predecessor_account_id();
+        let predecessor_id = env::predecessor_account_id();
+        let token = self.tokens_by_id.get(&token_id).expect("No token");
     
-        self.internal_propose_license(&master_id, &token_id, &proposed_license);
+        self.internal_propose_license(&predecessor_id, &token_id, &proposed_license);
 
         // Construct the mint log as per the events standard.
         let nft_propose_license_log: EventLog = EventLog {
@@ -115,10 +124,8 @@ impl Contract {
             version: NFT_LICENSE_SPEC.to_string(),
             // The data related with the event stored in a vector.
             event: EventLogVariant::NftProposeLicense(vec![NftProposeLicenseLog {
-                authorized_id,
+                owner_id: token.owner_id.to_string(),
                 // Owner of the token.
-                owner_id: receiver_id.to_string(),
-                // Vector of token IDs that were minted.
                 token_ids: vec![token_id.to_string()],
                 // An optional memo to include.
                 memo: None,
@@ -176,7 +183,7 @@ impl Contract {
             None
         }
     }
-
+    #[private]
     pub fn internal_propose_license(&mut self, account_id: &AccountId, token_id: &TokenId, proposed_license: &TokenLicense) {
         println!("==>internal_propose_license, account={}", account_id);
         if let Some(_license) = self.token_proposed_license_by_id.get(&token_id) {
@@ -185,6 +192,7 @@ impl Contract {
         self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
     }
 
+    #[private]
     pub fn internal_update_license(&mut self, account_id: &AccountId, token_id: &TokenId) {
         println!("==>internal_update_license, account={}", account_id);
         if let Some(proposed_license) = self.token_proposed_license_by_id.get(&token_id) {
@@ -201,6 +209,7 @@ impl Contract {
         }
     }
 
+    #[private]
     pub fn internal_replace_license(&mut self, account_id: &AccountId, token_id: &TokenId, license: &TokenLicense) {
         println!("==>internal_replace_license, account={}", account_id);
         if let Some(_license) = self.token_license_by_id.get(&token_id) {
@@ -210,7 +219,7 @@ impl Contract {
         self.token_license_by_id.insert(&token_id, &license);
     }
 
- 
+    #[private]
     pub fn license_approval(
         sender_id: AccountId, 
         account_id: AccountId, 
