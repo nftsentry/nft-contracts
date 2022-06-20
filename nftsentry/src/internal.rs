@@ -13,6 +13,7 @@ pub(crate) fn bytes_for_approved_account_id(account_id: &AccountId) -> u64 {
     account_id.as_str().len() as u64 + 4 + size_of::<u64>() as u64
 }
 
+
 //refund the storage taken up by passed in approved account IDs and send the funds to the passed in account ID. 
 pub(crate) fn refund_approved_account_ids_iter<'a, I>(
     account_id: AccountId,
@@ -195,6 +196,8 @@ impl Contract {
             next_approval_id: token.next_approval_id,
             //we copy over the royalties from the previous token
             royalty: token.royalty.clone(),
+            approved_license_account_ids: Default::default(),
+            next_license_id: token.next_license_id,
         };
         //insert that new token into the tokens_by_id, replacing the old entry 
         self.tokens_by_id.insert(token_id, &new_token);

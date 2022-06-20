@@ -40,6 +40,10 @@ impl Contract {
             next_approval_id: 0,
             //the map of perpetual royalties for the token (The owner will get 100% - total perpetual royalties)
             royalty: royalty.clone(),
+            //we set the approved license proposal accounts to an empty map
+            approved_license_account_ids: Default::default(),
+            //we set teh next license proposal ID to 0
+            next_license_id: 0,
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
@@ -93,6 +97,7 @@ impl Contract {
             license,
             approved_account_ids: token.approved_account_ids,
             royalty: royalty.clone(),
+            approved_license_account_ids: token.approved_license_account_ids,
         }
     }
 

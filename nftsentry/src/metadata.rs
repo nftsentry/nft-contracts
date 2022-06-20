@@ -85,6 +85,10 @@ pub struct Token {
     pub next_approval_id: u64,
     //keep track of the royalty percentages for the token in a hash map
     pub royalty: HashMap<AccountId, u32>,
+    //list of approved account IDs that can propose a license
+    pub approved_license_account_ids: HashMap<AccountId, u64>,
+    //the next license approver ID to give out
+    pub next_license_id: u64,
 }
 
 //The Json token is what will be returned from view calls. 
@@ -107,6 +111,8 @@ pub struct JsonToken {
     pub approved_account_ids: HashMap<AccountId, u64>,
     //keep track of the royalty percentages for the token in a hash map
     pub royalty: HashMap<AccountId, u32>,
+    //list of accounts that can propose license updates
+    pub approved_license_account_ids: HashMap<AccountId, u64>,
 }
 
 //The Json token is what will be returned from view calls. 
