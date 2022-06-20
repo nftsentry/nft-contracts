@@ -19,11 +19,10 @@ impl Contract {
     ){
        
         let predecessor_id = env::predecessor_account_id();
-        let current_account_id = env::current_account_id();
         let token = self.tokens_by_id.get(&token_id).expect("No token");
 
-        if ( predecessor_id != current_account_id ) || ( predecessor_id != token.owner_id ) {
-            panic!("License can only be updated directly by the minter while the minter owns the token");
+        if predecessor_id != token.owner_id {
+            panic!("License can only be updated directly by the token owner");
         }
        
         //measure the initial storage being used on the contract
@@ -113,13 +112,7 @@ impl Contract {
         let initial_storage_usage = env::storage_usage();
         
         let predecessor_id = env::predecessor_account_id();
-        let current_account_id = env::current_account_id();
         let token = self.tokens_by_id.get(&token_id).expect("No token");
-
-
-        if predecessor_id != current_account_id {
-            panic!("Only the contract owner can propose a license update");
-        }
     
         self.internal_propose_license(&predecessor_id, &token_id, &proposed_license);
 
