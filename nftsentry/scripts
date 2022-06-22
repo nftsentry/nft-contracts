@@ -49,25 +49,46 @@ near call test1.lsheiba.testnet nft_mint '{"token_id": "001", "metadata": {"titl
 near call test2.lsheiba.testnet nft_mint '{"token_id": "001", "metadata": {"title": "Demo Token #1", "description": "NFTSentry Demo Token #1", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "license": {}, "receiver_id": "'test2.lsheiba.testnet'"}' --accountId test2.lsheiba.testnet --amount 0.1
 near call test1.lsheiba.testnet nft_mint '{"token_id": "002", "metadata": {"title": "Demo Token #2", "description": "NFTSentry Demo Token #2", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "license": {}, "receiver_id": "'test1.lsheiba.testnet'"}' --accountId test1.lsheiba.testnet --amount 0.1
 
-1.
-near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'
-2.
-near call test1.lsheiba.testnet nft_transfer '{"receiver_id": "'test2.lsheiba.testnet'", "token_id": "001", "memo": "You are the owner of #001"}' --accountId test1.lsheiba.testnet --depositYocto 1
-3.
-near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'
-4.
-near call test1.lsheiba.testnet nft_propose_license '{"token_id": "001", "proposed_license": {"title": "LEVEL 1 NONEXCLUSIVE NON-COMMERCIAL LICENSE AGREEMENT", "description": "template level1_ne","issuer_id":"'test1.lsheiba.testnet'","uri":"https://nftstorage.link/ipfs/bafybeifp2k76qi33znp2c4d6yavg6ypnvrtotd5aq77rqyxoregxclfrki"}}' --accountId test1.lsheiba.testnet --amount 0.1
-5.
-near view test1.lsheiba.testnet nft_proposed_license '{"token_id": "001"}
-6.
-near call test1.lsheiba.testnet nft_approve_license '{"token_id":"001"}' --accountId test1.lsheiba.testnet --amount 0.1
-7.
-near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'
-8.
-near call test1.lsheiba.testnet nft_propose_license '{"token_id": "001", "proposed_license": {}}' --accountId test1.lsheiba.testnet --amount 0.1
-9.
-near view test1.lsheiba.testnet nft_proposed_license '{"token_id": "001"}''
-10.
-near call test1.lsheiba.testnet nft_approve_license '{"token_id":"001"}' --accountId test1.lsheiba.testnet --amount 0.1
-11.
- near view test1.lsheiba.testnet nft_tokens '{"from_index": "0", "limit": 50}'
+
+00. near deploy --wasmFile res/nftsentry.wasm --accountId $NFT_CONTRACT_ID1
+01. near call $NFT_CONTRACT_ID1 new_default_meta '{"owner_id":"'$NFT_CONTRACT_ID1'"}' --accountId $NFT_CONTRACT_ID1
+02. near call $NFT_CONTRACT_ID1 nft_mint '{"token_id": "001", "metadata": {"title": "Demo Token #1", "description": "NFTSentry Demo Token #1", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "license": {}, "receiver_id": "'$NFT_CONTRACT_ID1'"}' --accountId $NFT_CONTRACT_ID1 --amount 0.1
+
+
+03. near view $NFT_CONTRACT_ID1 nft_tokens '{"from_index": "0", "limit": 50}'
+
+04. near call $NFT_CONTRACT_ID1 nft_transfer '{"receiver_id": "'$NFT_CONTRACT_ID2'", "token_id": "001", "memo": "You are the owner of #001"}' --accountId $NFT_CONTRACT_ID1 --depositYocto 1
+
+05. near view $NFT_CONTRACT_ID1 nft_tokens '{"from_index": "0", "limit": 50}'
+
+06. near call $NFT_CONTRACT_ID1 nft_propose_license '{"token_id": "001", "proposed_license": {"title": "LEVEL 1 NONEXCLUSIVE NON-COMMERCIAL LICENSE AGREEMENT", "description": "template level1_ne","issuer_id":"'$NFT_CONTRACT_ID1'","uri":"https://nftstorage.link/ipfs/bafybeifp2k76qi33znp2c4d6yavg6ypnvrtotd5aq77rqyxoregxclfrki"}}' --accountId $NFT_CONTRACT_ID1 --amount 0.1
+
+07. near view $NFT_CONTRACT_ID1 nft_proposed_license '{"token_id": "001"}'
+
+08. near call $NFT_CONTRACT_ID1 nft_approve_license '{"token_id":"001"}' --accountId $NFT_CONTRACT_ID2 --amount 0.1 --depositYocto 1
+
+09. near view $NFT_CONTRACT_ID1 nft_tokens '{"from_index": "0", "limit": 50}'
+
+10. near call $NFT_CONTRACT_ID1 nft_propose_license '{"token_id": "001", "proposed_license": {}}' --accountId $NFT_CONTRACT_ID1 --amount 0.1
+
+11. near view $NFT_CONTRACT_ID1 nft_proposed_license '{"token_id": "001"}'
+
+12. near call $NFT_CONTRACT_ID1 nft_approve_license '{"token_id":"001"}' --accountId $NFT_CONTRACT_ID2 --amount 0.1 --depositYocto 1
+
+13. near view $NFT_CONTRACT_ID1 nft_tokens '{"from_index": "0", "limit": 50}'
+
+
+
+ 00. 5428 deploy
+ 01. 5429 new_default_meta
+ 02. 5430 nft_mint
+ 03. 5431 nft_tokens
+ 
+ 04. 5432 nft_transfer
+ 05. 5431 nft_tokens
+ 06. 5434 nft_proposed_license 
+ 07. 5435 nft_propose_license
+ 08. 5434 nft_proposed_license
+ 09. 5469 nft_approve_license
+ 10. 5431 nft_token
+

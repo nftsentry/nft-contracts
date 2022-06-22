@@ -63,7 +63,7 @@ impl Contract {
     #[payable]
     pub fn nft_approve_license(&mut self, token_id: TokenId){
        //measure the initial storage being used on the contract
-        // assert_one_yocto();
+        assert_one_yocto(); // user need to sign for approve transaction
 
         let initial_storage_usage = env::storage_usage();
 
@@ -199,12 +199,10 @@ impl Contract {
             self.token_proposed_license_by_id.remove(&token_id );
             if let Some(_license) = self.token_license_by_id.get(&token_id) {
                 self.token_license_by_id.remove(&token_id);
-             }
-             self.token_license_by_id.insert(&token_id, &proposed_license);
-            
+            }
+            self.token_license_by_id.insert(&token_id, &proposed_license);
         } else {
             log!("No proposed license i the token");
-            
             panic!("No propose license in the token");
         }
     }

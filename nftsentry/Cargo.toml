@@ -2,7 +2,7 @@
 name = "nftsentry"
 version = "0.1.0"
 edition = "2021"
-authors = ["Kibernetika Inc <info@kibernetika.ai>"]
+authors = ["NFTSentry Inc <info@nftsentry.co>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

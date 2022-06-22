@@ -186,7 +186,7 @@ impl NonFungibleTokenCore for Contract {
                 owner_id: token.owner_id,
                 metadata,
                 license,
-            //    proposed_license,
+            //    proposed_license,     TODO: show proposed license. If proposed license
                 approved_account_ids: token.approved_account_ids,
                 royalty: token.royalty,
             })
