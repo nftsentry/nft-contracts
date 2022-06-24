@@ -9,30 +9,30 @@ const MIN_GAS_FOR_LICENSE_APPROVE_CALL: Gas = Gas(100_000_000_000_000);
 
 #[near_bindgen]
 impl Contract {
-    
-    
+
+
     #[payable]
     pub fn nft_update_license(
         &mut self,  
         token_id: TokenId, 
         license: TokenLicense, 
     ){
-       
+
         let predecessor_id = env::predecessor_account_id();
         let token = self.tokens_by_id.get(&token_id).expect("No token");
 
         if predecessor_id != token.owner_id {
             panic!("License can only be updated directly by the token owner");
         }
-       
+
         //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
-        
-                
+
+
         self.internal_replace_license(&predecessor_id,&token_id,&license);
-    
+
         // Construct the mint log as per the events standard.
-        let nft_license_update_log: EventLog = EventLog {
+        let nft_approve_license_log: EventLog = EventLog {
             // Standard name ("nep171").
             standard: NFT_LICENSE_STANDARD_NAME.to_string(),
             // Version of the standard ("nft-1.0.0").
@@ -48,7 +48,7 @@ impl Contract {
         };
 
         // Log the serialized json.
-        self.log_event(&nft_license_update_log.to_string());
+        self.log_event(&nft_approve_license_log.to_string());
 
         //calculate the required storage which was the used - initial
         let storage_usage = env::storage_usage();
@@ -58,7 +58,53 @@ impl Contract {
         }
     }
 
-    
+
+    #[payable]
+    pub fn nft_reject_license_call(&mut self, token_id: TokenId){
+       //measure the initial storage being used on the contract
+        assert_one_yocto(); // user need to sign for approve transaction
+
+        let initial_storage_usage = env::storage_usage();
+
+        let token = self.tokens_by_id.get(&token_id).expect("No token");
+        let predecessor_id = env::predecessor_account_id();
+
+
+        if predecessor_id != token.owner_id {
+            panic!("Only the token owner can approve a license update");
+        }
+
+        self.internal_reject_license(&predecessor_id, &token_id); 
+
+        // Construct the mint log as per the events standard.
+        let nft_reject_license_log: EventLog = EventLog {
+            // Standard name ("nep171").
+            standard: NFT_LICENSE_STANDARD_NAME.to_string(),
+            // Version of the standard ("nft-1.0.0").
+            version: NFT_LICENSE_SPEC.to_string(),
+            // The data related with the event stored in a vector.
+
+            event: EventLogVariant::NftRejectLicense(vec![NftRejectLicenseLog {
+                owner_id: token.owner_id.to_string(),
+                // Owner of the token.
+                token_ids: vec![token_id.to_string()],
+                // An optional memo to include.
+                memo: None,
+            }]),
+        };
+
+        // Log the serialized json.
+        self.log_event(&nft_reject_license_log.to_string());
+
+
+        //calculate the required storage which was the used - initial
+        let storage_usage = env::storage_usage();
+        if storage_usage > initial_storage_usage {
+            //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+            refund_deposit(storage_usage - initial_storage_usage);
+        }
+    }
+
 
     #[payable]
     pub fn nft_approve_license(&mut self, token_id: TokenId){
@@ -85,7 +131,7 @@ impl Contract {
             // Version of the standard ("nft-1.0.0").
             version: NFT_LICENSE_SPEC.to_string(),
             // The data related with the event stored in a vector.
-            
+
             event: EventLogVariant::NftApproveLicense(vec![NftApproveLicenseLog {
                 owner_id: token.owner_id.to_string(),
                 // Owner of the token.
@@ -110,10 +156,10 @@ impl Contract {
     pub fn nft_propose_license(&mut self, token_id: TokenId, proposed_license: TokenLicense){
        //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
-        
+
         let predecessor_id = env::predecessor_account_id();
         let token = self.tokens_by_id.get(&token_id).expect("No token");
-    
+
         self.internal_propose_license(&predecessor_id, &token_id, &proposed_license);
 
         // Construct the mint log as per the events standard.
@@ -208,11 +254,22 @@ impl Contract {
     }
 
     #[private]
+    pub fn internal_reject_license(&mut self, account_id: &AccountId, token_id: &TokenId) {
+        println!("==>internal_restore_license, account={}", account_id);
+        if let Some(_proposed_license) = self.token_proposed_license_by_id.get(&token_id) {
+            self.token_proposed_license_by_id.remove(&token_id );
+        } else {
+            log!("No proposed license in the token");
+            panic!("No propose license in the token");
+        }
+    }
+
+    #[private]
     pub fn internal_replace_license(&mut self, account_id: &AccountId, token_id: &TokenId, license: &TokenLicense) {
         println!("==>internal_replace_license, account={}", account_id);
         if let Some(_license) = self.token_license_by_id.get(&token_id) {
             self.token_license_by_id.remove(&token_id);
-        
+
         }
         self.token_license_by_id.insert(&token_id, &license);
     }
@@ -244,40 +301,8 @@ impl Contract {
             "You cannot attach less than {:?} Gas to nft_transfer_call",
             MIN_GAS_FOR_LICENSE_APPROVE_CALL
         );
-        
+
         approve
     }
 }
 
-/*
-    pub fn request_approval(
-        &mut self, 
-        account_id: AccountId, 
-        token_id: TokenId, 
-        receiver_id: AccountId, 
-        proposed_license: TokenLicense, 
-        memo: Option<String>,
-        msg: String,
-    ) -> Promise {
-
-        println!("==>request_approval");
-
-        //get the sender ID 
-        let sender_id = env::predecessor_account_id();
-
-        self.internal_propose_license(&sender_id, &token_id, &proposed_license);
-
-        let mut authorized_id = Some(sender_id.to_string());
-
-        license_authorization(
-            sender_id, 
-            account_id, 
-            token_id.clone(),
-            true
-            NO_DEPOSIT,
-            env::prepaid_gas - GAS_FOR_LICENSE_APPROVAL,
-        )
-        .then(internal_update_license(&sender_id, &token_id)).into()
-
-    }
-*/

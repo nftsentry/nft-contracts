@@ -77,7 +77,8 @@ near call test1.lsheiba.testnet nft_mint '{"token_id": "002", "metadata": {"titl
 
 13. near view $NFT_CONTRACT_ID1 nft_tokens '{"from_index": "0", "limit": 50}'
 
-
+5497 delete
+5498 creaate
 
  00. 5428 deploy
  01. 5429 new_default_meta

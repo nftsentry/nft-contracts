@@ -16,6 +16,7 @@ pub enum EventLogVariant {
     NftUpdateLicense(Vec<NftUpdateLicenseLog>),
     NftProposeLicense(Vec<NftProposeLicenseLog>),
     NftApproveLicense(Vec<NftApproveLicenseLog>),
+    NftRejectLicense(Vec<NftRejectLicenseLog>),
 }
 
 /// Interface to capture data about an event
@@ -119,6 +120,15 @@ pub struct NftApproveLicenseLog {
     pub memo: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct NftRejectLicenseLog {
+    pub owner_id: String,
+    pub token_ids: Vec<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memo: Option<String>,
+}
 
 #[cfg(test)]
 mod tests {
