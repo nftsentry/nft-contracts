@@ -60,7 +60,7 @@ impl Contract {
 
 
     #[payable]
-    pub fn nft_reject_license_call(&mut self, token_id: TokenId){
+    pub fn nft_reject_license(&mut self, token_id: TokenId){
        //measure the initial storage being used on the contract
         assert_one_yocto(); // user need to sign for approve transaction
 
