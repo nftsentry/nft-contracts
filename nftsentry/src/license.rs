@@ -115,15 +115,15 @@ impl Contract {
 
         let token = self.tokens_by_id.get(&token_id).expect("No token");
         let predecessor_id = env::predecessor_account_id();
-        
-        
+
+
         if predecessor_id != token.owner_id {
             panic!("Only the token owner can approve a license update");
         }
-    
-              
+
+
         self.internal_update_license(&predecessor_id, &token_id); 
-    
+
         // Construct the mint log as per the events standard.
         let nft_license_update_log: EventLog = EventLog {
             // Standard name ("nep171").
