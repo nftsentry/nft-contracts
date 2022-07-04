@@ -89,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn test1() {
+    fn test_license() {
         println!("==> test1");
         let mut context = get_context(test_accounts(0));
         testing_env!(context.build());
@@ -111,12 +111,14 @@ mod tests {
             None,
         );
 
-        let authorized_id = Some(test_accounts(0).to_string());
-        contract.nft_propose_license(authorized_id, token_id.clone(), sample_token_license(), test_accounts(0));
-        let authorized_id = Some(test_accounts(0).to_string());
-        contract.nft_approve_license(authorized_id, token_id.clone(), test_accounts(0));
-        let authorized_id = Some(test_accounts(0).to_string());
-        contract.nft_update_license(authorized_id, token_id.clone(), sample_token_license(), test_accounts(0));
+        contract.nft_propose_license(token_id.clone(), sample_token_license());
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(1)
+            .predecessor_account_id(test_accounts(0))
+            .build());
+        contract.nft_approve_license(token_id.clone());
+        contract.nft_update_license(token_id.clone(), sample_token_license());
 
         let authorized_id = test_accounts(0);
         let token_id = "token-1".to_string();
@@ -134,8 +136,6 @@ mod tests {
         println!("{}", serde_json::to_string(&out).unwrap());
 
         // assert_eq!(token.token_id, token_id);
-
-        assert!(true)
     }
 
     #[test]
