@@ -16,7 +16,7 @@ pub trait ExtStatusMessage {
 
 #[near_bindgen]
 impl FactoryContract {
-    pub fn deploy_status_message(&self, account_id: AccountId, amount: U128) {
+    pub fn deploy_contract(&self, account_id: AccountId, amount: U128) {
         Promise::new(account_id)
             .create_account()
             .transfer(amount.0)
@@ -24,6 +24,18 @@ impl FactoryContract {
             .deploy_contract(
                 include_bytes!("../../nftsentry/res/nftsentry.wasm").to_vec(),
             );
+    }
+
+    pub fn deploy_contract_code(&self, prefix: AccountId, code: Vec<u8>) -> Promise {
+        let subaccount_id = AccountId::new_unchecked(
+            format!("{}.{}", prefix, env::current_account_id())
+        );
+        let initial_balance = code.len() as u128 * 10e19 as u128 + 10e23 as u128;
+        Promise::new(subaccount_id)
+            .create_account()
+            .add_full_access_key(env::signer_account_pk())
+            .transfer(initial_balance)
+            .deploy_contract(code)
     }
 
     pub fn simple_call(&mut self, account_id: AccountId, message: String) {
