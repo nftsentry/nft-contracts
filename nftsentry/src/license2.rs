@@ -318,26 +318,52 @@ impl Contract {
         }
     }
 
+    #[private]
     pub fn internal_propose_license(&mut self, account_id: &AccountId, token_id: &TokenId, proposed_license: &TokenLicense) {
         println!("==>internal_propose_license, account={}", account_id);
-        self.token_proposed_license_by_id.remove(&token_id);
+        if let Some(_license) = self.token_proposed_license_by_id.get(&token_id) {
+            self.token_proposed_license_by_id.remove(&token_id);
+        }
         self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
     }
 
+    #[private]
     pub fn internal_update_license(&mut self, account_id: &AccountId, token_id: &TokenId) {
         println!("==>internal_update_license, account={}", account_id);
-        let proposed_license = self.token_proposed_license_by_id.get(&token_id).unwrap();
-        self.token_license_by_id.remove(&token_id);
-        self.token_license_by_id.insert(&token_id, &proposed_license);
+        if let Some(proposed_license) = self.token_proposed_license_by_id.get(&token_id) {
+            self.token_proposed_license_by_id.remove(&token_id );
+            if let Some(_license) = self.token_license_by_id.get(&token_id) {
+                self.token_license_by_id.remove(&token_id);
+            }
+            self.token_license_by_id.insert(&token_id, &proposed_license);
+        } else {
+            log!("No proposed license i the token");
+            panic!("No propose license in the token");
+        }
     }
 
+    #[private]
+    pub fn internal_reject_license(&mut self, account_id: &AccountId, token_id: &TokenId) {
+        println!("==>internal_restore_license, account={}", account_id);
+        if let Some(_proposed_license) = self.token_proposed_license_by_id.get(&token_id) {
+            self.token_proposed_license_by_id.remove(&token_id );
+        } else {
+            log!("No proposed license in the token");
+            panic!("No propose license in the token");
+        }
+    }
+
+    #[private]
     pub fn internal_replace_license(&mut self, account_id: &AccountId, token_id: &TokenId, license: &TokenLicense) {
         println!("==>internal_replace_license, account={}", account_id);
-        self.token_license_by_id.remove(&token_id);
+        if let Some(_license) = self.token_license_by_id.get(&token_id) {
+            self.token_license_by_id.remove(&token_id);
+
+        }
         self.token_license_by_id.insert(&token_id, &license);
     }
 
-
+    #[private]
     pub fn license_approval(
         sender_id: AccountId, 
         account_id: AccountId, 
@@ -368,37 +394,3 @@ impl Contract {
         approve
     }
 }
-
-/*
-    pub fn request_approval(
-        &mut self, 
-        account_id: AccountId, 
-        token_id: TokenId, 
-        receiver_id: AccountId, 
-        proposed_license: TokenLicense, 
-        memo: Option<String>,
-        msg: String,
-    ) -> Promise {
-
-        println!("==>request_approval");
-
-        //get the sender ID 
-        let sender_id = env::predecessor_account_id();
-
-        self.internal_propose_license(&sender_id, &token_id, &proposed_license);
-
-        let mut authorized_id = Some(sender_id.to_string());
-
-        license_authorization(
-            sender_id, 
-            account_id, 
-            token_id.clone(),
-            true
-            NO_DEPOSIT,
-            env::prepaid_gas - GAS_FOR_LICENSE_APPROVAL,
-        )
-        .then(internal_update_license(&sender_id, &token_id)).into()
-
-    }
-*/
-
