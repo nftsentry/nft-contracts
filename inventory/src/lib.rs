@@ -56,7 +56,7 @@ pub struct InventoryContract {
     pub token_metadata_by_id: UnorderedMap<AssetTokenId, AssetTokenMetadata>,
 
     //keeps track of the asset minter for a given token ID
-    pub token_minter_by_id: UnorderedMap<AssetTokenId, AssetMinterContractID>,
+    pub token_minter_by_id: UnorderedMap<AssetTokenId, AssetMinterContractId>,
 
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<InventoryContractMetadata>,
@@ -75,6 +75,7 @@ pub enum StorageKey {
     TokensPerType,
     TokensPerTypeInner { token_type_hash: CryptoHash },
     TokenTypesLocked,
+    TokenMinterById,
 }
 
 #[near_bindgen]
@@ -114,7 +115,7 @@ impl InventoryContract {
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
-            // token_minter_by_id: UnorderedMap::new(StorageKey::TokenMinterById.try_to_vec().unwrap()),
+            token_minter_by_id: UnorderedMap::new(StorageKey::TokenMinterById.try_to_vec().unwrap()),
             //set the owner_id field equal to the passed in owner_id. 
             owner_id,
             metadata: LazyOption::new(
