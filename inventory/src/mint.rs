@@ -8,40 +8,19 @@ impl InventoryContract {
         token_id: AssetTokenId,
         metadata: AssetTokenMetadata,
         receiver_id: AccountId,
-    //    license: Option<TokenLicense>,
-    //    perpetual_royalties: Option<HashMap<AccountId, u32>>,
-    ) -> JsonToken {
-        //we add an optional parameter for perpetual royalties
-        //measure the initial storage being used on the contract
+        licenses: Option<AssetLicenses>,
+    ) -> JsonAssetToken{
+        
         let initial_storage_usage = env::storage_usage();
 
-        // create a royalty map to store in the token
-        // let mut royalty = HashMap::new();
 
-        // if perpetual royalties were passed into the function: 
-        /* 
-        if let Some(perpetual_royalties) = perpetual_royalties {
-            //make sure that the length of the perpetual royalties is below 7 since we won't have enough GAS to pay out that many people
-            assert!(perpetual_royalties.len() < 7, "Cannot add more than 6 perpetual royalty amounts");
 
-            //iterate through the perpetual royalties and insert the account and amount in the royalty map
-            for (account, amount) in perpetual_royalties {
-                royalty.insert(account, amount);
-            }
-        }
-        */
-
-        //specify the token struct that contains the owner ID 
         let token = AssetToken {
             token_id: token_id.clone(),
-            //set the owner ID equal to the receiver ID passed into the function
             owner_id: receiver_id,
-            //we set the approved account IDs to the default value (an empty map)
-            // approved_account_ids: Default::default(),
-            //the next approval ID is set to 0
-            // next_approval_id: 0,
-            //the map of perpetual royalties for the token (The owner will get 100% - total perpetual royalties)
-            // royalty: royalty.clone(),
+            metadata: metadata.clone(),
+            minter_id: None,
+            licenses: licenses,
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
@@ -52,14 +31,11 @@ impl InventoryContract {
 
         //insert the token ID and metadata
         self.token_metadata_by_id.insert(&token.token_id, &metadata);
-        /* 
-        if let Some(ref license) = license {
+        // Insert the token ID and list of available licenses  
+        if let Some(ref licenses) = token.licenses {
             //insert the token ID and license
-            self.token_license_by_id.insert(&token.token_id, &license);
+            self.token_licenses_by_id.insert(&token.token_id, &licenses);
         }
-        */
-        //insert the token ID and license
-        //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
 
         //call the internal method for adding the token to the owner
         self.internal_add_token_to_owner(&token.owner_id, &token.token_id);
@@ -80,7 +56,7 @@ impl InventoryContract {
                 memo: None,
             }]),
         };
-
+        
         //calculate the required storage which was the used - initial
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
@@ -90,13 +66,12 @@ impl InventoryContract {
         // Log the serialized json.
         self.log_event(&asset_mint_log.to_string());
 
-        JsonToken{
+        JsonAssetToken{
             token_id: token_id.clone(),
             owner_id: token.owner_id,
+            minter_id: token.minter_id,
             metadata,
-            // license,
-            // approved_account_ids: token.approved_account_ids,
-            // royalty: royalty.clone(),
+            licenses: token.licenses,
         }
     }
 

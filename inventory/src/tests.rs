@@ -122,7 +122,7 @@ mod tests {
             sample_token_metadata(),
             accounts(0),
         //    Some(sample_token_license()),
-        //    None,
+            None,
         );
 
         assert_eq!(token.token_id, token_id);

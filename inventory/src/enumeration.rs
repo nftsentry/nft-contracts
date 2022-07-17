@@ -8,8 +8,28 @@ impl InventoryContract {
         U128(self.token_metadata_by_id.len() as u128)
     }
 
+    //get the information for a specific token ID
+    pub fn asset_token(&self, token_id: AssetTokenId) -> Option<JsonAssetToken> {
+        //if there is some token ID in the tokens_by_id collection
+        if let Some(token) = self.tokens_by_id.get(&token_id) {
+            //we'll get the metadata for that token
+            let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
+            let licenses = Some(self.token_licenses_by_id.get(&token_id).unwrap());
+            //we return the JsonAssetToken (wrapped by Some since we return an option)
+            Some(JsonAssetToken {
+                token_id,
+                owner_id: token.owner_id,
+                metadata,
+                licenses,
+                minter_id: token.minter_id,
+            })
+        } else { //if there wasn't a token ID in the tokens_by_id collection, we return None
+            None
+        }
+    }
+    
     //Query for nft tokens on the contract regardless of the owner using pagination
-    pub fn asset_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonToken> {
+    pub fn asset_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonAssetToken> {
         //where to start pagination - if we have a from_index, we'll use that - otherwise start from 0 index
         let start = u128::from(from_index.unwrap_or(U128(0)));
 
@@ -25,7 +45,7 @@ impl InventoryContract {
             .collect()
     }
 
-    //get the total supply of NFTs for a given owner
+    //get the total supply of asset tokens for a given owner
     pub fn asset_supply_for_owner(
         &self,
         account_id: AccountId,
@@ -48,7 +68,7 @@ impl InventoryContract {
         account_id: AccountId,
         from_index: Option<U128>,
         limit: Option<u64>,
-    ) -> Vec<JsonToken> {
+    ) -> Vec<JsonAssetToken> {
         //get the set of tokens for the passed in owner
         let tokens_for_owner_set = self.tokens_per_owner.get(&account_id);
         //if there is some set of tokens, we'll set the tokens variable equal to that set
