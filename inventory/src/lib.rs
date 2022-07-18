@@ -103,6 +103,7 @@ impl InventoryContract {
                 base_uri: None,
                 reference: None,
                 reference_hash: None,
+                licenses: Vec::new(),
             },
         )
     }

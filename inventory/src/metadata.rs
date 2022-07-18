@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::require;
+use near_sdk::{require};
 use near_sdk::serde::{Deserialize, Serialize};
 
 pub type AssetTokenId = String;
@@ -9,6 +9,14 @@ pub type AssetLicenses = Vec<LicenseData>;
 /// This spec can be treated like a version of the standard.
 pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct InventoryLicense {
+    pub license_id: String,
+    pub title: String,
+    pub price: Balance,
+    pub license: LicenseData,
+}
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -20,6 +28,7 @@ pub struct InventoryContractMetadata {
     pub base_uri: Option<String>, // Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs
     pub reference: Option<String>, // URL to a JSON file with more info
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+    pub licenses: Vec<InventoryLicense>,            // required, ex. "MOSIAC"
 }
 
 impl InventoryContractMetadata {
@@ -65,7 +74,8 @@ pub struct AssetTokenMetadata {
     // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
     pub reference_hash: Option<Base64VecU8>, 
 }
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[derive(Debug)]
 #[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
@@ -175,11 +185,27 @@ pub struct JsonTokenLicense {
 pub trait InventoryMetadata {
     //view call for returning the contract metadata
     fn inventory_metadata(&self) -> InventoryContractMetadata;
+    fn update_inventory_licenses(&mut self, licenses: Vec<InventoryLicense>) -> InventoryContractMetadata;
 }
 
 #[near_bindgen]
 impl InventoryMetadata for InventoryContract {
     fn inventory_metadata(&self) -> InventoryContractMetadata {
+        self.metadata.get().unwrap()
+    }
+
+    #[payable]
+    fn update_inventory_licenses(&mut self, licenses: Vec<InventoryLicense>) -> InventoryContractMetadata {
+        let initial_storage_usage = env::storage_usage();
+
+        let mut meta = self.metadata.get().unwrap();
+        meta.licenses = licenses;
+        self.metadata.replace(&meta);
+
+        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+        refund_deposit(required_storage_in_bytes);
+
         self.metadata.get().unwrap()
     }
 }
