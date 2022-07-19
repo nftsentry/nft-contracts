@@ -14,13 +14,13 @@ impl InventoryContract {
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
             let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
-            let licenses = Some(self.token_licenses_by_id.get(&token_id).unwrap());
+            let licenses = self.token_licenses_by_id.get(&token_id);
             //we return the JsonAssetToken (wrapped by Some since we return an option)
             Some(JsonAssetToken {
                 token_id,
                 owner_id: token.owner_id,
                 metadata,
-                licenses,
+                licenses: licenses,
                 minter_id: token.minter_id,
             })
         } else { //if there wasn't a token ID in the tokens_by_id collection, we return None
