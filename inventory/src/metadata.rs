@@ -4,7 +4,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 
 pub type AssetTokenId = String;
 pub type AssetMinterContractId = String;
-pub type AssetLicenses = Vec<LicenseData>;
+pub type AssetLicenses = Vec<AssetLicense>;
 pub type InventoryLicenses = Vec<InventoryLicense>;
 
 /// This spec can be treated like a version of the standard.
@@ -120,8 +120,11 @@ pub struct TokenLicense {
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
 }
 
-#[derive(Debug)]
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone)]
+#[serde(crate = "near_sdk::serde")]
+//#[derive(Debug)]
+//#[derive(BorshDeserialize, BorshSerialize)]
 pub struct AssetToken {
     // token_id: AssetTokenId,
     pub token_id: AssetTokenId,
@@ -137,8 +140,8 @@ pub struct AssetToken {
 
 //The Json token is what will be returned from view calls. 
 #[derive(Serialize, Deserialize)]
-#[derive(Debug)]
-#[derive(PartialEq)]
+//#[derive(Debug)]
+//#[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonAssetToken {
     //token ID
