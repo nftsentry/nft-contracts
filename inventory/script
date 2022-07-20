@@ -1,0 +1,7 @@
+near call test1.lsheiba.testnet update_inventory_licenses '{"licenses":[{"license_id":"L1","title":"L1","price":5,"license":{"i_agree":true,"personal_use":true}}]}' --account_id test1.lsheiba.testnet --amount 0.1
+
+near call test1.lsheiba.testnet update_inventory_licenses '{"licenses":[{"license_id":"L1","title":"L1","price":5,"license":{"i_agree":true,"personal_use":true}},{"license_id":"L2","title":"L2","price":2,"license":{"i_agree":true,"personal_use":true}}]}' --account_id test1.lsheiba.testnet --amount 0.1
+
+near call test1.lsheiba.testnet add_inventory_license '{"license":{"license_id":"L3","title":"L3","price":1,"license":{"i_agree":true,"personal_use":true}}}' --account_id test1.lsheiba.testnet --amount 0.1
+
+near call test1.lsheiba.testnet update_inventory_licenses '{"licenses":[]}' --account_id test1.lsheiba.testnet --amount 0.1
