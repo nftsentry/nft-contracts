@@ -28,6 +28,7 @@ mod enumeration;
 mod internal;
 pub mod metadata;
 pub mod mint;
+pub mod factory;
 mod events;
 mod tests;
 
