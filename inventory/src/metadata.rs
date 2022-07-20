@@ -7,7 +7,6 @@ pub type AssetMinterContractId = String;
 pub type AssetLicenses = Vec<LicenseData>;
 pub type InventoryLicenses = Vec<InventoryLicense>;
 
-
 /// This spec can be treated like a version of the standard.
 pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
 
@@ -19,6 +18,16 @@ pub struct InventoryLicense {
     pub price: Balance,
     pub license: LicenseData,
 }
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AssetLicense {
+    pub license_id: String,
+    pub title: String,
+    pub price: Balance,
+//    pub license: LicenseData,
+}
+
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -190,7 +199,6 @@ pub trait InventoryMetadata {
     fn inventory_licenses(&self) -> InventoryLicenses;
     fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> InventoryContractMetadata;
     fn add_inventory_license(&mut self, license: InventoryLicense) -> InventoryContractMetadata;
-//    fn remove_inventory_license(&mut self, license_id: String) -> InventoryContractMetadata;
 }
 
 #[near_bindgen]

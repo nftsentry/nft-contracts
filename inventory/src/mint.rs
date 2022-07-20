@@ -13,8 +13,6 @@ impl InventoryContract {
         
         let initial_storage_usage = env::storage_usage();
 
-
-
         let token = AssetToken {
             token_id: token_id.clone(),
             owner_id: receiver_id,
