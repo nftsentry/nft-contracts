@@ -18,7 +18,7 @@ impl InventoryContract {
             token_id: token_id.clone(),
             owner_id: receiver_id,
             metadata: metadata.clone(),
-            minter_id: minter_id,
+            minter_id: minter_id.clone(),
             licenses: licenses,
         };
 
