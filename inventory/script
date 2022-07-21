@@ -7,5 +7,6 @@ near call test1.lsheiba.testnet add_inventory_license '{"license":{"license_id":
 near call test1.lsheiba.testnet update_inventory_licenses '{"licenses":[]}' --account_id test1.lsheiba.testnet --amount 0.1
 
 near call test1.lsheiba.testnet asset_mint '{"token_id": "001", "metadata": {"title": "Demo Token #1", "description": "NFTSentry Demo Token #1", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "receiver_id": "test1.lsheiba.testnet", "licenses": [{"license_id":"L1","title":"L1","price":10}]}' --accountId test1.lsheiba.testnet --amount 0.1
+near call test1.lsheiba.testnet asset_mint '{"token_id": "001", "metadata": {"title": "Demo Token #1", "description": "NFTSentry Demo Token #1", "media": "https://bafkreieuet5njw5flrjqwfohnoxyewqu3hrzwumadfuxuz4cyfmhv447pq.ipfs.nftstorage.link"}, "receiver_id": "test1.lsheiba.testnet", "minter_id":"minter.test1.lsheiba.testnet","licenses": [{"license_id":"L1","title":"L1","price":10}]}' --accountId test1.lsheiba.testnet --amount 0.1
 
 near call test1.lsheiba.testnet deploy_contract_str '{"prefix":"minter","code":"res/nftsentry.wasm"}' --accountId test1.lsheiba.testnet
