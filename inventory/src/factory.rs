@@ -3,6 +3,7 @@ use crate::*;
 pub trait FactoryContract {
     // fn deploy_contract(&self, account_id: AccountId, amount: U128);
     fn deploy_contract_code(&self, prefix: AccountId, code: Vec<u8>) -> Promise;
+    fn deploy_contract_str(&self, prefix: AccountId, code: String) -> Promise;
     // fn simple_call(&mut self, account_id: AccountId, message: String);
     // fn complex_call(&mut self, account_id: AccountId, message: String) -> Promise;
 }
@@ -30,6 +31,18 @@ impl FactoryContract for InventoryContract {
             .add_full_access_key(env::signer_account_pk())
             .transfer(initial_balance)
             .deploy_contract(code)
+    }
+
+    fn deploy_contract_str(&self, prefix: AccountId, code: String) -> Promise {
+        let subaccount_id = AccountId::new_unchecked(
+            format!("{}.{}", prefix, env::current_account_id())
+        );
+        let initial_balance = code.len() as u128 * 10e19 as u128 + 10e23 as u128;
+        Promise::new(subaccount_id)
+            .create_account()
+            .add_full_access_key(env::signer_account_pk())
+            .transfer(initial_balance)
+            .deploy_contract(code.as_bytes().to_vec())
     }
 
     // fn simple_call(&mut self, account_id: AccountId, message: String) {

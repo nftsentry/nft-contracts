@@ -60,7 +60,7 @@ impl InventoryContract {
         //we insert that set for the given account ID. 
         self.tokens_per_owner.insert(account_id, &tokens_set);
     }
-
+/*  Function is not used in this project yet 
     //remove a token from an owner (internal method and can't be called directly via CLI).
     pub(crate) fn internal_remove_token_from_owner(
         &mut self,
@@ -85,4 +85,5 @@ impl InventoryContract {
             self.tokens_per_owner.insert(account_id, &tokens_set);
         }
     }
+*/
 }

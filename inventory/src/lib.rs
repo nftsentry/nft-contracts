@@ -12,6 +12,7 @@ pub use crate::events::*;
 pub use crate::mint::*;
 
 use crate::internal::*;
+use crate::asset::*;
 
 /* 
 pub use crate::nft_core::*;
@@ -31,6 +32,7 @@ pub mod mint;
 pub mod factory;
 mod events;
 mod tests;
+mod asset;
 
 /// This spec can be treated like a version of the standard.
 pub const NFT_METADATA_SPEC: &str = "nft-1.0.0";

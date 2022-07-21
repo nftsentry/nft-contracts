@@ -8,6 +8,7 @@ impl InventoryContract {
         token_id: AssetTokenId,
         metadata: AssetTokenMetadata,
         receiver_id: AccountId,
+        minter_id: Option<AccountId>,
         licenses: Option<AssetLicenses>,
     ) -> JsonAssetToken{
         
@@ -17,7 +18,7 @@ impl InventoryContract {
             token_id: token_id.clone(),
             owner_id: receiver_id,
             metadata: metadata.clone(),
-            minter_id: None,
+            minter_id: minter_id,
             licenses: licenses,
         };
 
@@ -71,30 +72,6 @@ impl InventoryContract {
             metadata,
             licenses: token.licenses,
         }
-    }
-
-    pub fn asset_add_licenses(
-        &mut self, 
-        token_id: AssetTokenId, 
-        license: Option<AssetLicenses>,
-    ) -> Option<AssetLicenses> {
-        None
-    }
-
-    pub fn asset_remove_license(
-        &mut self, 
-        token_id: AssetTokenId, 
-        license_id: String,
-    ) -> bool {
-        false
-    }
-
-    pub fn asset_find_license(
-        &mut self, 
-        token_id: AssetTokenId, 
-        license_id: String,
-    ) -> Option<AssetLicense> {
-        None
     }
     
 
