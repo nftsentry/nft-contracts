@@ -73,4 +73,29 @@ impl InventoryContract {
         }
     }
 
+    pub fn asset_add_licenses(
+        &mut self, 
+        token_id: AssetTokenId, 
+        license: Option<AssetLicenses>,
+    ) -> Option<AssetLicenses> {
+        None
+    }
+
+    pub fn asset_remove_license(
+        &mut self, 
+        token_id: AssetTokenId, 
+        license_id: String,
+    ) -> bool {
+        false
+    }
+
+    pub fn asset_find_license(
+        &mut self, 
+        token_id: AssetTokenId, 
+        license_id: String,
+    ) -> Option<AssetLicense> {
+        None
+    }
+    
+
 }
