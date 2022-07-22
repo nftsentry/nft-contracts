@@ -10,9 +10,15 @@ impl InventoryContract {
         receiver_id: AccountId,
         minter_id: Option<AccountId>,
         licenses: Option<AssetLicenses>,
-    ) -> JsonAssetToken{
+    ) -> JsonAssetToken {
         
         let initial_storage_usage = env::storage_usage();
+
+        let sender_id = env::predecessor_account_id();
+        if sender_id != self.owner_id {
+            // sender must be the owner of the contract
+            env::panic_str("Unauthorized");
+        }
 
         let token = AssetToken {
             token_id: token_id.clone(),
