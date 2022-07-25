@@ -20,12 +20,27 @@ impl InventoryContract {
             env::panic_str("Unauthorized");
         }
 
+
+        let mut asset_licenses: AssetLicenses = vec![];
+        if licenses.is_some() {
+            asset_licenses = licenses.unwrap();
+            if asset_licenses.len() > 0 {
+                for inv_license in self.metadata.get().unwrap().licenses {
+                    for (i, asset_license) in asset_licenses.iter_mut().enumerate() {
+                        if asset_license.price == 0 {
+                            asset_license.price = inv_license.price
+                        }
+                    }
+                }
+            }
+        }
+
         let token = AssetToken {
             token_id: token_id.clone(),
             owner_id: receiver_id,
             metadata: metadata.clone(),
             minter_id: minter_id.clone(),
-            licenses: licenses,
+            licenses: Some(asset_licenses.clone()),
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
