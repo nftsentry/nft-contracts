@@ -11,6 +11,18 @@ impl InventoryContract {
         None
     }
 
+    pub fn asset_update_licenses(
+        &mut self,
+        token_id: AssetTokenId,
+        licenses: AssetLicenses,
+    ) -> AssetLicenses {
+        let _old_licenses = self.token_licenses_by_id.get(&token_id);
+        self.token_licenses_by_id.remove(&token_id);
+
+        let new_licenses = self.token_licenses_by_id.insert(&token_id, &licenses);
+        new_licenses.unwrap()
+    }
+
     pub fn asset_remove_license(
         &mut self, 
         token_id: AssetTokenId, 
