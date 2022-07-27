@@ -24,7 +24,7 @@ pub struct InventoryLicense {
 pub struct AssetLicense {
     pub license_id: String,
     pub title: String,
-    pub price: Balance,
+    pub price: Option<Balance>,
 //    pub license: LicenseData,
 }
 
