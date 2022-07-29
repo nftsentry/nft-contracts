@@ -15,7 +15,7 @@ pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
 pub struct InventoryLicense {
     pub license_id: String,
     pub title: String,
-    pub price: Balance,
+    pub price: String,
     pub license: LicenseData,
 }
 
@@ -24,7 +24,7 @@ pub struct InventoryLicense {
 pub struct AssetLicense {
     pub license_id: String,
     pub title: String,
-    pub price: Option<Balance>,
+    pub price: Option<String>,
 //    pub license: LicenseData,
 }
 

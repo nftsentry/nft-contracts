@@ -24,15 +24,15 @@ impl InventoryContract {
         let mut asset_licenses: AssetLicenses = vec![];
         if licenses.is_some() {
             asset_licenses = licenses.unwrap();
-            if asset_licenses.len() > 0 {
-                for inv_license in self.metadata.get().unwrap().licenses {
-                    for (i, asset_license) in asset_licenses.iter_mut().enumerate() {
-                        if asset_license.price.is_none() {
-                            asset_license.price = Some(inv_license.price)
-                        }
-                    }
-                }
-            }
+        //     if asset_licenses.len() > 0 {
+        //         for inv_license in self.metadata.get().unwrap().licenses {
+        //             for (i, asset_license) in asset_licenses.iter_mut().enumerate() {
+        //                 if asset_license.price.is_none() {
+        //                     asset_license.price = Some(inv_license.price)
+        //                 }
+        //             }
+        //         }
+        //     }
         }
 
         let token = AssetToken {
