@@ -22,15 +22,19 @@ impl InventoryContract {
         let _old_licenses = self.token_licenses_by_id.get(&token_id);
         self.token_licenses_by_id.remove(&token_id);
 
-        let new_licenses = self.token_licenses_by_id.insert(&token_id, &licenses);
+        self.token_licenses_by_id.insert(&token_id, &licenses);
 
         let new_storage_usage = env::storage_usage();
-        let storage_usage_diff = new_storage_usage - initial_storage_usage;
-        let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
-        env::log_str(&log_message);
-        refund_deposit(storage_usage_diff);
+        if new_storage_usage > initial_storage_usage {
+            let storage_usage_diff = new_storage_usage - initial_storage_usage;
+            let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
+            env::log_str(&log_message);
+            refund_deposit(storage_usage_diff);
+        } else {
+            refund_deposit(0)
+        }
 
-        new_licenses.unwrap()
+        licenses
     }
 
     pub fn asset_remove_license(
