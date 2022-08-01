@@ -95,6 +95,7 @@ impl InventoryContract {
                 reference: None,
                 reference_hash: None,
                 licenses: Vec::new(),
+                default_minter_id: "".to_string(),
             },
         )
     }

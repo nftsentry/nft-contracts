@@ -40,6 +40,7 @@ pub struct InventoryContractMetadata {
     pub reference: Option<String>, // URL to a JSON file with more info
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
     pub licenses: InventoryLicenses,            // required, ex. "MOSIAC"
+    pub default_minter_id: String,
 }
 
 impl InventoryContractMetadata {
