@@ -45,6 +45,9 @@ pub struct Contract {
     //keeps track of all the token IDs for a given account
     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
 
+    //keeps track of all the token IDs for a given account
+    pub tokens_per_asset: LookupMap<AssetId, UnorderedSet<TokenId>>,
+
     //keeps track of the token struct for a given token ID
     pub tokens_by_id: LookupMap<TokenId, Token>,
 
@@ -67,7 +70,9 @@ pub struct Contract {
 #[derive(BorshSerialize)]
 pub enum StorageKey {
     TokensPerOwner,
+    TokensPerAsset,
     TokenPerOwnerInner { account_id_hash: CryptoHash },
+    TokenPerAssetInner { asset_id_hash: CryptoHash },
     TokensById,
     TokenMetadataById,
     TokenLicenseById,
@@ -113,6 +118,7 @@ impl Contract {
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
+            tokens_per_asset: LookupMap::new(StorageKey::TokensPerAsset.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(
                 StorageKey::TokenMetadataById.try_to_vec().unwrap(),

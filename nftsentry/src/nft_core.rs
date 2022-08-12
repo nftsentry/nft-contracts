@@ -184,6 +184,7 @@ impl NonFungibleTokenCore for Contract {
             Some(JsonToken {
                 token_id,
                 owner_id: token.owner_id,
+                asset_id: token.asset_id,
                 metadata,
                 license,
             //    proposed_license,     TODO: show proposed license. If proposed license

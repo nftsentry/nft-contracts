@@ -6,6 +6,7 @@ impl Contract {
     pub fn nft_mint(
         &mut self,
         token_id: TokenId,
+        asset_id: AssetId,
         metadata: TokenMetadata,
         receiver_id: AccountId,
         license: Option<TokenLicense>,
@@ -34,6 +35,7 @@ impl Contract {
             token_id: token_id.clone(),
             //set the owner ID equal to the receiver ID passed into the function
             owner_id: receiver_id,
+            asset_id,
             //we set the approved account IDs to the default value (an empty map)
             approved_account_ids: Default::default(),
             //the next approval ID is set to 0
@@ -59,6 +61,7 @@ impl Contract {
 
         //call the internal method for adding the token to the owner
         self.internal_add_token_to_owner(&token.owner_id, &token.token_id);
+        self.internal_add_token_to_asset(&token.asset_id, &token.token_id);
 
         // Construct the mint log as per the events standard.
         let nft_mint_log: EventLog = EventLog {
@@ -89,6 +92,7 @@ impl Contract {
         JsonToken{
             token_id: token_id.clone(),
             owner_id: token.owner_id,
+            asset_id: token.asset_id,
             metadata,
             license,
             approved_account_ids: token.approved_account_ids,

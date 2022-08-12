@@ -79,7 +79,7 @@ fn save_state(contract: &Contract) {
         owner_id: contract.owner_id.clone(),
         metadata: contract.metadata.get().unwrap(),
     };
-    let tokens = contract.nft_tokens(None, None);
+    let tokens = contract.nft_tokens(None, None, None);
 
     let mut f = File::create(filename).expect("create failed");
     let mut f_tokens = File::create(filename_tokens).expect("create failed");
@@ -117,6 +117,7 @@ fn load_state(filename: &str) -> Contract {
     for token in tokens {
         read_contract.nft_mint(
             token.token_id.clone(),
+            "id".to_string(),
             token.metadata,
             token.owner_id,
             None,
@@ -192,6 +193,7 @@ fn test_mint(args: Args, contract: &mut Contract) {
         .expect("Time went backwards");
     let token = contract.nft_mint(
         token_id.clone(),
+        "id".to_string(),
         TokenMetadata{
             title: Some(args.name),
             description: Some(args.description),
@@ -269,7 +271,7 @@ fn main() {
     } else if args.action == "nft_metadata" {
         println!("{}", serde_json::to_string(&contract.nft_metadata()).unwrap());
     } else if args.action == "nft_tokens" {
-        println!("{}", serde_json::to_string(&contract.nft_tokens(None, None)).unwrap());
+        println!("{}", serde_json::to_string(&contract.nft_tokens(None, None, None)).unwrap());
     } else if args.action == "nft_tokens_for_owner" {
         println!("{}", serde_json::to_string(&contract.nft_tokens_for_owner(
             AccountId::new_unchecked(args.account_id), None, None)

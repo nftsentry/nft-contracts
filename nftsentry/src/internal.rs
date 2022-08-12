@@ -45,6 +45,14 @@ pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
     hash
 }
 
+pub(crate) fn hash_asset_id(asset_id: &AssetId) -> CryptoHash {
+    //get the default hash
+    let mut hash = CryptoHash::default();
+    //we hash the account ID and return it
+    hash.copy_from_slice(&env::sha256(asset_id.as_bytes()));
+    hash
+}
+
 //used to make sure the user attached exactly 1 yoctoNEAR
 pub(crate) fn assert_one_yocto() {
     assert_eq!(
@@ -110,6 +118,32 @@ impl Contract {
 
         //we insert that set for the given account ID. 
         self.tokens_per_owner.insert(account_id, &tokens_set);
+    }
+
+    //add a token to the set of tokens an asset has
+    pub(crate) fn internal_add_token_to_asset(
+        &mut self,
+        asset_id: &AssetId,
+        token_id: &TokenId,
+    ) {
+        //get the set of tokens for the given account
+        let mut tokens_set = self.tokens_per_asset.get(asset_id).unwrap_or_else(|| {
+            //if the account doesn't have any tokens, we create a new unordered set
+            UnorderedSet::new(
+                StorageKey::TokenPerAssetInner {
+                    //we get a new unique prefix for the collection
+                    asset_id_hash: hash_asset_id(&asset_id),
+                }
+                    .try_to_vec()
+                    .unwrap(),
+            )
+        });
+
+        //we insert the token ID into the set
+        tokens_set.insert(token_id);
+
+        //we insert that set for the given account ID.
+        self.tokens_per_asset.insert(asset_id, &tokens_set);
     }
 
     //remove a token from an owner (internal method and can't be called directly via CLI).
@@ -190,6 +224,7 @@ impl Contract {
         let new_token = Token {
             token_id: token_id.clone(),
             owner_id: receiver_id.clone(),
+            asset_id: token.asset_id.clone(),
             //reset the approval account IDs
             approved_account_ids: Default::default(),
             next_approval_id: token.next_approval_id,

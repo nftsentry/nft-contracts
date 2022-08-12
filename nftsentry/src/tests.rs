@@ -105,6 +105,7 @@ mod tests {
 
         let _token = contract.nft_mint(
             token_id.clone(),
+            "id".to_string(),
             sample_token_metadata(),
             test_accounts(0),
             Some(sample_token_license()),
@@ -154,6 +155,7 @@ mod tests {
         let token_id = "token-1".to_string();
         let token = contract.nft_mint(
             token_id.clone(),
+            "id".to_string(),
             sample_token_metadata(),
             accounts(0),
             Some(sample_token_license()),
@@ -181,6 +183,7 @@ mod tests {
         let token_id = "0".to_string();
         contract.nft_mint(
             token_id.clone(),
+            "id".to_string(),
             sample_token_metadata(),
             accounts(0),
             Some(sample_token_license()),
