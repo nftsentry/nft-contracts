@@ -7,6 +7,7 @@ mod tests {
 
     use crate::{Contract, LicenseData, TokenLicense, TokenMetadata};
     use crate::approval::NonFungibleTokenCore;
+    use crate::enumeration::FilterOpt;
     // use crate::nft_core::NonFungibleTokenCore as NFTCore;
 
     // use crate::license::*;
@@ -166,6 +167,18 @@ mod tests {
         assert_eq!(token.owner_id, accounts(0));
         assert_eq!(token.metadata, sample_token_metadata());
         assert_eq!(token.approved_account_ids, HashMap::new());
+
+
+        let all_tokens = contract.nft_tokens(None, None, None);
+        assert_eq!(all_tokens.len(), 1);
+
+        let filter_opt = FilterOpt{asset_id: Some("id".to_string()), account_id: None};
+        let asset_tokens = contract.nft_tokens(None, None, Some(filter_opt));
+        assert_eq!(asset_tokens.len(), 1);
+
+        let filter_opt2 = FilterOpt{asset_id: Some("id2".to_string()), account_id: None};
+        let not_asset_tokens = contract.nft_tokens(None, None, Some(filter_opt2));
+        assert_eq!(not_asset_tokens.len(), 0);
     }
 
     #[test]

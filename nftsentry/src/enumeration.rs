@@ -4,8 +4,8 @@ use crate::*;
 #[derive(PartialEq, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct FilterOpt {
-    account_id: Option<AccountId>,
-    asset_id: Option<AssetId>,
+    pub account_id: Option<AccountId>,
+    pub asset_id: Option<AssetId>,
 }
 
 #[near_bindgen]
@@ -23,13 +23,13 @@ impl Contract {
 
         //iterate through each token using an iterator
         let is_filter = filter_opt.as_ref().is_some();
-        let filter_by_asset = is_filter && filter_opt.as_ref().unwrap().asset_id.is_some();
-        let filter_by_owner = is_filter && filter_opt.as_ref().unwrap().account_id.is_some();
+        let is_asset_filter = is_filter && filter_opt.as_ref().unwrap().asset_id.is_some();
+        let is_owner_filter = is_filter && filter_opt.as_ref().unwrap().account_id.is_some();
         self.token_metadata_by_id.keys()
             //we'll map the token IDs which are strings into Json Tokens
             .map(|token_id| self.nft_token(token_id.clone()).unwrap())
-            .filter(|x| filter_by_asset && *filter_opt.as_ref().unwrap().asset_id.as_ref().unwrap() == x.asset_id)
-            .filter(|x| filter_by_owner && *filter_opt.as_ref().unwrap().account_id.as_ref().unwrap() == x.owner_id)
+            .filter(|x| !is_asset_filter || *filter_opt.as_ref().unwrap().asset_id.as_ref().unwrap() == x.asset_id)
+            .filter(|x| !is_owner_filter || *filter_opt.as_ref().unwrap().account_id.as_ref().unwrap() == x.owner_id)
             //skip to the index we specified in the start variable
             .skip(start as usize) 
             //take the first "limit" elements in the vector. If we didn't specify a limit, use 50
