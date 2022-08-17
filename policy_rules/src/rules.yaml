@@ -1,0 +1,46 @@
+---
+version: '0.0.1'
+
+# Personal -> Comm -> Excl
+#     \___________/
+policies:
+  personal:
+    template: "{{ and .IsPersonal (not .IsExclusive) }}"
+    upgrade_to:
+    - commercial
+    - personal_exclusive
+    - commercial_exclusive
+  commercial:
+    template: "{{ and (not .IsPersonal) (not .IsExclusive) }}"
+    upgrade_to:
+    - commercial_exclusive
+  personal_exclusive:
+    template: "{{ and .IsPersonal .IsExclusive }}"
+    upgrade_to: []
+  commercial_exclusive:
+    template: "{{ and (not .IsPersonal) .IsExclusive }}"
+    upgrade_to: []
+
+
+# Limits on
+#  - license token count per asset
+#  - exclusivity (only 1 may be exclusive per asset)
+#  - number of license types per asset
+# Limits per inventory ?
+limitations:
+  - name: all
+    level: licenses
+    template: "true"
+    max_count:
+      count: 1000000
+  - name: exclusive
+    level: licenses
+    template: "true"
+    exclusive:
+      template: "{{ .IsExclusive }}"
+  - name: exclusive template
+    level: inventory
+    template: "{{ .IsExclusive }}"
+    max_count:
+      count: 1
+    # Another limit types here

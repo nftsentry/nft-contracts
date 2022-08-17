@@ -1,6 +1,7 @@
 use crate::*;
 use crate::types::*;
 use std::collections::HashMap;
+use std::ops::Deref;
 use lazy_static::lazy_static; // 1.4.0
 use std::sync::Mutex;
 
@@ -14,24 +15,34 @@ pub trait ConfigInterface {
 }
 
 lazy_static! {
-    static ref policies_raw: Mutex<Vec<u8>> = Mutex::new(vec![]);
-    static ref CONFIG: Mutex<Vec<u8>> = Mutex::new(vec![]);
+    static ref POLICIES_RAW: Mutex<Vec<u8>> = Mutex::new(include_bytes!("rules.yaml").to_vec());
+    pub static ref CONFIG: Mutex<AllPolicies> = Mutex::new(AllPolicies::default());
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+pub fn init_policies() -> AllPolicies {
+    let raw = POLICIES_RAW.lock().unwrap();
+    let config: AllPolicies = serde_yaml::from_slice(raw.as_slice()).expect("Fail to parse rules.yaml");
+    CONFIG.lock().unwrap().limitations = config.limitations;
+    CONFIG.lock().unwrap().policies = config.policies;
+    CONFIG.lock().unwrap().version = config.version;
+
+    CONFIG.lock().unwrap().clone()
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Default)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AllPolicies {
-    version:     String,
-    policies:    HashMap<String, Policy>,
-    limitations: Vec<Limitation>,
+    pub version:     String,
+    pub policies:    HashMap<String, Policy>,
+    pub limitations: Vec<Limitation>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Policy {
-    name:      String,
-    template:  String,
-    upgrade_to: Vec<String>,
+    pub name:       Option<String>,
+    pub template:   String,
+    pub upgrade_to: Vec<String>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -45,28 +56,28 @@ pub struct  CheckNewOpt {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct FutureStateOpt {
-    level: String,
+    pub level: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Limitation {
-    name:      String,
-    level:     String,
-    template:  String,
-    max_count: Option<MaxCount>,
-    exclusive: Option<Exclusive>,
+    pub name:      String,
+    pub level:     String,
+    pub template:  String,
+    pub max_count: Option<MaxCount>,
+    pub exclusive: Option<Exclusive>,
     // Add another limit types
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MaxCount {
-    count: i32,
+    pub count: i32,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Exclusive {
-    template: String,
+    pub template: String,
 }
