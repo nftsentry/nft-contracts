@@ -7,6 +7,9 @@ use lazy_static::lazy_static; // 1.4.0
 use std::sync::Mutex;
 use minijinja::value::Value;
 
+const LEVEL_INVENTORY: &str = "inventory";
+const LEVEL_LICENSES: &str  = "licenses";
+
 pub trait ConfigInterface {
     fn check_transition(old: InventoryLicense, new: InventoryLicense) -> (bool, String);
     fn check_new(inventory: InventoryContractMetadata, new: InventoryLicense, opt: CheckNewOpt) -> (bool, String);
@@ -135,7 +138,7 @@ impl LimitCheck for Exclusive {
 }
 
 impl Limitation {
-    pub fn check(&self, licenses: Vec<&dyn LicenseGeneral>) -> (bool, String) {
+    pub fn check(&self, licenses: &Vec<&dyn LicenseGeneral>) -> (bool, String) {
         let matched_licenses= self.find_all(licenses);
         let checks: Vec<Option<&dyn LimitCheck>> = vec![
             self.max_count.as_ref().map(|x| x as &dyn LimitCheck),
@@ -155,12 +158,12 @@ impl Limitation {
         return (true, "".to_string())
     }
 
-    fn find_all<'a>(&'a self, licenses: Vec<&'a dyn LicenseGeneral>) -> Vec<&dyn LicenseGeneral> {
+    fn find_all<'a>(&'a self, licenses: &Vec<&'a dyn LicenseGeneral>) -> Vec<&dyn LicenseGeneral> {
         let mut list: Vec<&dyn LicenseGeneral> = Vec::new();
         for license in licenses {
-            let result = exec_template(&self.template, license);
+            let result = exec_template(&self.template, *license);
             if result.is_true() {
-                list.push(license);
+                list.push(*license);
             }
         }
         list
@@ -189,15 +192,58 @@ impl AllPolicies {
             return Err("Failed old.as_inventory_license()".to_string())
         }
         let policy_old = self.find_policy(old_inv_lic.unwrap())?;
-        let policy_new = self.find_policy(new)?;
+        let policy_new = self.find_policy(new.clone())?;
         let exists = policy_old.has_upgrade_to(policy_new.name.as_ref().unwrap().clone());
         if !exists {
-            return Err(format!("No upgrade path to {}", policy_new.name.as_ref().unwrap()))
+            return Ok((false, format!("No upgrade path to {}", policy_new.name.as_ref().unwrap())))
         } else {
-            // check future state
-            return Ok((true, "".to_string()))
-        }
+            // Check restrictions
+            // compute future state
+            let future_state = self.get_future_state_with_transition(inventory, old, new);
 
+            let (ok, reason) = self.check_future_state(
+                future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+                FutureStateOpt{level: LEVEL_LICENSES.to_string()}
+            );
+            return Ok((ok, reason))
+        }
+    }
+
+    pub fn get_future_state_with_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> FullInventory {
+        let mut future_state = inventory.clone();
+        for token in future_state.issued_licenses.iter_mut() {
+            if token.token_id == old.token_id {
+                let meta = serde_json::to_string(&new.license.clone()).unwrap();
+                let (inv_id, asset_id, _) = token.metadata.inventory_asset_license();
+                token.license.as_mut().unwrap().metadata = Some(meta);
+                token.license.as_mut().unwrap().title = Some(new.title.clone());
+                token.metadata.extra = Some(extra_reference_for_asset_path(
+                    token.metadata.extra.clone().unwrap_or("".to_string()),
+                    inv_id, asset_id, new.license_id.clone(),
+                ));
+            }
+        }
+        // future_state.issued_licenses.push(new);
+        future_state
+    }
+
+    pub fn get_future_state_with_new(&self, inventory: FullInventory, new: LicenseToken) -> FullInventory {
+        let mut future_state = inventory.clone();
+        future_state.issued_licenses.push(new);
+        future_state
+    }
+
+    pub fn check_future_state(&self, licenses: Vec<&dyn LicenseGeneral>, opt: FutureStateOpt) -> (bool, String) {
+        for l in &self.limitations {
+            if l.level != opt.level {
+                continue
+            }
+            let (ok, reason) = l.check(&licenses);
+            if !ok {
+                return (ok, reason)
+            }
+        }
+        return (true, "".to_string())
     }
 }
 

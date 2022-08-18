@@ -113,7 +113,7 @@ pub struct Token {
 }
 
 //The Json token is what will be returned from view calls.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
 #[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LicenseToken {
@@ -278,12 +278,16 @@ pub struct InventoryContractMetadata {
     pub default_minter_id: String,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct InventoryLicenseAvailability {
     pub inventory_license:    InventoryLicense,
     pub available:            bool,
     pub reason_not_available: Option<String>,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct FullInventory {
     pub inventory_licenses: Vec<InventoryLicense>,
     pub issued_licenses:    Vec<LicenseToken>,
@@ -308,4 +312,12 @@ pub fn extra_reference_to_id(extra_orig: String, key: String, value: String) -> 
     extra_new.insert(key, serde_json::Value::String(value));
     let extra_raw = serde_json::to_string(&extra_new).expect("Failed serialize to JSON");
     extra_raw
+}
+
+pub fn  extra_reference_for_asset_path(extra_orig: String, inv_id: String, asset_id: String, license_id: String) -> String {
+    return extra_reference_to_id(
+        extra_orig,
+        "asset_id_path".to_string(),
+        format!("{}/{}/{}", inv_id, asset_id, license_id),
+    )
 }

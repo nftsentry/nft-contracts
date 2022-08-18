@@ -10,6 +10,15 @@ mod tests {
     }
 
     #[test]
+    fn test_init_policies() {
+        let _policies = init_policies();
+        assert_eq!(CONFIG.try_lock().is_err(), false);
+        assert_eq!(CONFIG.lock().unwrap().version, "0.0.1");
+        assert_eq!(CONFIG.lock().unwrap().limitations.len(), 3);
+        assert_eq!(CONFIG.lock().unwrap().policies.len(), 4);
+    }
+
+    #[test]
     fn test_check_transition() {
         let _policies = init_policies();
 
@@ -55,15 +64,4 @@ mod tests {
         assert_eq!(res.clone().err(), None);
         assert_eq!(res.clone().ok().unwrap(), (true, "".to_string()));
     }
-
-    #[test]
-    fn test_init_policies() {
-        let _policies = init_policies();
-        assert_eq!(CONFIG.try_lock().is_err(), false);
-        assert_eq!(CONFIG.lock().unwrap().version, "0.0.1");
-        assert_eq!(CONFIG.lock().unwrap().limitations.len(), 3);
-        assert_eq!(CONFIG.lock().unwrap().policies.len(), 4);
-    }
-
-
 }
