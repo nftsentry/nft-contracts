@@ -5,20 +5,20 @@ version: '0.0.1'
 #     \___________/
 policies:
   personal:
-    template: "{{ and .IsPersonal (not .IsExclusive) }}"
+    template: "is_personal and not is_exclusive"
     upgrade_to:
     - commercial
     - personal_exclusive
     - commercial_exclusive
   commercial:
-    template: "{{ and (not .IsPersonal) (not .IsExclusive) }}"
+    template: "not is_personal and not is_exclusive"
     upgrade_to:
     - commercial_exclusive
   personal_exclusive:
-    template: "{{ and .IsPersonal .IsExclusive }}"
+    template: "is_personal and is_exclusive"
     upgrade_to: []
   commercial_exclusive:
-    template: "{{ and (not .IsPersonal) .IsExclusive }}"
+    template: "not is_personal and is_exclusive"
     upgrade_to: []
 
 
@@ -37,10 +37,10 @@ limitations:
     level: licenses
     template: "true"
     exclusive:
-      template: "{{ .IsExclusive }}"
+      template: "{{ is_exclusive }}"
   - name: exclusive template
     level: inventory
-    template: "{{ .IsExclusive }}"
+    template: "{{ is_exclusive }}"
     max_count:
       count: 1
     # Another limit types here
