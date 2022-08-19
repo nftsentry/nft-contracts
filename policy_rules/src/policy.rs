@@ -11,12 +11,12 @@ const LEVEL_INVENTORY: &str = "inventory";
 const LEVEL_LICENSES: &str  = "licenses";
 
 pub trait ConfigInterface {
-    fn check_transition(old: InventoryLicense, new: InventoryLicense) -> (bool, String);
-    fn check_new(inventory: InventoryContractMetadata, new: InventoryLicense, opt: CheckNewOpt) -> (bool, String);
-    fn check_state(inventory: InventoryContractMetadata, opt: CheckNewOpt) -> (bool, String);
-    fn check_inventory_state(licenses: Vec<InventoryLicense>) -> (bool, String);
-    fn list_transitions(inventory: InventoryContractMetadata, from: InventoryLicense) -> Vec<InventoryLicenseAvailability>;
-    fn list_available(inventory: FullInventory) -> Vec<InventoryLicenseAvailability>;
+    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<(bool, String), String>;
+    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> (bool, String);
+    fn check_state(&self, licenses: Vec<LicenseToken>) -> (bool, String);
+    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> (bool, String);
+    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability>;
+    fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability>;
 }
 
 lazy_static! {
@@ -170,23 +170,8 @@ impl Limitation {
     }
 }
 
-impl AllPolicies {
-    fn find_policy(&self, from: InventoryLicense) -> Result<Policy, String> {
-        let mut found: Option<&str> = None;
-        for (pol_name, pol) in self.policies.iter() {
-            let result = exec_template(&pol.template, &from);
-            if result.is_true() {
-                found = Some(pol_name.as_str());
-            }
-        }
-        if found.is_some() {
-            Ok(self.policies.get(found.unwrap()).unwrap().clone())
-        } else {
-            Err(format!("License policy not found for {}", from.title))
-        }
-    }
-
-    pub fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<(bool, String), String> {
+impl ConfigInterface for AllPolicies {
+    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<(bool, String), String> {
         let old_inv_lic = old.as_inventory_license(None);
         if old_inv_lic.is_none() {
             return Err("Failed old.as_inventory_license()".to_string())
@@ -206,6 +191,80 @@ impl AllPolicies {
                 FutureStateOpt{level: LEVEL_LICENSES.to_string()}
             );
             return Ok((ok, reason))
+        }
+    }
+
+    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability> {
+        let mut res: Vec<InventoryLicenseAvailability> = Vec::new();
+        for license in &inventory.inventory_licenses {
+            let check_transition_res = self.check_transition(inventory.clone(), from.clone(), license.clone());
+
+            let (can_upgrade, reason) = if check_transition_res.is_err() {
+                (false, check_transition_res.unwrap_err())
+            } else {
+                check_transition_res.ok().unwrap()
+            };
+            res.push(InventoryLicenseAvailability{
+                available: can_upgrade,
+                reason_not_available: Some(reason.clone()),
+                inventory_license: license.clone(),
+            });
+        }
+        res
+    }
+
+    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> (bool, String) {
+        // For asset_mint, nft_mint, update_licenses and
+        // update inventory metadata (license list).
+        let future_state = self.get_future_state_with_new(inventory.clone(), new.clone());
+        self.check_future_state(
+            future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+            FutureStateOpt{level: LEVEL_LICENSES.to_string()}
+        )
+    }
+
+    fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability> {
+        let mut available: Vec<InventoryLicenseAvailability> = Vec::new();
+        for inv_license in &inventory.inventory_licenses {
+            let token = inv_license.as_license_token("0".to_string()).unwrap();
+            let (res, reason) = self.check_new(inventory.clone(), token);
+            available.push(InventoryLicenseAvailability{
+                available: res,
+                reason_not_available: Some(reason),
+                inventory_license: inv_license.clone(),
+            });
+        }
+        available
+    }
+
+    fn check_state(&self, licenses: Vec<LicenseToken>) -> (bool, String) {
+        self.check_future_state(
+            licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+            FutureStateOpt{level: LEVEL_LICENSES.to_string()},
+        )
+    }
+
+    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> (bool, String) {
+        self.check_future_state(
+            licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+            FutureStateOpt{level: LEVEL_INVENTORY.to_string()},
+        )
+    }
+}
+
+impl AllPolicies {
+    fn find_policy(&self, from: InventoryLicense) -> Result<Policy, String> {
+        let mut found: Option<&str> = None;
+        for (pol_name, pol) in self.policies.iter() {
+            let result = exec_template(&pol.template, &from);
+            if result.is_true() {
+                found = Some(pol_name.as_str());
+            }
+        }
+        if found.is_some() {
+            Ok(self.policies.get(found.unwrap()).unwrap().clone())
+        } else {
+            Err(format!("License policy not found for {}", from.title))
         }
     }
 
