@@ -17,6 +17,7 @@ path = "src/bin/contract-test.rs"
 near-sdk = "4.0.0"
 serde_json = "1.0.81"
 clap = { version = "3.1.18", features = ["derive"] }
+policy_rules = { path = "../policy_rules" }
 
 [profile.release]
 codegen-units = 1
