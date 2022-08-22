@@ -5,7 +5,8 @@ mod tests {
     use near_sdk::env;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
 
-    use crate::{InventoryContract, LicenseData, TokenLicense, AssetTokenMetadata};
+    use crate::InventoryContract;
+    use policy_rules::types::{LicenseData, TokenLicense, AssetTokenMetadata, AssetLicense};
     // use crate::approval::NonFungibleTokenCore;
     // use crate::nft_core::NonFungibleTokenCore as NFTCore;
 
@@ -49,20 +50,12 @@ mod tests {
     }
 
 
-    fn sample_token_license() -> TokenLicense {
+    fn sample_asset_license() -> AssetLicense {
         // TODO std::time::SystemTime::now().duration_since(UNIX_EPOCH).expect("error")
-        TokenLicense {
-            title: Some("NFTSentry License #1".into()),
-            description: Some("First NFTSentry License Template".into()),
-            issuer_id: None,
-            uri: Some("https://bafybeihjuk544ww4e5qexjlrfyzdl6mkht6rk6cmbfvbosknvrjni364x4.ipfs.nftstorage.link".into()), // URL to associated pdf, preferably to decentralized, content-addressed storage
-            metadata: None, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
-            issued_at: None, // When token was issued or minted, Unix epoch in milliseconds
-            expires_at: None, // When token expires, Unix epoch in milliseconds
-            starts_at: None, // When token starts being valid, Unix epoch in milliseconds
-            updated_at: None, // When token was last updated, Unix epoch in milliseconds
-            reference: None, // URL to an off-chain JSON file with more info.
-            reference_hash: None, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+        AssetLicense {
+            title: "NFTSentry License #1".into(),
+            license_id: "lic_id".into(),
+            price: Some("1".into()),
         }
     }
 
@@ -121,8 +114,8 @@ mod tests {
             token_id.clone(),
             sample_token_metadata(),
             accounts(0),
-        //    Some(sample_token_license()),
             None,
+            Some(vec![sample_asset_license()]),
         );
 
         assert_eq!(token.token_id, token_id);

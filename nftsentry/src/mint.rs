@@ -11,7 +11,7 @@ impl Contract {
         receiver_id: AccountId,
         license: Option<TokenLicense>,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
-    ) -> JsonToken {
+    ) -> LicenseToken {
         //we add an optional parameter for perpetual royalties
         //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
@@ -89,7 +89,7 @@ impl Contract {
         // Log the serialized json.
         self.log_event(&nft_mint_log.to_string());
 
-        JsonToken{
+        LicenseToken {
             token_id: token_id.clone(),
             owner_id: token.owner_id,
             asset_id: token.asset_id,

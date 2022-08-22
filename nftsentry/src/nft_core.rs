@@ -30,7 +30,7 @@ pub trait NonFungibleTokenCore {
     ) -> PromiseOrValue<bool>;
 
     //get information about the NFT token passed in
-    fn nft_token(&self, token_id: TokenId) -> Option<JsonToken>;
+    fn nft_token(&self, token_id: TokenId) -> Option<LicenseToken>;
 }
 
 #[ext_contract(ext_nft_receiver)]
@@ -173,7 +173,7 @@ impl NonFungibleTokenCore for Contract {
     }
 
     //get the information for a specific token ID
-    fn nft_token(&self, token_id: TokenId) -> Option<JsonToken> {
+    fn nft_token(&self, token_id: TokenId) -> Option<LicenseToken> {
         //if there is some token ID in the tokens_by_id collection
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
@@ -181,7 +181,7 @@ impl NonFungibleTokenCore for Contract {
             let license = self.token_license_by_id.get(&token_id);
         //    let proposed_license = self.token_proposed_license_by_id.get(&token_id).unwrap();
             //we return the JsonToken (wrapped by Some since we return an option)
-            Some(JsonToken {
+            Some(LicenseToken {
                 token_id,
                 owner_id: token.owner_id,
                 asset_id: token.asset_id,

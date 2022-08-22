@@ -3,7 +3,7 @@ use clap::Parser;
 use near_sdk::test_utils::{accounts, VMContextBuilder};
 use near_sdk::{AccountId, testing_env, Balance};
 use near_sdk::env;
-use nftsentry::{Contract, JsonToken, NFTContractMetadata, NonFungibleTokenMetadata, TokenMetadata};
+use nftsentry::{Contract, LicenseToken, NFTContractMetadata, NonFungibleTokenMetadata, TokenMetadata};
 use near_sdk::serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::{Read, Write};
@@ -113,7 +113,7 @@ fn load_state(filename: &str) -> Contract {
     );
     read_contract.disable_events = true;
 
-    let tokens: Vec<JsonToken> = serde_json::from_slice(&buffer_tokens).unwrap();
+    let tokens: Vec<LicenseToken> = serde_json::from_slice(&buffer_tokens).unwrap();
     for token in tokens {
         read_contract.nft_mint(
             token.token_id.clone(),

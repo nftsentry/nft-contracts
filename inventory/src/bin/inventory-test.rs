@@ -3,7 +3,7 @@ use clap::Parser;
 use near_sdk::test_utils::{accounts, VMContextBuilder};
 use near_sdk::{AccountId, testing_env, Balance};
 use near_sdk::env;
-use inventory::{InventoryContract, JsonToken, InventoryMetadata, InventoryContractMetadata, AssetTokenMetadata};
+use inventory::{InventoryContract, InventoryMetadata, InventoryContractMetadata, AssetTokenMetadata};
 use near_sdk::serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::{Read, Write};

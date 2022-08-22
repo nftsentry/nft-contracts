@@ -1,8 +1,6 @@
-use std::borrow::Borrow;
 use crate::*;
 use crate::types::*;
 use std::collections::HashMap;
-use std::ops::Deref;
 use lazy_static::lazy_static; // 1.4.0
 use std::sync::Mutex;
 use minijinja::value::Value;
@@ -307,7 +305,7 @@ impl AllPolicies {
 }
 
 pub fn exec_template(template_str: &String, object: &dyn LicenseGeneral) -> Value {
-    let mut env = minijinja::Environment::new();
+    let env = minijinja::Environment::new();
     // env.add_template("tpl", &template_str).expect("Failed to add template");
 
     let expr = env.compile_expression(&template_str).expect("Failed parse expression");

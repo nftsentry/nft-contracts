@@ -1,7 +1,7 @@
 // use std::collections::HashMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::json_types::{U128};
 // use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, CryptoHash, PanicOnDefault, Promise,
@@ -10,6 +10,10 @@ use near_sdk::{
 pub use crate::metadata::*;
 pub use crate::events::*;
 pub use crate::mint::*;
+pub use policy_rules::*;
+pub use policy_rules::types::{AssetMinterContractId, AssetTokenId, AssetTokenMetadata, AssetToken};
+pub use policy_rules::types::{AssetLicenses, AssetLicense};
+pub use policy_rules::types::{InventoryContractMetadata, InventoryLicenses, InventoryLicense};
 
 use crate::internal::*;
 

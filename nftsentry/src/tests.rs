@@ -5,9 +5,10 @@ mod tests {
     use near_sdk::env;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
 
-    use crate::{Contract, LicenseData, TokenLicense, TokenMetadata};
+    use crate::{Contract};
     use crate::approval::NonFungibleTokenCore;
     use crate::enumeration::FilterOpt;
+    use policy_rules::types::{LicenseData, TokenLicense, TokenMetadata};
     // use crate::nft_core::NonFungibleTokenCore as NFTCore;
 
     // use crate::license::*;
@@ -47,7 +48,6 @@ mod tests {
             reference_hash: None,
         }
     }
-
 
     fn sample_token_license() -> TokenLicense {
         // TODO std::time::SystemTime::now().duration_since(UNIX_EPOCH).expect("error")
