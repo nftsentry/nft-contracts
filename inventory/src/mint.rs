@@ -92,6 +92,7 @@ impl InventoryContract {
             minter_id: token.minter_id,
             metadata,
             licenses: token.licenses,
+            available_licenses: None,
         }
     }
     

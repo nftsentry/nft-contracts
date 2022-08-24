@@ -1,5 +1,9 @@
+use std::borrow::BorrowMut;
+use std::collections::HashMap;
 use crate::*;
-use near_sdk::{CryptoHash};
+use near_sdk::{CryptoHash, PromiseError};
+use policy_rules::policy::{CONFIG, ConfigInterface};
+use policy_rules::types::FullInventory;
 
 //used to generate a unique prefix in our storage collections (this is to avoid data collisions)
 pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
@@ -33,7 +37,7 @@ pub(crate) fn refund_deposit(storage_used: u64) {
     }
 }
 
-
+#[near_bindgen]
 impl InventoryContract {
     //add a token to the set of tokens an owner has
     pub(crate) fn internal_add_token_to_owner(
@@ -86,4 +90,70 @@ impl InventoryContract {
         }
     }
 */
+    pub fn full_inventory_for_asset_callback(
+        &self,
+        #[callback_result] call_result: Result<Vec<LicenseToken>, PromiseError>,
+        asset: &mut JsonAssetToken,
+        inv_metadata: &mut InventoryContractMetadata) -> JsonAssetToken {
+
+        if call_result.is_err() {
+            panic!("Failed call previous nft_tokens!");
+        }
+        let tokens = call_result.unwrap();
+
+        let mut asset_lic_map: HashMap<String, &AssetLicense> = HashMap::new();
+        if asset.licenses.is_some() {
+            for asset_license in asset.licenses.as_ref().unwrap() {
+                asset_lic_map.insert(asset_license.license_id.clone(), &asset_license);
+            }
+        }
+        let mut full_inventory = FullInventory{
+            issued_licenses: tokens,
+            inventory_licenses: Vec::new(),
+        };
+        for lic in inv_metadata.licenses.iter_mut() {
+            if asset_lic_map.contains_key(&lic.license_id.clone()) {
+                let asset_license = asset_lic_map.get(&lic.license_id);
+                if asset_license.unwrap().price.is_some() {
+                    lic.price = asset_license.unwrap().price.as_ref().unwrap().clone();
+                }
+                full_inventory.inventory_licenses.push(lic.clone());
+            }
+        }
+
+        let available = CONFIG.lock().unwrap().list_available(full_inventory);
+        asset.available_licenses = Some(available);
+        asset.clone()
+        /*
+        var assetLicMap = make(map[string]*near_nft.AssetLicense)
+        for _, assetLicense := range asset.Licenses {
+            assetLicMap[assetLicense.LicenseId] = assetLicense
+        }
+        for _, lic := range inventoryMetadata.Licenses {
+            if assetLicense, ok := assetLicMap[lic.LicenseId]; ok {
+                if assetLicense.Price != nil {
+                    lic.Price = *assetLicense.Price
+                }
+                result.InventoryLicenses = append(result.InventoryLicenses, lic)
+            }
+        }
+         */
+    }
+
+    pub fn get_available_list_for_asset(&self, asset: &JsonAssetToken) -> Promise {
+        let mut inv_metadata = self.inventory_metadata();
+
+        // Now call asset.minter_id.nft_tokens(asset_id=asset.token_id)
+        let filter = FilterOpt{account_id: None, asset_id: Some(asset.token_id.clone())};
+        let mut asset_mut = asset.clone();
+        let promise: Promise = license_contract::ext(asset.minter_id.clone().unwrap()).nft_tokens(
+            None, None, Some(filter)
+        ).then(
+            Self::ext(env::current_account_id()).full_inventory_for_asset_callback(
+                &mut asset_mut, &mut inv_metadata,
+            )
+        );
+
+        promise.as_return()
+    }
 }

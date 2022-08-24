@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use near_sdk::PromiseOrValue;
+use policy_rules::policy::{ConfigInterface};
 use crate::*;
 
 #[near_bindgen]
@@ -8,24 +11,46 @@ impl InventoryContract {
         U128(self.token_metadata_by_id.len() as u128)
     }
 
-    //get the information for a specific token ID
-    pub fn asset_token(&self, token_id: AssetTokenId) -> Option<JsonAssetToken> {
+    fn _asset_token(&self, token_id: AssetTokenId) -> Option<JsonAssetToken> {
         //if there is some token ID in the tokens_by_id collection
-        if let Some(token) = self.tokens_by_id.get(&token_id) {
-            //we'll get the metadata for that token
-            let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
-            let licenses = self.token_licenses_by_id.get(&token_id);
-            //we return the JsonAssetToken (wrapped by Some since we return an option)
-            Some(JsonAssetToken {
-                token_id,
-                owner_id: token.owner_id,
-                metadata,
-                licenses: licenses,
-                minter_id: token.minter_id,
-            })
-        } else { //if there wasn't a token ID in the tokens_by_id collection, we return None
-            None
+        let token_opt = self.tokens_by_id.get(&token_id);
+        if token_opt.is_none() {
+            return None
         }
+        let token = token_opt.unwrap();
+        // we'll get the metadata for that token
+        let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
+        let licenses = self.token_licenses_by_id.get(&token_id);
+        // we return the JsonAssetToken (wrapped by Some since we return an option)
+        let asset = JsonAssetToken {
+            token_id,
+            owner_id: token.owner_id,
+            metadata,
+            licenses,
+            minter_id: token.minter_id,
+            available_licenses: None,
+        };
+        Some(asset)
+    }
+
+    //get the information for a specific token ID
+    pub fn asset_token(&self, token_id: AssetTokenId, opt: Option<AssetTokenOpt>) -> PromiseOrValue<Option<JsonAssetToken>> {
+        let asset = self._asset_token(token_id.clone());
+        if asset.is_none() {
+            return PromiseOrValue::Value(None)
+        }
+        if opt.is_some() {
+            let asset_opt = opt.unwrap();
+            return if asset_opt.list_available.unwrap_or(false) {
+                // Populate available licenses list
+                PromiseOrValue::Promise(
+                    self.get_available_list_for_asset(asset.as_ref().unwrap()).as_return()
+                )
+            } else {
+                PromiseOrValue::Value(asset)
+            }
+        }
+        return PromiseOrValue::Value(asset)
     }
     
     //Query for nft tokens on the contract regardless of the owner using pagination
@@ -40,7 +65,7 @@ impl InventoryContract {
             //take the first "limit" elements in the vector. If we didn't specify a limit, use 50
             .take(limit.unwrap_or(50) as usize) 
             //we'll map the token IDs which are strings into Json Tokens
-            .map(|token_id| self.asset_token(token_id.clone()).unwrap())
+            .map(|token_id| self._asset_token(token_id.clone()).unwrap())
             //since we turned the keys into an iterator, we need to turn it back into a vector to return
             .collect()
     }
@@ -89,7 +114,7 @@ impl InventoryContract {
             //take the first "limit" elements in the vector. If we didn't specify a limit, use 50
             .take(limit.unwrap_or(50) as usize) 
             //we'll map the token IDs which are strings into Json Tokens
-            .map(|token_id| self.asset_token(token_id.clone()).unwrap())
+            .map(|token_id| self._asset_token(token_id.clone()).unwrap())
             //since we turned the keys into an iterator, we need to turn it back into a vector to return
             .collect()
     }

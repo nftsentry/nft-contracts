@@ -1,13 +1,5 @@
 use crate::*;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
-#[derive(PartialEq, Clone, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct FilterOpt {
-    pub account_id: Option<AccountId>,
-    pub asset_id: Option<AssetId>,
-}
-
 #[near_bindgen]
 impl Contract {
     //Query for the total supply of NFTs on the contract

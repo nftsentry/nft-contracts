@@ -4,7 +4,7 @@ use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{U128};
 // use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, CryptoHash, PanicOnDefault, Promise,
+    env, near_bindgen, ext_contract, AccountId, Balance, CryptoHash, PanicOnDefault, Promise,
 };
 
 pub use crate::metadata::*;
@@ -12,8 +12,10 @@ pub use crate::events::*;
 pub use crate::mint::*;
 pub use policy_rules::*;
 pub use policy_rules::types::{AssetMinterContractId, AssetTokenId, AssetTokenMetadata, AssetToken};
-pub use policy_rules::types::{AssetLicenses, AssetLicense};
+pub use policy_rules::types::{AssetLicenses, AssetLicense, InventoryLicenseAvailability, FilterOpt};
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicenses, InventoryLicense};
+pub use policy_rules::types::{LicenseToken, TokenId};
+use policy_rules::policy::init_policies;
 
 use crate::internal::*;
 
@@ -78,6 +80,12 @@ pub enum StorageKey {
     // TokenTypesLocked,
 }
 
+#[ext_contract]
+pub trait LicenseContract {
+    fn nft_tokens(&mut self, from_index: Option<U128>, limit: Option<u64>, filter_opt: Option<FilterOpt>) -> Vec<LicenseToken>;
+    fn nft_token(&self, token_id: TokenId) -> Option<LicenseToken>;
+}
+
 #[near_bindgen]
 impl InventoryContract {
     /*
@@ -111,7 +119,8 @@ impl InventoryContract {
     */
     #[init]
     pub fn new(owner_id: AccountId, metadata: InventoryContractMetadata) -> Self {
-        //create a variable of type Self with all the fields initialized. 
+        //create a variable of type Self with all the fields initialized.
+        init_policies();
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::AssetPerOwner.try_to_vec().unwrap()),

@@ -6,8 +6,9 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, CryptoHash, PanicOnDefault, Promise, PromiseOrValue,
 };
+use policy_rules::policy::init_policies;
 pub use policy_rules::types::{NFTContractMetadata, Token, TokenLicense, TokenMetadata};
-pub use policy_rules::types::{LicenseToken};
+pub use policy_rules::types::{LicenseToken, FilterOpt};
 
 use crate::internal::*;
 pub use crate::metadata::*;
@@ -116,7 +117,8 @@ impl Contract {
     */
     #[init]
     pub fn new(owner_id: AccountId, metadata: NFTContractMetadata) -> Self {
-        //create a variable of type Self with all the fields initialized. 
+        //create a variable of type Self with all the fields initialized.
+        init_policies();
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),

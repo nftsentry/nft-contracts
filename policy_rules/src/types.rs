@@ -112,6 +112,14 @@ pub struct Token {
     pub royalty: HashMap<AccountId, u32>,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct FilterOpt {
+    pub account_id: Option<AccountId>,
+    pub asset_id: Option<AssetId>,
+}
+
 //The Json token is what will be returned from view calls.
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
 #[derive(PartialEq)]
@@ -193,7 +201,7 @@ pub type InventoryLicenses = Vec<InventoryLicense>;
 /// This spec can be treated like a version of the standard.
 pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct InventoryLicense {
     pub license_id: String,
@@ -255,7 +263,7 @@ impl InventoryLicense {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AssetLicense {
     pub license_id: String,
@@ -264,7 +272,7 @@ pub struct AssetLicense {
 }
 
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct InventoryContractMetadata {
     pub spec: String,              // required, essentially a version like "nft-1.0.0"
@@ -325,7 +333,7 @@ pub struct AssetToken {
 }
 
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct InventoryLicenseAvailability {
     pub inventory_license:    InventoryLicense,
