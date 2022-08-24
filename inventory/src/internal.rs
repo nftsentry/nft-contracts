@@ -1,8 +1,7 @@
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use crate::*;
 use near_sdk::{CryptoHash, PromiseError};
-use policy_rules::policy::{CONFIG, ConfigInterface};
+use policy_rules::policy::{ConfigInterface};
 use policy_rules::types::FullInventory;
 
 //used to generate a unique prefix in our storage collections (this is to avoid data collisions)
@@ -121,7 +120,7 @@ impl InventoryContract {
             }
         }
 
-        let available = CONFIG.lock().unwrap().list_available(full_inventory);
+        let available = self.policies.list_available(full_inventory);
         asset.available_licenses = Some(available);
         asset.clone()
         /*

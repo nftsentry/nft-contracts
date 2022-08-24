@@ -1,8 +1,6 @@
 use crate::*;
 use crate::types::*;
 use std::collections::HashMap;
-use lazy_static::lazy_static; // 1.4.0
-use std::sync::Mutex;
 use minijinja::value::Value;
 
 const LEVEL_INVENTORY: &str = "inventory";
@@ -17,26 +15,21 @@ pub trait ConfigInterface {
     fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability>;
 }
 
-lazy_static! {
-    static ref POLICIES_RAW: Mutex<Vec<u8>> = Mutex::new(include_bytes!("rules.yaml").to_vec());
-    pub static ref CONFIG: Mutex<AllPolicies> = Mutex::new(AllPolicies::default());
-}
-
 pub fn init_policies() -> AllPolicies {
-    // println!("{:?}", CONFIG.is_poisoned());
-    let raw = POLICIES_RAW.lock().unwrap();
-    let mut config: AllPolicies = serde_yaml::from_slice(raw.as_slice()).expect("Fail to parse rules.yaml");
+    let raw = include_bytes!("rules.json").to_vec();
+    let mut config: AllPolicies = serde_json::from_slice(raw.as_slice()).expect("Fail to parse rules.yaml");
 
     for (policy_name, pol) in &mut config.policies {
         // config.policies.get_mut(policy_name.as_str()).unwrap().name = Some(policy_name.clone());
         pol.name = Some(policy_name.clone());
     }
 
-    CONFIG.lock().unwrap().limitations = config.limitations;
-    CONFIG.lock().unwrap().policies = config.policies;
-    CONFIG.lock().unwrap().version = config.version;
-
-    CONFIG.lock().unwrap().clone()
+    config
+    // CONFIG.lock().unwrap().limitations = config.limitations;
+    // CONFIG.lock().unwrap().policies = config.policies;
+    // CONFIG.lock().unwrap().version = config.version;
+    //
+    // CONFIG.lock().unwrap().clone()
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Default, Debug)]

@@ -1,27 +1,20 @@
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
-    use crate::policy::{CONFIG, init_policies};
+    use crate::policy::{init_policies};
     use crate::policy::ConfigInterface;
     use crate::types::{FullInventory, InventoryLicense, LicenseData};
 
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-
-    #[test]
     fn test_init_policies() {
         let _policies = init_policies();
-        assert_eq!(CONFIG.try_lock().is_err(), false);
-        assert_eq!(CONFIG.lock().unwrap().version, "0.0.1");
-        assert_eq!(CONFIG.lock().unwrap().limitations.len(), 3);
-        assert_eq!(CONFIG.lock().unwrap().policies.len(), 4);
+        assert_eq!(_policies.version, "0.0.1");
+        assert_eq!(_policies.limitations.len(), 3);
+        assert_eq!(_policies.policies.len(), 4);
     }
 
     #[test]
     fn test_check_transition() {
-        let _policies = init_policies();
+        let policies = init_policies();
 
         let old_l = InventoryLicense{
             title: "lic1".to_string(),
@@ -59,7 +52,7 @@ mod tests {
             issued_licenses:    vec![old_token.clone()],
         };
 
-        let res = CONFIG.lock().unwrap().check_transition(
+        let res = policies.check_transition(
             inventory, old_token, new_l
         );
         assert_eq!(res.clone().err(), None);
@@ -68,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_list_transitions() {
-        let _policies = init_policies();
+        let policies = init_policies();
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
@@ -121,7 +114,7 @@ mod tests {
             issued_licenses:    vec![personal_token.clone()],
         };
 
-        let available = CONFIG.lock().unwrap().list_transitions(
+        let available = policies.list_transitions(
             inventory, personal_token
         );
         let count = available.iter().filter(|x| x.available).count();
@@ -131,7 +124,7 @@ mod tests {
 
     #[test]
     fn test_list_transitions_has_exclusive() {
-        let _policies = init_policies();
+        let policies = init_policies();
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
@@ -184,7 +177,7 @@ mod tests {
             issued_licenses:    vec![personal_exclusive_token.clone()],
         };
 
-        let available = CONFIG.lock().unwrap().list_transitions(
+        let available = policies.list_transitions(
             inventory, personal_exclusive_token
         );
         let count = available.iter().filter(|x| x.available).count();
@@ -194,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_check_new_exclusive() {
-        let _policies = init_policies();
+        let policies = init_policies();
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
@@ -248,7 +241,7 @@ mod tests {
             issued_licenses:    vec![personal_exclusive_token.clone()],
         };
 
-        let (res, reason) = CONFIG.lock().unwrap().check_new(
+        let (res, reason) = policies.check_new(
             inventory, personal_token
         );
         assert_eq!(res, false);
@@ -257,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_check_inventory_state() {
-        let _policies = init_policies();
+        let policies = init_policies();
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
@@ -310,7 +303,7 @@ mod tests {
             issued_licenses:    vec![personal_exclusive_token.clone()],
         };
 
-        let (res, reason) = CONFIG.lock().unwrap().check_inventory_state(
+        let (res, _reason) = policies.check_inventory_state(
             inventory.inventory_licenses
         );
         assert_eq!(res, true);

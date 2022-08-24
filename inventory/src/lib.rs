@@ -15,7 +15,7 @@ pub use policy_rules::types::{AssetMinterContractId, AssetTokenId, AssetTokenMet
 pub use policy_rules::types::{AssetLicenses, AssetLicense, InventoryLicenseAvailability, FilterOpt};
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicenses, InventoryLicense};
 pub use policy_rules::types::{LicenseToken, TokenId};
-use policy_rules::policy::init_policies;
+use policy_rules::policy::{AllPolicies, init_policies};
 
 use crate::internal::*;
 
@@ -61,6 +61,7 @@ pub struct InventoryContract {
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<InventoryContractMetadata>,
 
+    pub policies: AllPolicies,
     pub disable_events: bool,
 }
 
@@ -120,7 +121,7 @@ impl InventoryContract {
     #[init]
     pub fn new(owner_id: AccountId, metadata: InventoryContractMetadata) -> Self {
         //create a variable of type Self with all the fields initialized.
-        init_policies();
+        let policies = init_policies();
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::AssetPerOwner.try_to_vec().unwrap()),
@@ -138,6 +139,7 @@ impl InventoryContract {
                 Some(&metadata),
             ),
             disable_events: false,
+            policies,
         };
 
         //return the Contract object

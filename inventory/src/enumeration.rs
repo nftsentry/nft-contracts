@@ -1,6 +1,4 @@
-use std::collections::HashMap;
 use near_sdk::PromiseOrValue;
-use policy_rules::policy::{ConfigInterface};
 use crate::*;
 
 #[near_bindgen]

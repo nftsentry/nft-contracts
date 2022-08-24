@@ -1,0 +1,53 @@
+{
+  "version": "0.0.1",
+  "policies": {
+    "personal": {
+      "template": "is_personal and not is_exclusive",
+      "upgrade_to": [
+        "commercial",
+        "personal_exclusive",
+        "commercial_exclusive"
+      ]
+    },
+    "commercial": {
+      "template": "not is_personal and not is_exclusive",
+      "upgrade_to": [
+        "commercial_exclusive"
+      ]
+    },
+    "personal_exclusive": {
+      "template": "is_personal and is_exclusive",
+      "upgrade_to": []
+    },
+    "commercial_exclusive": {
+      "template": "not is_personal and is_exclusive",
+      "upgrade_to": []
+    }
+  },
+  "limitations": [
+    {
+      "name": "all",
+      "level": "licenses",
+      "template": "true",
+      "max_count": {
+        "count": 1000000
+      }
+    },
+    {
+      "name": "exclusive",
+      "level": "licenses",
+      "template": "true",
+      "exclusive": {
+        "template": "is_exclusive"
+      }
+    },
+    {
+      "name": "exclusive template",
+      "level": "inventory",
+      "template": "is_exclusive",
+      "max_count": {
+        "count": 1
+      }
+    }
+  ]
+}
