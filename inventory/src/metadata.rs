@@ -88,6 +88,11 @@ impl InventoryMetadata for InventoryContract {
 
     #[payable]
     fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> InventoryContractMetadata {
+        let (ok, reason) = self.policies.check_inventory_state(licenses.clone());
+        if !ok {
+            env::panic_str(reason.as_str())
+        }
+
         let initial_storage_usage = env::storage_usage();
 
         let mut meta = self.metadata.get().unwrap();
