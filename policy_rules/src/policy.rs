@@ -93,7 +93,7 @@ impl LimitCheck for MaxCount {
     fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation) -> (bool, String) {
         if matched.len() > self.count as usize {
             let msg = format!(
-                "Cannot upgrade to {}: Max count {}",
+                "Cannot set more {}: max count {}",
                 l.name, self.count,
             );
             (false, msg)

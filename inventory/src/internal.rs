@@ -92,12 +92,12 @@ impl InventoryContract {
     pub fn full_inventory_for_asset_callback(
         &self,
         #[callback_result] call_result: Result<Vec<LicenseToken>, PromiseError>,
-        asset: &mut JsonAssetToken,
-        inv_metadata: &mut InventoryContractMetadata) -> JsonAssetToken {
+        asset: &mut JsonAssetToken) -> JsonAssetToken {
 
         if call_result.is_err() {
-            panic!("Failed call previous nft_tokens!");
+            env::panic_str("Failed call previous nft_tokens!");
         }
+        let mut inv_metadata = self.inventory_metadata();
         let tokens = call_result.unwrap();
 
         let mut asset_lic_map: HashMap<String, &AssetLicense> = HashMap::new();
@@ -123,25 +123,9 @@ impl InventoryContract {
         let available = self.policies.list_available(full_inventory);
         asset.available_licenses = Some(available);
         asset.clone()
-        /*
-        var assetLicMap = make(map[string]*near_nft.AssetLicense)
-        for _, assetLicense := range asset.Licenses {
-            assetLicMap[assetLicense.LicenseId] = assetLicense
-        }
-        for _, lic := range inventoryMetadata.Licenses {
-            if assetLicense, ok := assetLicMap[lic.LicenseId]; ok {
-                if assetLicense.Price != nil {
-                    lic.Price = *assetLicense.Price
-                }
-                result.InventoryLicenses = append(result.InventoryLicenses, lic)
-            }
-        }
-         */
     }
 
     pub fn get_available_list_for_asset(&self, asset: &JsonAssetToken) -> Promise {
-        let mut inv_metadata = self.inventory_metadata();
-
         // Now call asset.minter_id.nft_tokens(asset_id=asset.token_id)
         let filter = FilterOpt{account_id: None, asset_id: Some(asset.token_id.clone())};
         let mut asset_mut = asset.clone();
@@ -149,7 +133,7 @@ impl InventoryContract {
             None, None, Some(filter)
         ).then(
             Self::ext(env::current_account_id()).full_inventory_for_asset_callback(
-                &mut asset_mut, &mut inv_metadata,
+                &mut asset_mut,
             )
         );
 

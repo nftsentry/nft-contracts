@@ -307,5 +307,16 @@ mod tests {
             inventory.inventory_licenses
         );
         assert_eq!(res, true);
+
+        let inventory2 = FullInventory{
+            inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone(), personal_exclusive.clone()],
+            issued_licenses:    vec![personal_exclusive_token.clone()],
+        };
+
+        let (res2, reason2) = policies.check_inventory_state(
+            inventory2.inventory_licenses
+        );
+        assert_eq!(res2, false);
+        assert_eq!(reason2.contains("max count 1"), true)
     }
 }

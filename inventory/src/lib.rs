@@ -81,9 +81,9 @@ pub enum StorageKey {
     // TokenTypesLocked,
 }
 
-#[ext_contract]
+#[ext_contract(license_contract)]
 pub trait LicenseContract {
-    fn nft_tokens(&mut self, from_index: Option<U128>, limit: Option<u64>, filter_opt: Option<FilterOpt>) -> Vec<LicenseToken>;
+    fn nft_tokens(&self, from_index: Option<U128>, limit: Option<u64>, filter_opt: Option<FilterOpt>) -> Vec<LicenseToken>;
     fn nft_token(&self, token_id: TokenId) -> Option<LicenseToken>;
 }
 

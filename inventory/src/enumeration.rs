@@ -9,7 +9,7 @@ impl InventoryContract {
         U128(self.token_metadata_by_id.len() as u128)
     }
 
-    fn _asset_token(&self, token_id: AssetTokenId) -> Option<JsonAssetToken> {
+    pub fn _asset_token(&self, token_id: AssetTokenId) -> Option<JsonAssetToken> {
         //if there is some token ID in the tokens_by_id collection
         let token_opt = self.tokens_by_id.get(&token_id);
         if token_opt.is_none() {
@@ -42,7 +42,7 @@ impl InventoryContract {
             return if asset_opt.list_available.unwrap_or(false) {
                 // Populate available licenses list
                 PromiseOrValue::Promise(
-                    self.get_available_list_for_asset(asset.as_ref().unwrap()).as_return()
+                    self.get_available_list_for_asset(asset.as_ref().unwrap())
                 )
             } else {
                 PromiseOrValue::Value(asset)
