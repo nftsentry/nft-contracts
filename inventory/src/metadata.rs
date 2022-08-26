@@ -6,30 +6,6 @@ use near_sdk::serde::{Deserialize, Serialize};
 pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
 
 //The Json token is what will be returned from view calls. 
-#[derive(Serialize, Deserialize, Clone)]
-//#[derive(PartialEq)]
-#[serde(crate = "near_sdk::serde")]
-pub struct JsonAssetToken {
-    //token ID
-    pub token_id: AssetTokenId,
-    //owner of the token
-    pub owner_id: AccountId,
-    // minter_id
-    pub minter_id: Option<AccountId>,
-    //token metadata
-    pub metadata: AssetTokenMetadata,
-    // license metadata
-    pub licenses: Option<AssetLicenses>,
-    pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AssetTokenOpt {
-    pub list_available: Option<bool>
-}
-
-//The Json token is what will be returned from view calls. 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonToken {

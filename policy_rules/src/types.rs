@@ -327,6 +327,28 @@ pub struct AssetToken {
     pub licenses: Option<AssetLicenses>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+//#[derive(PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub struct JsonAssetToken {
+    //token ID
+    pub token_id: AssetTokenId,
+    //owner of the token
+    pub owner_id: AccountId,
+    // minter_id
+    pub minter_id: Option<AccountId>,
+    //token metadata
+    pub metadata: AssetTokenMetadata,
+    // license metadata
+    pub licenses: Option<AssetLicenses>,
+    pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AssetTokenOpt {
+    pub list_available: Option<bool>
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]

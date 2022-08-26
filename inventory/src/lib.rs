@@ -14,7 +14,7 @@ pub use policy_rules::*;
 pub use policy_rules::types::{AssetMinterContractId, AssetTokenId, AssetTokenMetadata, AssetToken};
 pub use policy_rules::types::{AssetLicenses, AssetLicense, InventoryLicenseAvailability, FilterOpt};
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicenses, InventoryLicense};
-pub use policy_rules::types::{LicenseToken, TokenId};
+pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken, AssetTokenOpt};
 use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};
 
 use crate::internal::*;

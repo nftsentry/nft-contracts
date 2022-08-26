@@ -4,11 +4,12 @@ use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, CryptoHash, PanicOnDefault, Promise, PromiseOrValue,
+    env, near_bindgen, ext_contract, AccountId, Balance, CryptoHash, PanicOnDefault, Promise, PromiseOrValue,
 };
 use policy_rules::policy::{AllPolicies, init_policies};
 pub use policy_rules::types::{NFTContractMetadata, Token, TokenLicense, TokenMetadata};
 pub use policy_rules::types::{LicenseToken, FilterOpt};
+use policy_rules::types::{AssetTokenId, AssetTokenOpt, InventoryContractMetadata, JsonAssetToken};
 
 use crate::internal::*;
 pub use crate::metadata::*;
@@ -68,6 +69,13 @@ pub struct Contract {
 
     pub policies: AllPolicies,
     pub disable_events: bool,
+}
+
+#[ext_contract(inventory_contract)]
+pub trait InventoryContract {
+    fn inventory_metadata(&self) -> InventoryContractMetadata;
+    fn asset_token(&self, token_id: AssetTokenId, opt: Option<AssetTokenOpt>) -> Option<JsonAssetToken>;
+    fn asset_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonAssetToken>;
 }
 
 /// Helper structure for keys of the persistent collections.

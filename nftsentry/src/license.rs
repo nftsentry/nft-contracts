@@ -1,6 +1,6 @@
 use crate::*;
 
-use near_sdk::{log,Gas};
+use near_sdk::{log, Gas, PromiseError};
 
 // const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
 // const NO_DEPOSIT: Balance = 0;
@@ -9,27 +9,57 @@ const MIN_GAS_FOR_LICENSE_APPROVE_CALL: Gas = Gas(100_000_000_000_000);
 
 #[near_bindgen]
 impl Contract {
-
-
     #[payable]
     pub fn nft_update_license(
         &mut self,  
         token_id: TokenId, 
         license: TokenLicense, 
-    ){
-
+    ) -> Promise {
         let predecessor_id = env::predecessor_account_id();
         let token = self.tokens_by_id.get(&token_id).expect("No token");
+        let token_meta = self.token_metadata_by_id.get(&token_id).expect("No token");
 
         if predecessor_id != token.owner_id {
-            panic!("License can only be updated directly by the token owner");
+            env::panic_str("License can only be updated directly by the token owner");
         }
+        let (inventory_id, asset_id, license_id) = token_meta.inventory_asset_license();
+
+        // Schedule calls to metadata and asset token
+        let promise_meta: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
+            .inventory_metadata();
+        let promise_asset: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
+            .asset_token(asset_id, None);
+        let promise_inventory = promise_meta.and(promise_asset);
+        // Then schedule call to self.callback
+
+        return promise_inventory.then(
+            Self::ext(env::current_account_id()).on_license_update(token_id, predecessor_id, license)
+        )
+    }
+
+    pub fn on_license_update(
+        &mut self,
+        #[callback_result] metadata_res: Result<InventoryContractMetadata, PromiseError>,
+        #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
+        token_id: TokenId,
+        predecessor_id: AccountId,
+        license: TokenLicense,
+    ) {
+        if metadata_res.is_err() || asset_res.is_err() {
+            if metadata_res.is_err() {
+                env::panic_str("Failed call inventory_metadata")
+            } else {
+                env::panic_str("Failed call asset_token")
+            }
+        }
+        // env::log_str(serde_json::to_string(&metadata_res.unwrap()).unwrap().as_str());
+        // env::log_str(serde_json::to_string(&asset_res.unwrap()).unwrap().as_str());
+        let token = self.tokens_by_id.get(&token_id).expect("No token");
 
         //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
 
-
-        self.internal_replace_license(&predecessor_id,&token_id,&license);
+        self.internal_replace_license(&predecessor_id, &token_id, &license);
 
         // Construct the mint log as per the events standard.
         let nft_approve_license_log: EventLog = EventLog {
