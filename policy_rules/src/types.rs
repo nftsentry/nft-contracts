@@ -1,3 +1,4 @@
+use near_sdk::env;
 use crate::*;
 
 pub type TokenId = String;
@@ -49,16 +50,14 @@ pub struct TokenMetadata {
 
 impl TokenMetadata {
     pub fn inventory_asset_license(&self) -> (String, String, String) {
-        unsafe {
-            let extra: TokenExtra = serde_json::from_str(
-                self.extra.as_ref().unwrap_unchecked().as_str()
-            ).expect("Failed parse token_metadata.extra");
-            let splitted: Vec<String> = extra.asset_id_path.split("/").map(|x| x.to_string()).collect();
-            return if splitted.len() >= 3 {
-                (splitted[0].clone(), splitted[1].clone(), splitted[2].clone())
-            } else {
-                (String::new(), String::new(), String::new())
-            }
+        let extra: TokenExtra = serde_json::from_str(
+            self.extra.as_ref().unwrap().as_str()
+        ).expect("Failed parse token_metadata.extra");
+        let splitted: Vec<String> = extra.asset_id_path.split("/").map(|x| x.to_string()).collect();
+        if splitted.len() >= 3 {
+            return (splitted[0].clone(), splitted[1].clone(), splitted[2].clone())
+        } else {
+            env::panic_str("Failed parse metadata.extra field for inventory/asset/license")
         }
     }
 }

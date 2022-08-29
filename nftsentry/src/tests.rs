@@ -7,8 +7,7 @@ mod tests {
 
     use crate::{Contract};
     use crate::approval::NonFungibleTokenCore;
-    use crate::enumeration::FilterOpt;
-    use policy_rules::types::{LicenseData, TokenLicense, TokenMetadata};
+    use policy_rules::types::{LicenseData, TokenLicense, TokenMetadata, FilterOpt};
     // use crate::nft_core::NonFungibleTokenCore as NFTCore;
 
     // use crate::license::*;
@@ -106,10 +105,8 @@ mod tests {
 
         let _token = contract.nft_mint(
             token_id.clone(),
-            "id".to_string(),
             sample_token_metadata(),
             test_accounts(0),
-            Some(sample_token_license()),
             None,
         );
 
@@ -120,7 +117,7 @@ mod tests {
             .predecessor_account_id(test_accounts(0))
             .build());
         contract.nft_approve_license(token_id.clone());
-        contract.nft_update_license(token_id.clone(), sample_token_license());
+        contract.nft_update_license(token_id.clone(), "some_id".to_string());
 
         let authorized_id = test_accounts(0);
         let token_id = "token-1".to_string();
@@ -156,10 +153,8 @@ mod tests {
         let token_id = "token-1".to_string();
         let token = contract.nft_mint(
             token_id.clone(),
-            "id".to_string(),
             sample_token_metadata(),
             accounts(0),
-            Some(sample_token_license()),
             None,
         );
 
@@ -196,10 +191,8 @@ mod tests {
         let token_id = "0".to_string();
         contract.nft_mint(
             token_id.clone(),
-            "id".to_string(),
             sample_token_metadata(),
             accounts(0),
-            Some(sample_token_license()),
             None
         );
 

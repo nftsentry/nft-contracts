@@ -21,7 +21,7 @@ pub fn init_policies() -> AllPolicies {
 
     for (policy_name, pol) in &mut config.policies {
         // config.policies.get_mut(policy_name.as_str()).unwrap().name = Some(policy_name.clone());
-        pol.name = policy_name.clone();
+        pol.name = Some(policy_name.clone());
     }
 
     config
@@ -38,7 +38,7 @@ pub struct AllPolicies {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Policy {
-    pub name:       String,
+    pub name:       Option<String>,
     pub template:   String,
     pub upgrade_to: Vec<String>,
 }
@@ -167,9 +167,9 @@ impl ConfigInterface for AllPolicies {
         unsafe {
             let policy_old = self.find_policy(old_inv_lic.unwrap_unchecked())?;
             let policy_new = self.find_policy(new.clone())?;
-            let exists = policy_old.has_upgrade_to(policy_new.name.clone());
+            let exists = policy_old.has_upgrade_to(policy_new.name.as_ref().unwrap_unchecked().clone());
             if !exists {
-                return Ok((false, format!("No upgrade path to {}", policy_new.name.clone())))
+                return Ok((false, format!("No upgrade path to {}", policy_new.name.as_ref().unwrap_unchecked().clone())))
             } else {
                 // Check restrictions
                 // compute future state

@@ -1,4 +1,3 @@
-use std::time::SystemTime;
 use crate::*;
 
 use near_sdk::{log, Gas, PromiseError};
@@ -51,10 +50,10 @@ impl Contract {
         new_license_id: String,
     ) {
 
+        let initial_storage_usage = env::storage_usage();
         let license = self.ensure_update_license(metadata_res, asset_res, token_id.clone(), new_license_id);
         //measure the initial storage being used on the contract
         let token = self.tokens_by_id.get(&token_id).expect("Token does not exist");
-        let initial_storage_usage = env::storage_usage();
 
         self.internal_replace_license(&predecessor_id, &token_id, &license);
 
@@ -81,7 +80,7 @@ impl Contract {
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
             //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage);
+            refund_deposit(storage_usage - initial_storage_usage, Some(predecessor_id));
         }
     }
 
@@ -125,8 +124,8 @@ impl Contract {
             issuer_id: Some(env::current_account_id()),
             uri: new_license.license.pdf_url.clone(),
             metadata: Some(serde_json::to_string(&new_license.license).unwrap()),
-            issued_at: Some(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis() as u64),
-            starts_at: Some(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis() as u64),
+            issued_at: Some(env::block_timestamp_ms()),
+            starts_at: Some(env::block_timestamp_ms()),
             expires_at: None,
             updated_at: None,
             reference: None,
@@ -134,7 +133,7 @@ impl Contract {
         }
     }
 
-    fn get_full_inventory(&self, asset: JsonAssetToken, metadata: InventoryContractMetadata) -> FullInventory {
+    pub fn get_full_inventory(&self, asset: JsonAssetToken, metadata: InventoryContractMetadata) -> FullInventory {
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
         let mut inventory_licenses: Vec<InventoryLicense> = Vec::new();
@@ -210,7 +209,7 @@ impl Contract {
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
             //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage);
+            refund_deposit(storage_usage - initial_storage_usage, None);
         }
     }
 
@@ -257,7 +256,7 @@ impl Contract {
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
             //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage);
+            refund_deposit(storage_usage - initial_storage_usage, None);
         }
     }
 
@@ -294,7 +293,7 @@ impl Contract {
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
             //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage);
+            refund_deposit(storage_usage - initial_storage_usage, None);
         }
     }
 
