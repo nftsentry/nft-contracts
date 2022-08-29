@@ -1,6 +1,6 @@
 use crate::*;
 use crate::types::*;
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use minijinja::value::Value;
 
 const LEVEL_INVENTORY: &str = "inventory";
@@ -21,18 +21,13 @@ pub fn init_policies() -> AllPolicies {
 
     for (policy_name, pol) in &mut config.policies {
         // config.policies.get_mut(policy_name.as_str()).unwrap().name = Some(policy_name.clone());
-        pol.name = Some(policy_name.clone());
+        pol.name = policy_name.clone();
     }
 
     config
-    // CONFIG.lock().unwrap().limitations = config.limitations;
-    // CONFIG.lock().unwrap().policies = config.policies;
-    // CONFIG.lock().unwrap().version = config.version;
-    //
-    // CONFIG.lock().unwrap().clone()
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Default, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AllPolicies {
     pub version:     String,
@@ -40,10 +35,10 @@ pub struct AllPolicies {
     pub limitations: Vec<Limitation>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Policy {
-    pub name:       Option<String>,
+    pub name:       String,
     pub template:   String,
     pub upgrade_to: Vec<String>,
 }
@@ -58,7 +53,7 @@ pub trait LimitCheck {
     fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation) -> (bool, String);
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct  CheckNewOpt {
     in_assets:   Option<bool>,
@@ -66,13 +61,13 @@ pub struct  CheckNewOpt {
     token_id:    Option<String>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct FutureStateOpt {
     pub level: String,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Limitation {
     pub name:      String,
@@ -83,7 +78,7 @@ pub struct Limitation {
     // Add another limit types
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MaxCount {
     pub count: i32,
@@ -103,7 +98,7 @@ impl LimitCheck for MaxCount {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Exclusive {
     pub template: String,
@@ -140,13 +135,15 @@ impl Limitation {
             if check.is_none() {
                 continue
             }
-            let must_check = check.unwrap();
-            let (ok, reason) = must_check.check(matched_licenses.clone(), self);
-            if !ok {
-                return (ok, reason)
+            unsafe {
+                let must_check = check.unwrap_unchecked();
+                let (ok, reason) = must_check.check(matched_licenses.clone(), self);
+                if !ok {
+                    return (ok, reason)
+                }
             }
         }
-        return (true, "".to_string())
+        return (true, String::new())
     }
 
     fn find_all<'a>(&'a self, licenses: &Vec<&'a dyn LicenseGeneral>) -> Vec<&dyn LicenseGeneral> {
@@ -167,21 +164,23 @@ impl ConfigInterface for AllPolicies {
         if old_inv_lic.is_none() {
             return Err("Failed old.as_inventory_license()".to_string())
         }
-        let policy_old = self.find_policy(old_inv_lic.unwrap())?;
-        let policy_new = self.find_policy(new.clone())?;
-        let exists = policy_old.has_upgrade_to(policy_new.name.as_ref().unwrap().clone());
-        if !exists {
-            return Ok((false, format!("No upgrade path to {}", policy_new.name.as_ref().unwrap())))
-        } else {
-            // Check restrictions
-            // compute future state
-            let future_state = self.get_future_state_with_transition(inventory, old, new);
+        unsafe {
+            let policy_old = self.find_policy(old_inv_lic.unwrap_unchecked())?;
+            let policy_new = self.find_policy(new.clone())?;
+            let exists = policy_old.has_upgrade_to(policy_new.name.clone());
+            if !exists {
+                return Ok((false, format!("No upgrade path to {}", policy_new.name.clone())))
+            } else {
+                // Check restrictions
+                // compute future state
+                let future_state = self.get_future_state_with_transition(inventory, old, new);
 
-            let (ok, reason) = self.check_future_state(
-                future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
-                FutureStateOpt{level: LEVEL_LICENSES.to_string()}
-            );
-            return Ok((ok, reason))
+                let (ok, reason) = self.check_future_state(
+                    future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+                    FutureStateOpt{level: LEVEL_LICENSES.to_string()}
+                );
+                return Ok((ok, reason))
+            }
         }
     }
 
@@ -190,16 +189,18 @@ impl ConfigInterface for AllPolicies {
         for license in &inventory.inventory_licenses {
             let check_transition_res = self.check_transition(inventory.clone(), from.clone(), license.clone());
 
-            let (can_upgrade, reason) = if check_transition_res.is_err() {
-                (false, check_transition_res.unwrap_err())
-            } else {
-                check_transition_res.ok().unwrap()
-            };
-            res.push(InventoryLicenseAvailability{
-                available: can_upgrade,
-                reason_not_available: Some(reason.clone()),
-                inventory_license: license.clone(),
-            });
+            unsafe {
+                let (can_upgrade, reason) = if check_transition_res.is_err() {
+                    (false, check_transition_res.unwrap_err())
+                } else {
+                    check_transition_res.unwrap_unchecked()
+                };
+                res.push(InventoryLicenseAvailability {
+                    available: can_upgrade,
+                    reason_not_available: Some(reason.clone()),
+                    inventory_license: license.clone(),
+                });
+            }
         }
         res
     }
@@ -217,13 +218,15 @@ impl ConfigInterface for AllPolicies {
     fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability> {
         let mut available: Vec<InventoryLicenseAvailability> = Vec::new();
         for inv_license in &inventory.inventory_licenses {
-            let token = inv_license.as_license_token("0".to_string()).unwrap();
-            let (res, reason) = self.check_new(inventory.clone(), token);
-            available.push(InventoryLicenseAvailability{
-                available: res,
-                reason_not_available: Some(reason),
-                inventory_license: inv_license.clone(),
-            });
+            unsafe {
+                let token = inv_license.as_license_token("0".to_string()).unwrap_unchecked();
+                let (res, reason) = self.check_new(inventory.clone(), token);
+                available.push(InventoryLicenseAvailability {
+                    available: res,
+                    reason_not_available: Some(reason),
+                    inventory_license: inv_license.clone(),
+                });
+            }
         }
         available
     }
@@ -245,28 +248,30 @@ impl ConfigInterface for AllPolicies {
 
 impl AllPolicies {
     fn find_policy(&self, from: InventoryLicense) -> Result<Policy, String> {
-        let mut found: Option<&str> = None;
+        let mut found: String = String::new();
         for (pol_name, pol) in self.policies.iter() {
             let result = exec_template(&pol.template, &from);
             if result.is_true() {
-                found = Some(pol_name.as_str());
+                found = pol_name.clone();
             }
         }
-        if found.is_some() {
-            Ok(self.policies.get(found.unwrap()).unwrap().clone())
-        } else {
-            Err(format!("License policy not found for {}", from.title))
+        unsafe {
+            if found.len() > 0 {
+                Ok(self.policies.get(&found).unwrap_unchecked().clone())
+            } else {
+                Err("License policy not found for ".to_string() + &from.title)
+            }
         }
     }
 
-    pub fn get_future_state_with_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> FullInventory {
+    pub unsafe fn get_future_state_with_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> FullInventory {
         let mut future_state = inventory.clone();
         for token in future_state.issued_licenses.iter_mut() {
             if token.token_id == old.token_id {
-                let meta = serde_json::to_string(&new.license.clone()).unwrap();
+                let meta = serde_json::to_string(&new.license.clone()).unwrap_unchecked();
                 let (inv_id, asset_id, _) = token.metadata.inventory_asset_license();
-                token.license.as_mut().unwrap().metadata = Some(meta);
-                token.license.as_mut().unwrap().title = Some(new.title.clone());
+                token.license.as_mut().unwrap_unchecked().metadata = Some(meta);
+                token.license.as_mut().unwrap_unchecked().title = Some(new.title.clone());
                 token.metadata.extra = Some(extra_reference_for_asset_path(
                     token.metadata.extra.clone().unwrap_or("".to_string()),
                     inv_id, asset_id, new.license_id.clone(),
@@ -301,13 +306,19 @@ pub fn exec_template(template_str: &String, object: &dyn LicenseGeneral) -> Valu
     let env = minijinja::Environment::new();
     // env.add_template("tpl", &template_str).expect("Failed to add template");
 
-    let expr = env.compile_expression(&template_str).expect("Failed parse expression");
-    let context = minijinja::context!(
-        is_personal => object.is_personal(),
-        is_commercial => object.is_commercial(),
-        is_exclusive => object.is_exclusive(),
-    );
+    unsafe {
+        let expr = env.compile_expression(&template_str).unwrap();
+        // let context = minijinja::context!(
+        //     is_personal => object.is_personal(),
+        //     is_commercial => object.is_commercial(),
+        //     is_exclusive => object.is_exclusive(),
+        // );
+        let mut context: HashMap<&str, bool> = HashMap::new();
+        context.insert("is_personal", object.is_personal());
+        context.insert("is_commercial", object.is_commercial());
+        context.insert("is_exclusive", object.is_exclusive());
 
-    let result = expr.eval(context).unwrap();
-    result
+        let result = expr.eval(context).unwrap_unchecked();
+        result
+    }
 }

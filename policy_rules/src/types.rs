@@ -49,14 +49,16 @@ pub struct TokenMetadata {
 
 impl TokenMetadata {
     pub fn inventory_asset_license(&self) -> (String, String, String) {
-        let extra: TokenExtra = serde_json::from_str(
-            self.extra.as_ref().unwrap().as_str()
-        ).expect("Failed parse token_metadata.extra");
-        let splitted: Vec<_> = extra.asset_id_path.split("/").collect();
-        return if splitted.len() >= 3 {
-            (splitted[0].to_string(), splitted[1].to_string(), splitted[2].to_string())
-        } else {
-            ("".to_string(), "".to_string(), "".to_string())
+        unsafe {
+            let extra: TokenExtra = serde_json::from_str(
+                self.extra.as_ref().unwrap_unchecked().as_str()
+            ).expect("Failed parse token_metadata.extra");
+            let splitted: Vec<String> = extra.asset_id_path.split("/").map(|x| x.to_string()).collect();
+            return if splitted.len() >= 3 {
+                (splitted[0].clone(), splitted[1].clone(), splitted[2].clone())
+            } else {
+                (String::new(), String::new(), String::new())
+            }
         }
     }
 }
@@ -143,34 +145,42 @@ impl LicenseToken {
         if self.license.is_none() {
             return None
         }
-        let license_data: LicenseData = serde_json::from_str(
-            self.license.as_ref().unwrap().metadata.as_ref().unwrap().as_str()
-        ).expect("Failed parse license metadata");
-        let (_, _, lic_id) = self.metadata.inventory_asset_license();
-        let res = InventoryLicense {
-            license_id: lic_id,
-            title: self.license.as_ref().unwrap().title.as_ref().unwrap().to_string(),
-            license: license_data,
-            price: if price.is_some() {price.unwrap()} else {"".to_string()},
-        };
-        Some(res)
+        unsafe {
+            let license_data: LicenseData = serde_json::from_str(
+                self.license.as_ref().unwrap_unchecked().metadata.as_ref().unwrap().as_str()
+            ).expect("Failed parse license metadata");
+            let (_, _, lic_id) = self.metadata.inventory_asset_license();
+            let res = InventoryLicense {
+                license_id: lic_id,
+                title: self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap().to_string(),
+                license: license_data,
+                price: if price.is_some() { price.unwrap_unchecked() } else { String::new() },
+            };
+            Some(res)
+        }
     }
 }
 
 impl LicenseGeneral for LicenseToken {
     fn is_exclusive(&self) -> bool {
-        let lic = self.as_inventory_license(None);
-        lic.unwrap().license.exclusivity
+        unsafe {
+            let lic = self.as_inventory_license(None);
+            lic.unwrap_unchecked().license.exclusivity
+        }
     }
 
     fn is_personal(&self) -> bool {
-        let lic = self.as_inventory_license(None);
-        lic.unwrap().license.personal_use
+        unsafe {
+            let lic = self.as_inventory_license(None);
+            lic.unwrap_unchecked().license.personal_use
+        }
     }
 
     fn is_commercial(&self) -> bool {
-        let lic = self.as_inventory_license(None);
-        !lic.unwrap().license.personal_use
+        unsafe {
+            let lic = self.as_inventory_license(None);
+            !lic.unwrap_unchecked().license.personal_use
+        }
     }
 }
 
@@ -222,39 +232,41 @@ impl LicenseGeneral for InventoryLicense {
 impl InventoryLicense {
     pub fn as_license_token(&self, token_id: String) -> Result<LicenseToken, String> {
         let res = serde_json::to_string(&self.license);
-        if res.is_err() {
-            return Err(res.err().unwrap().to_string())
+        unsafe {
+            if res.is_err() {
+                return Err(res.err().unwrap_unchecked().to_string())
+            }
+            let meta = res.unwrap_unchecked();
+            let mut token_metadata = TokenMetadata::default();
+            token_metadata.title = Some(self.title.clone());
+            token_metadata.extra = Some(extra_reference_to_id(
+                String::new(),
+                "asset_id_path".to_string(),
+                format!("{}/{}/{}", "inv", "asset", self.license_id),
+            ));
+            let res = LicenseToken {
+                token_id,
+                license: Some(TokenLicense {
+                    title: Some(self.title.clone()),
+                    metadata: Some(meta),
+                    description: None,
+                    expires_at: None,
+                    issued_at: None,
+                    issuer_id: None,
+                    reference: None,
+                    reference_hash: None,
+                    starts_at: None,
+                    updated_at: None,
+                    uri: None,
+                }),
+                approved_account_ids: Default::default(),
+                royalty: Default::default(),
+                owner_id: AccountId::new_unchecked("alice".to_string()),
+                asset_id: String::new(),
+                metadata: token_metadata,
+            };
+            Ok(res)
         }
-        let meta = res.unwrap();
-        let mut token_metadata = TokenMetadata::default();
-        token_metadata.title = Some(self.title.clone());
-        token_metadata.extra = Some(extra_reference_to_id(
-            "".to_string(),
-            "asset_id_path".to_string(),
-            format!("{}/{}/{}", "inv", "asset", self.license_id),
-        ));
-        let res = LicenseToken{
-            token_id,
-            license: Some(TokenLicense{
-                title: Some(self.title.clone()),
-                metadata: Some(meta),
-                description: None,
-                expires_at: None,
-                issued_at: None,
-                issuer_id: None,
-                reference: None,
-                reference_hash: None,
-                starts_at: None,
-                updated_at: None,
-                uri: None,
-            }),
-            approved_account_ids: Default::default(),
-            royalty: Default::default(),
-            owner_id: AccountId::new_unchecked("alice".to_string()),
-            asset_id: "".to_string(),
-            metadata: token_metadata,
-        };
-        Ok(res)
     }
 }
 
@@ -374,16 +386,22 @@ pub fn extra_reference_to_id(extra_orig: String, key: String, value: String) -> 
         // 2. Invalid
         if extra_orig.len() > 1 {
             // Not empty, not JSON, push orig as "extra"
-            extra_new.insert("extra".to_string(), extra_orig.parse().unwrap());
+            unsafe {
+                extra_new.insert("extra".to_string(), extra_orig.parse().unwrap_unchecked());
+            }
         }
     } else {
         // let parsed: serde_json::Value = result.unwrap();
         // extra_new = parsed.as_object().unwrap().clone();
-        extra_new = result.unwrap();
+        unsafe {
+            extra_new = result.unwrap_unchecked();
+        }
     }
     extra_new.insert(key, serde_json::Value::String(value));
-    let extra_raw = serde_json::to_string(&extra_new).expect("Failed serialize to JSON");
-    extra_raw
+    unsafe {
+        let extra_raw = serde_json::to_string(&extra_new).unwrap_unchecked();
+        extra_raw
+    }
 }
 
 pub fn  extra_reference_for_asset_path(extra_orig: String, inv_id: String, asset_id: String, license_id: String) -> String {

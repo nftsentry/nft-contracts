@@ -39,6 +39,7 @@ pub const NFT_STANDARD_NAME: &str = "nep171";
 pub const NFT_LICENSE_SPEC: &str = "nftsentry-1.0.0";
 /// This is the name of the NFT standard we're using
 pub const NFT_LICENSE_STANDARD_NAME: &str = "nepTBD";
+pub const MAX_LIMIT: u64 = 1_000_000;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
