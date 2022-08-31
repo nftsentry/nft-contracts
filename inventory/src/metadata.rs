@@ -81,11 +81,8 @@ impl InventoryMetadata for InventoryContract {
             let storage_usage_diff = new_storage_usage - initial_storage_usage;
             let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
             env::log_str(&log_message);
-            refund_deposit(storage_usage_diff, None, None);
+            let _ = refund_deposit(storage_usage_diff, None, None);
         }
-//        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-//        refund_deposit(required_storage_in_bytes);
 
         self.metadata.get().unwrap()
     }
@@ -100,8 +97,7 @@ impl InventoryMetadata for InventoryContract {
 
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        refund_deposit(required_storage_in_bytes, None, None);
-    
+        let _ = refund_deposit(required_storage_in_bytes, None, None);
 
         self.metadata.get().unwrap()
     }

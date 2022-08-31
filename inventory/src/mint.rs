@@ -21,41 +21,24 @@ impl InventoryContract {
             env::panic_str("Unauthorized");
         }
 
-
-        let mut asset_licenses: AssetLicenses = vec![];
-        if licenses.is_some() {
-            asset_licenses = licenses.unwrap();
-        //     if asset_licenses.len() > 0 {
-        //         for inv_license in self.metadata.get().unwrap().licenses {
-        //             for (i, asset_license) in asset_licenses.iter_mut().enumerate() {
-        //                 if asset_license.price.is_none() {
-        //                     asset_license.price = Some(inv_license.price)
-        //                 }
-        //             }
-        //         }
-        //     }
-        }
-
         let token = AssetToken {
             token_id: token_id.clone(),
             owner_id: receiver_id,
-            metadata: metadata.clone(),
             minter_id: minter_id.clone(),
-            licenses: Some(asset_licenses.clone()),
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
-        assert!(
-            self.tokens_by_id.insert(&token.token_id, &token).is_none(),
-            "Token already exists"
-        );
+        let exists = self.tokens_by_id.insert(&token.token_id, &token);
+        if exists.is_some() {
+            env::panic_str("Token already exists")
+        }
 
         //insert the token ID and metadata
         self.token_metadata_by_id.insert(&token.token_id, &metadata);
         // Insert the token ID and list of available licenses  
-        if let Some(ref licenses) = token.licenses {
+        if licenses.is_some() {
             //insert the token ID and license
-            self.token_licenses_by_id.insert(&token.token_id, &licenses);
+            self.token_licenses_by_id.insert(&token.token_id, unsafe{licenses.as_ref().unwrap_unchecked()});
         }
 
         //call the internal method for adding the token to the owner
@@ -82,18 +65,17 @@ impl InventoryContract {
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        refund_deposit(required_storage_in_bytes, None, None);
+        let _ = refund_deposit(required_storage_in_bytes, None, None);
 
         // Log the serialized json.
         self.log_event(&asset_mint_log.to_string());
 
-        JsonAssetToken{
+        JsonAssetToken {
             token_id: token_id.clone(),
             owner_id: token.owner_id,
             minter_id: token.minter_id,
             metadata,
-            licenses: token.licenses,
-            available_licenses: None,
+            licenses: licenses.clone(),
         }
     }
     

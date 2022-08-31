@@ -1,4 +1,3 @@
-use near_sdk::PromiseOrValue;
 use crate::*;
 
 #[near_bindgen]
@@ -26,29 +25,13 @@ impl InventoryContract {
             metadata,
             licenses,
             minter_id: token.minter_id,
-            available_licenses: None,
         };
         Some(asset)
     }
 
     //get the information for a specific token ID
-    pub fn asset_token(&self, token_id: String, opt: Option<AssetTokenOpt>) -> PromiseOrValue<Option<JsonAssetToken>> {
-        let asset = self._asset_token(token_id.clone());
-        if asset.is_none() {
-            return PromiseOrValue::Value(None)
-        }
-        if opt.is_some() {
-            let asset_opt = opt.unwrap();
-            return if asset_opt.list_available.unwrap_or(false) {
-                // Populate available licenses list
-                PromiseOrValue::Promise(
-                    self.get_available_list_for_asset(asset.as_ref().unwrap())
-                )
-            } else {
-                PromiseOrValue::Value(asset)
-            }
-        }
-        return PromiseOrValue::Value(asset)
+    pub fn asset_token(&self, token_id: String) -> Option<JsonAssetToken> {
+        self._asset_token(token_id.clone())
     }
     
     //Query for nft tokens on the contract regardless of the owner using pagination

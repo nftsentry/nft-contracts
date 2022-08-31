@@ -3,7 +3,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{U128};
 use near_sdk::{
-    env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault, Promise,
+    env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault,
 };
 
 pub use crate::metadata::*;
@@ -20,7 +20,6 @@ mod enumeration;
 mod internal;
 pub mod metadata;
 pub mod mint;
-pub mod factory;
 mod events;
 mod tests;
 mod asset;
@@ -29,10 +28,6 @@ mod asset;
 pub const NFT_METADATA_SPEC: &str = "nft-1.0.0";
 /// This is the name of the NFT standard we're using
 pub const NFT_STANDARD_NAME: &str = "nep171";
-/// This spec can be treated like a version of the standard.
-pub const NFT_LICENSE_SPEC: &str = "nftsentry-1.0.0";
-/// This is the name of the NFT standard we're using
-pub const NFT_LICENSE_STANDARD_NAME: &str = "nepTBD";
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -48,9 +43,6 @@ pub struct InventoryContract {
 
     //keeps track of the token metadata for a given token ID
     pub token_metadata_by_id: UnorderedMap<String, TokenMetadata>,
-
-    //keeps track of the asset minter for a given token ID
-    pub token_minter_by_id: UnorderedMap<String, String>,
 
     //keeps track of the asset minter for a given token ID
     pub token_licenses_by_id: UnorderedMap<String, AssetLicenses>,
@@ -129,7 +121,6 @@ impl InventoryContract {
             tokens_by_id: LookupMap::new(StorageKey::AssetById.try_to_vec().unwrap()),
             
             token_metadata_by_id: UnorderedMap::new(StorageKey::AssetMetadataById.try_to_vec().unwrap()),
-            token_minter_by_id: UnorderedMap::new(StorageKey::AssetMinterById.try_to_vec().unwrap()),
             token_licenses_by_id: UnorderedMap::new(StorageKey::AssetLicensesById.try_to_vec().unwrap()),
             
             //set the owner_id field equal to the passed in owner_id. 
@@ -151,6 +142,4 @@ impl InventoryContract {
     pub fn inventory_contract_metadata(&self) -> Option<InventoryContractMetadata> {
         self.metadata.get()
     }
-
-
 }

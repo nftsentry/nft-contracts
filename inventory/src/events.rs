@@ -13,9 +13,6 @@ use crate::*;
 pub enum EventLogVariant {
     AssetMint(Vec<AssetMintLog>),
     AssetUpdateLicense(Vec<AssetUpdateLicenseLog>),
-    AssetAddLicense(Vec<AssetAddLicenseLog>),
-    AssetRemoveLicense(Vec<AssetRemoveLicenseLog>),
-    AssetTransfer(Vec<AssetTransferLog>),
 }
 
 /// Interface to capture data about an event
@@ -60,61 +57,9 @@ pub struct AssetMintLog {
     pub memo: Option<String>,
 }
 
-/// An event log to capture token transfer
-///
-/// Arguments
-/// * `authorized_id`: approved account to transfer
-/// * `old_owner_id`: "owner.near"
-/// * `new_owner_id`: "receiver.near"
-/// * `token_ids`: ["1", "12345abc"]
-/// * `memo`: optional message
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AssetTransferLog {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorized_id: Option<String>,
-
-    pub old_owner_id: String,
-    pub new_owner_id: String,
-    pub token_ids: Vec<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memo: Option<String>,
-}
-
-
-/// Arguments
-/// * `authorized_id`: approved account to transfer
-/// * `owner_id`: "owner.near"
-/// * `token_ids`: ["1", "12345abc"]
-/// * `memo`: optional message
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AssetAddLicenseLog {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorized_id: Option<String>,
-
-    pub owner_id: String,
-    pub token_ids: Vec<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memo: Option<String>,
-}
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AssetUpdateLicenseLog {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub authorized_id: Option<String>,
-
-    pub owner_id: String,
-    pub token_ids: Vec<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memo: Option<String>,
-}
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AssetRemoveLicenseLog {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorized_id: Option<String>,
 

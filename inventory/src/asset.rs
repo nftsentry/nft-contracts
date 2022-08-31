@@ -3,15 +3,6 @@ use crate::*;
 
 #[near_bindgen]
 impl InventoryContract {
-
-    pub fn asset_add_licenses(
-        &mut self,
-        _token_id: String,
-        _license: Option<AssetLicenses>,
-    ) -> Option<AssetLicenses> {
-        None
-    }
-
     #[payable]
     pub fn asset_update_licenses(
         &mut self,
@@ -30,42 +21,11 @@ impl InventoryContract {
             let storage_usage_diff = new_storage_usage - initial_storage_usage;
             let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
             env::log_str(&log_message);
-            refund_deposit(storage_usage_diff, None, None);
+            let _ = refund_deposit(storage_usage_diff, None, None);
         } else {
-            refund_deposit(0, None, None)
+            let _ = refund_deposit(0, None, None);
         }
 
         licenses
-    }
-
-    pub fn asset_remove_license(
-        &mut self, 
-        _token_id: String,
-        _license_id: String,
-    ) -> bool {
-        false
-    }
-
-    pub fn asset_find_license(
-        &mut self,
-        _token_id: String,
-        _license_id: String,
-    ) -> Option<AssetLicense> {
-        None
-    }        
-    
-    pub fn asset_add_minter(
-        &mut self,
-        _token_id: String,
-        _minter_id: String,
-    ) -> Option<AssetLicense> {
-        None
-    } 
-    
-    pub fn asset_get_minter(
-        &mut self,
-        _token_id: String,
-    ) -> Option<String> {
-        None
     }
 }

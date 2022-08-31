@@ -341,10 +341,6 @@ pub struct AssetToken {
     pub owner_id: AccountId,
     //minter of the token
     pub minter_id: AccountId,
-    //token metadata
-    pub metadata: TokenMetadata,
-    // list of approved licenses available for this token
-    pub licenses: Option<AssetLicenses>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -361,7 +357,7 @@ pub struct JsonAssetToken {
     pub metadata: TokenMetadata,
     // license metadata
     pub licenses: Option<AssetLicenses>,
-    pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
+    // pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
