@@ -9,7 +9,7 @@ impl InventoryContract {
         U128(self.token_metadata_by_id.len() as u128)
     }
 
-    pub fn _asset_token(&self, token_id: AssetTokenId) -> Option<JsonAssetToken> {
+    pub fn _asset_token(&self, token_id: String) -> Option<JsonAssetToken> {
         //if there is some token ID in the tokens_by_id collection
         let token_opt = self.tokens_by_id.get(&token_id);
         if token_opt.is_none() {
@@ -32,7 +32,7 @@ impl InventoryContract {
     }
 
     //get the information for a specific token ID
-    pub fn asset_token(&self, token_id: AssetTokenId, opt: Option<AssetTokenOpt>) -> PromiseOrValue<Option<JsonAssetToken>> {
+    pub fn asset_token(&self, token_id: String, opt: Option<AssetTokenOpt>) -> PromiseOrValue<Option<JsonAssetToken>> {
         let asset = self._asset_token(token_id.clone());
         if asset.is_none() {
             return PromiseOrValue::Value(None)

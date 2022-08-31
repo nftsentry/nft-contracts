@@ -13,36 +13,13 @@ pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
     hash
 }
 
-// refund the initial deposit based on the amount of storage that was used up
-pub(crate) fn refund_deposit(storage_used: u64) {
-    //get how much it would cost to store the information
-    let required_cost = env::storage_byte_cost() * Balance::from(storage_used);
-    //get the attached deposit
-    let attached_deposit = env::attached_deposit();
-
-    //make sure that the attached deposit is greater than or equal to the required cost
-    assert!(
-        required_cost <= attached_deposit,
-        "Must attach {} yoctoNEAR to cover storage",
-        required_cost,
-    );
-
-    //get the refund amount from the attached deposit - required cost
-    let refund = attached_deposit - required_cost;
-
-    //if the refund is greater than 1 yocto NEAR, we refund the predecessor that amount
-    if refund > 1 {
-        Promise::new(env::predecessor_account_id()).transfer(refund);
-    }
-}
-
 #[near_bindgen]
 impl InventoryContract {
     //add a token to the set of tokens an owner has
     pub(crate) fn internal_add_token_to_owner(
         &mut self,
         account_id: &AccountId,
-        token_id: &AssetTokenId,
+        token_id: &String,
     ) {
         //get the set of tokens for the given account
         let mut tokens_set = self.tokens_per_owner.get(account_id).unwrap_or_else(|| {
@@ -129,7 +106,7 @@ impl InventoryContract {
         // Now call asset.minter_id.nft_tokens(asset_id=asset.token_id)
         let filter = FilterOpt{account_id: None, asset_id: Some(asset.token_id.clone())};
         let mut asset_mut = asset.clone();
-        let promise: Promise = license_contract::ext(asset.minter_id.clone().unwrap()).nft_tokens(
+        let promise: Promise = license_contract::ext(asset.minter_id.clone()).nft_tokens(
             None, None, Some(filter)
         ).then(
             Self::ext(env::current_account_id()).full_inventory_for_asset_callback(

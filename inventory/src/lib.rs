@@ -2,22 +2,19 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{U128};
-// use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, ext_contract, AccountId, Balance, CryptoHash, PanicOnDefault, Promise,
+    env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault, Promise,
 };
 
 pub use crate::metadata::*;
 pub use crate::events::*;
 pub use crate::mint::*;
 pub use policy_rules::*;
-pub use policy_rules::types::{AssetMinterContractId, AssetTokenId, AssetTokenMetadata, AssetToken};
+pub use policy_rules::types::{TokenMetadata, AssetToken};
 pub use policy_rules::types::{AssetLicenses, AssetLicense, InventoryLicenseAvailability, FilterOpt};
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicenses, InventoryLicense};
 pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken, AssetTokenOpt};
 use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};
-
-use crate::internal::*;
 
 mod enumeration;
 mod internal;
@@ -44,19 +41,19 @@ pub struct InventoryContract {
     pub owner_id: AccountId,
 
     //keeps track of all the token IDs for a given account
-    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<AssetTokenId>>,
+    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<String>>,
 
     //keeps track of the token struct for a given token ID
-    pub tokens_by_id: LookupMap<AssetTokenId, AssetToken>,
+    pub tokens_by_id: LookupMap<String, AssetToken>,
 
     //keeps track of the token metadata for a given token ID
-    pub token_metadata_by_id: UnorderedMap<AssetTokenId, AssetTokenMetadata>,
+    pub token_metadata_by_id: UnorderedMap<String, TokenMetadata>,
 
     //keeps track of the asset minter for a given token ID
-    pub token_minter_by_id: UnorderedMap<AssetTokenId, AssetMinterContractId>,
+    pub token_minter_by_id: UnorderedMap<String, String>,
 
     //keeps track of the asset minter for a given token ID
-    pub token_licenses_by_id: UnorderedMap<AssetTokenId, AssetLicenses>,
+    pub token_licenses_by_id: UnorderedMap<String, AssetLicenses>,
 
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<InventoryContractMetadata>,
@@ -104,9 +101,8 @@ impl InventoryContract {
                 name: "NFTSentry InventoryContract 0.0.2".to_string(),
                 symbol: "SENTRY".to_string(),
                 icon: None,
-                base_uri: None,
-                reference: None,
-                reference_hash: None,
+                background_image: None,
+                description: None,
                 licenses: Vec::new(),
                 default_minter_id: "".to_string(),
             },

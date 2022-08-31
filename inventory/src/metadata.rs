@@ -1,6 +1,7 @@
 use crate::*;
 // use near_sdk::{require};
 use near_sdk::serde::{Deserialize, Serialize};
+use policy_rules::utils::refund_deposit;
 
 /// This spec can be treated like a version of the standard.
 pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
@@ -10,11 +11,11 @@ pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonToken {
     //token ID
-    pub token_id: AssetTokenId,
+    pub token_id: String,
     //owner of the token
     pub owner_id: AccountId,
     //token metadata
-    pub metadata: AssetTokenMetadata,
+    pub metadata: TokenMetadata,
     // license metadata
     // pub license: Option<TokenLicense>,
     // proposed license 
@@ -32,7 +33,7 @@ pub struct JsonToken {
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonTokenLicense {
     //token ID
-    pub token_id: AssetTokenId,
+    pub token_id: String,
     //owner of the token
     pub owner_id: AccountId,
     //token metadata
@@ -80,7 +81,7 @@ impl InventoryMetadata for InventoryContract {
             let storage_usage_diff = new_storage_usage - initial_storage_usage;
             let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
             env::log_str(&log_message);
-            refund_deposit(storage_usage_diff);
+            refund_deposit(storage_usage_diff, None, None);
         }
 //        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
@@ -99,7 +100,7 @@ impl InventoryMetadata for InventoryContract {
 
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        refund_deposit(required_storage_in_bytes);
+        refund_deposit(required_storage_in_bytes, None, None);
     
 
         self.metadata.get().unwrap()

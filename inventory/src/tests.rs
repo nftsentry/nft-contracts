@@ -6,7 +6,7 @@ mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
 
     use crate::InventoryContract;
-    use policy_rules::types::{LicenseData, TokenLicense, AssetTokenMetadata, AssetLicense};
+    use policy_rules::types::{LicenseData, TokenLicense, TokenMetadata, AssetLicense};
     // use crate::approval::NonFungibleTokenCore;
     // use crate::nft_core::NonFungibleTokenCore as NFTCore;
 
@@ -32,8 +32,8 @@ mod tests {
         builder
     }
 
-    fn sample_token_metadata() -> AssetTokenMetadata {
-        AssetTokenMetadata {
+    fn sample_token_metadata() -> TokenMetadata {
+        TokenMetadata {
             title: Some("Olympus Mons".into()),
             description: Some("The tallest mountain in the charted solar system".into()),
             media: None,

@@ -2,7 +2,8 @@ use crate::*;
 
 use near_sdk::{log, Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
-use policy_rules::types::{FullInventory, InventoryLicense};
+use policy_rules::types::{FullInventory, InventoryLicense, NFTUpdateLicenseResult};
+use policy_rules::utils::{balance_from_string, format_balance};
 
 // const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
 // const NO_DEPOSIT: Balance = 0;
@@ -18,8 +19,8 @@ impl Contract {
         new_license_id: String,
     ) -> Promise {
         let predecessor_id = env::predecessor_account_id();
-        let token = self.tokens_by_id.get(&token_id).expect("No token");
-        let token_meta = self.token_metadata_by_id.get(&token_id).expect("No token");
+        let token = self.tokens_by_id.get(&token_id).expect("Token does not exist");
+        let token_meta = self.token_metadata_by_id.get(&token_id).expect("Token does not exist");
 
         if predecessor_id != token.owner_id {
             env::panic_str("License can only be updated directly by the token owner");
@@ -48,17 +49,29 @@ impl Contract {
         token_id: TokenId,
         predecessor_id: AccountId,
         new_license_id: String,
-    ) {
+    ) -> NFTUpdateLicenseResult {
 
         let initial_storage_usage = env::storage_usage();
-        let license = self.ensure_update_license(metadata_res, asset_res, token_id.clone(), new_license_id);
+        let result = self.ensure_update_license(
+            metadata_res, asset_res, token_id.clone(), new_license_id
+        );
+        if result.is_err() {
+            let _ = refund_deposit(0, Some(predecessor_id), None);
+            unsafe {
+                let msg = result.unwrap_err_unchecked();
+                env::log_str( &format!("Error: {}", msg));
+                return NFTUpdateLicenseResult{error: msg}
+            }
+        }
+        let (license, price_diff) = unsafe{result.unwrap_unchecked()};
         //measure the initial storage being used on the contract
-        let token = self.tokens_by_id.get(&token_id).expect("Token does not exist");
+        let token = unsafe{self.nft_token(token_id.clone()).unwrap_unchecked()};
+        let old_license = token.license.unwrap();
 
         self.internal_replace_license(&predecessor_id, &token_id, &license);
 
         // Construct the mint log as per the events standard.
-        let nft_approve_license_log: EventLog = EventLog {
+        let nft_update_license_log: EventLog = EventLog {
             // Standard name ("nep171").
             standard: NFT_LICENSE_STANDARD_NAME.to_string(),
             // Version of the standard ("nft-1.0.0").
@@ -73,15 +86,31 @@ impl Contract {
             }]),
         };
 
-        // Log the serialized json.
-        self.log_event(&nft_approve_license_log.to_string());
-
         //calculate the required storage which was the used - initial
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
-            //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage, Some(predecessor_id));
+            let result = refund_deposit(
+                storage_usage - initial_storage_usage,
+                Some(predecessor_id.clone()),
+                Some(price_diff)
+            );
+            if result.is_err() {
+                // Refund failed due to storage costs.
+                // Rollback all changes!
+                self.internal_replace_license(&token.owner_id, &token.token_id, &old_license);
+                // Refund any deposit
+                let _ = refund_deposit(0, Some(predecessor_id), None);
+
+                let msg = result.unwrap_err();
+                env::log_str( &format!("Error: {}", msg));
+                return NFTUpdateLicenseResult{error: msg}
+            }
         }
+        // Log the serialized json.
+        self.log_event(&nft_update_license_log.to_string());
+
+        return NFTUpdateLicenseResult{error: String::new()}
+
     }
 
     fn ensure_update_license(
@@ -90,23 +119,36 @@ impl Contract {
         asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
         new_license_id: String,
-    ) -> TokenLicense {
+    ) -> Result<(TokenLicense, Balance), String> {
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() {
-            if metadata_res.is_err() {
-                // env::panic_str("Failed call inventory_metadata")
+            return if metadata_res.is_err() {
+                Err("Failed call inventory_metadata".to_string())
             } else {
-                // env::panic_str("Failed call asset_token")
+                Err("Failed call asset_token".to_string())
             }
         }
         let asset = asset_res.unwrap();
         let metadata = metadata_res.unwrap();
         let token = self.nft_token(token_id).unwrap();
+        let (_, _, old_license_id) = token.metadata.inventory_asset_license();
 
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
         let full_inventory = self.get_full_inventory(asset, metadata.clone());
         let new_license = metadata.licenses.iter().find(|x| x.license_id == new_license_id).unwrap();
+        let old_license = metadata.licenses.iter().find(|x| x.license_id == old_license_id).unwrap();
+
+        // Check for valid deposit
+        let must_attach = balance_from_string(new_license.price.clone()) - balance_from_string(old_license.price.clone());
+        if env::attached_deposit() < must_attach {
+            return Err(format!(
+                "Attached deposit of {} NEAR is less than license price difference of {} NEAR",
+                format_balance(env::attached_deposit()),
+                format_balance(must_attach),
+            ))
+        }
+
 
         let result = self.policies.check_transition(full_inventory, token, new_license.clone());
         // Check result of transition attempt.
@@ -118,7 +160,7 @@ impl Contract {
                 env::panic_str(reason.as_str())
             }
         }
-        TokenLicense{
+        let lic = TokenLicense{
             title: Some(new_license.title.clone()),
             description: None,
             issuer_id: Some(env::current_account_id()),
@@ -130,7 +172,8 @@ impl Contract {
             updated_at: None,
             reference: None,
             reference_hash: None
-        }
+        };
+        Ok((lic, must_attach))
     }
 
     pub fn get_full_inventory(&self, asset: JsonAssetToken, metadata: InventoryContractMetadata) -> FullInventory {
@@ -209,7 +252,7 @@ impl Contract {
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
             //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage, None);
+            let _ = refund_deposit(storage_usage - initial_storage_usage, None, None);
         }
     }
 
@@ -228,7 +271,6 @@ impl Contract {
         if predecessor_id != token.owner_id {
             panic!("Only the token owner can approve a license update");
         }
-
 
         self.internal_update_license(&predecessor_id, &token_id); 
 
@@ -256,7 +298,7 @@ impl Contract {
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
             //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage, None);
+            let _ = refund_deposit(storage_usage - initial_storage_usage, None, None);
         }
     }
 
@@ -293,7 +335,7 @@ impl Contract {
         let storage_usage = env::storage_usage();
         if storage_usage > initial_storage_usage {
             //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            refund_deposit(storage_usage - initial_storage_usage, None);
+            let _ = refund_deposit(storage_usage - initial_storage_usage, None, None);
         }
     }
 

@@ -1,3 +1,4 @@
+use policy_rules::utils::refund_deposit;
 use crate::*;
 
 #[near_bindgen]
@@ -5,10 +6,10 @@ impl InventoryContract {
     #[payable]
     pub fn asset_mint(
         &mut self,
-        token_id: AssetTokenId,
-        metadata: AssetTokenMetadata,
+        token_id: String,
+        metadata: TokenMetadata,
         receiver_id: AccountId,
-        minter_id: Option<AccountId>,
+        minter_id: AccountId,
         licenses: Option<AssetLicenses>,
     ) -> JsonAssetToken {
         
@@ -81,7 +82,7 @@ impl InventoryContract {
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        refund_deposit(required_storage_in_bytes);
+        refund_deposit(required_storage_in_bytes, None, None);
 
         // Log the serialized json.
         self.log_event(&asset_mint_log.to_string());

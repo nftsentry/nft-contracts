@@ -9,7 +9,8 @@ use near_sdk::{
 use policy_rules::policy::{AllPolicies, init_policies};
 pub use policy_rules::types::{NFTContractMetadata, Token, TokenLicense, TokenMetadata};
 pub use policy_rules::types::{LicenseToken, FilterOpt};
-use policy_rules::types::{AssetTokenId, AssetTokenOpt, InventoryContractMetadata, JsonAssetToken};
+pub use policy_rules::utils::*;
+use policy_rules::types::{AssetTokenOpt, InventoryContractMetadata, JsonAssetToken};
 
 use crate::internal::*;
 pub use crate::metadata::*;
@@ -51,9 +52,6 @@ pub struct Contract {
     //keeps track of all the token IDs for a given account
     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
 
-    //keeps track of all the token IDs for a given account
-    pub tokens_per_asset: LookupMap<AssetId, UnorderedSet<TokenId>>,
-
     //keeps track of the token struct for a given token ID
     pub tokens_by_id: LookupMap<TokenId, Token>,
 
@@ -76,7 +74,7 @@ pub struct Contract {
 #[ext_contract(inventory_contract)]
 pub trait InventoryContract {
     fn inventory_metadata(&self) -> InventoryContractMetadata;
-    fn asset_token(&self, token_id: AssetTokenId, opt: Option<AssetTokenOpt>) -> Option<JsonAssetToken>;
+    fn asset_token(&self, token_id: String, opt: Option<AssetTokenOpt>) -> Option<JsonAssetToken>;
     fn asset_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonAssetToken>;
 }
 
@@ -84,9 +82,7 @@ pub trait InventoryContract {
 #[derive(BorshSerialize)]
 pub enum StorageKey {
     TokensPerOwner,
-    TokensPerAsset,
     TokenPerOwnerInner { account_id_hash: CryptoHash },
-    TokenPerAssetInner { asset_id_hash: CryptoHash },
     TokensById,
     TokenMetadataById,
     TokenLicenseById,
@@ -133,7 +129,6 @@ impl Contract {
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
-            tokens_per_asset: LookupMap::new(StorageKey::TokensPerAsset.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(
                 StorageKey::TokenMetadataById.try_to_vec().unwrap(),

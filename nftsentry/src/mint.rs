@@ -1,5 +1,7 @@
 use near_sdk::{Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
+use policy_rules::types::{InventoryLicense, NFTMintResult};
+use policy_rules::utils::{balance_from_string, format_balance};
 use crate::*;
 
 #[near_bindgen]
@@ -8,7 +10,9 @@ impl Contract {
     pub fn nft_mint(
         &mut self,
         token_id: TokenId,
-        metadata: TokenMetadata,
+        inventory_id: AccountId,
+        asset_id: String,
+        license_id: String,
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
     ) -> Promise {
@@ -16,13 +20,11 @@ impl Contract {
             env::panic_str("Token already exists")
         }
 
-        let (inventory_id, asset_id, _license_id) = metadata.inventory_asset_license();
-
         // Schedule calls to metadata and asset token
-        let promise_meta: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
+        let promise_meta: Promise = inventory_contract::ext(inventory_id.clone())
             .with_static_gas(Gas(5*TGAS)).inventory_metadata();
-        let promise_asset: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
-            .with_static_gas(Gas(5*TGAS)).asset_token(asset_id, None);
+        let promise_asset: Promise = inventory_contract::ext(inventory_id.clone())
+            .with_static_gas(Gas(5*TGAS)).asset_token(asset_id.clone(), None);
         let promise_inventory = promise_meta.and(promise_asset);
         // Then schedule call to self.callback
 
@@ -32,7 +34,7 @@ impl Contract {
                 .with_attached_deposit(env::attached_deposit())
                 .with_static_gas(Gas(15*TGAS))
                 .on_nft_mint(
-                    token_id, metadata, receiver_id, perpetual_royalties, predecessor_id
+                    token_id, license_id, receiver_id, perpetual_royalties, predecessor_id
                 )
         )
     }
@@ -44,25 +46,32 @@ impl Contract {
         #[callback_result] metadata_res: Result<InventoryContractMetadata, PromiseError>,
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
-        metadata: TokenMetadata,
+        license_id: String,
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
         predecessor_id: AccountId,
-    ) -> LicenseToken {
+    ) -> NFTMintResult {
+        //measure the initial storage being used on the contract
+        let initial_storage_usage = env::storage_usage();
 
         let result = self.ensure_nft_mint(
-            metadata_res, asset_res, token_id.clone(), metadata.clone(), receiver_id.clone()
+            metadata_res, asset_res, token_id.clone(), license_id.clone(), receiver_id.clone()
         );
 
         if result.is_err() {
-            Promise::new(predecessor_id.clone()).transfer(env::attached_deposit());
+            let _ = refund_deposit(0, Some(predecessor_id), None);
             unsafe {
-                env::panic_str(result.unwrap_err_unchecked().as_str());
+                let msg = result.unwrap_err_unchecked();
+                env::log_str( &format!("Error: {}", msg));
+                // env::panic_str(result.unwrap_err_unchecked().as_str());
+                return NFTMintResult{
+                    license_token: None,
+                    error: msg,
+                }
             }
         }
-        let (lic_token, asset_id) = unsafe {result.unwrap_unchecked()};
-        //measure the initial storage being used on the contract
-        let initial_storage_usage = env::storage_usage();
+        let (lic_token, inv_license, asset_id) = unsafe {result.unwrap_unchecked()};
+
         // we add an optional parameter for perpetual royalties
         // create a royalty map to store in the token
         let mut royalty = HashMap::new();
@@ -80,7 +89,7 @@ impl Contract {
 
         //specify the token struct that contains the owner ID
         let token = Token {
-            token_id: token_id,
+            token_id,
             //set the owner ID equal to the receiver ID passed into the function
             owner_id: receiver_id,
             asset_id,
@@ -93,8 +102,13 @@ impl Contract {
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
-        self.tokens_by_id.insert(&token.token_id, &token);
-        self.token_metadata_by_id.insert(&token.token_id, &metadata);
+        let exists = self.tokens_by_id.insert(&token.token_id, &token);
+        if exists.is_some() {
+            let msg = "Token already exists";
+            env::log_str( &format!("Error: {}",msg));
+            return NFTMintResult{license_token:None, error:msg.to_string()}
+        }
+        self.token_metadata_by_id.insert(&token.token_id, &lic_token.metadata);
         //insert the token ID and license
         self.token_license_by_id.insert(&token.token_id, lic_token.license.as_ref().unwrap());
 
@@ -102,7 +116,6 @@ impl Contract {
 
         //call the internal method for adding the token to the owner
         self.internal_add_token_to_owner(&token.owner_id, &token.token_id);
-        self.internal_add_token_to_asset(&token.asset_id, &token.token_id);
 
         // Construct the mint log as per the events standard.
         let nft_mint_log: EventLog = EventLog {
@@ -124,13 +137,34 @@ impl Contract {
         //calculate the required storage which was the used - initial
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
-        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        refund_deposit(required_storage_in_bytes, Some(predecessor_id));
+        //refund any excess storage if the user attached too much.
+        let result = refund_deposit(
+            required_storage_in_bytes,
+            Some(predecessor_id.clone()),
+            Some(balance_from_string(inv_license.price.clone())),
+        );
+        if result.is_err() {
+            // Refund failed due to storage costs.
+            // Rollback all changes!
+            self.internal_remove_token_from_owner(&token.owner_id, &token.token_id);
+            self.tokens_by_id.remove(&token.token_id);
+            self.token_license_by_id.remove(&token.token_id);
+            self.token_metadata_by_id.remove(&token.token_id);
+            // Refund any deposit
+            let _ = refund_deposit(0, Some(predecessor_id), None);
+
+            let msg = result.unwrap_err();
+            env::log_str( &format!("Error: {}", msg));
+            return NFTMintResult{license_token:None, error:msg}
+        }
 
         // Log the serialized json.
         self.log_event(&nft_mint_log.to_string());
 
-        lic_token
+        NFTMintResult{
+            license_token: Some(lic_token),
+            error: String::new(),
+        }
     }
 
     fn ensure_nft_mint(
@@ -138,9 +172,9 @@ impl Contract {
         metadata_res: Result<InventoryContractMetadata, PromiseError>,
         asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
-        metadata: TokenMetadata,
+        license_id: String,
         receiver_id: AccountId,
-        ) -> Result<(LicenseToken, String), String> {
+        ) -> Result<(LicenseToken, InventoryLicense, String), String> {
 
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() {
@@ -154,13 +188,23 @@ impl Contract {
         unsafe {
             let asset = asset_res.unwrap_unchecked();
             let inv_metadata = metadata_res.unwrap_unchecked();
-            let (_inventory_id, asset_id, license_id) = metadata.inventory_asset_license();
+            let asset_id = asset.token_id.clone();
 
-            let full_inventory = self.get_full_inventory(asset, inv_metadata);
+            let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata);
             let inv_license = full_inventory.inventory_licenses.iter().find(|x| x.license_id == license_id);
             if inv_license.is_none() {
                 return Err("Inventory license not found by id".to_string())
             }
+            let deposit = env::attached_deposit();
+            let price = balance_from_string(inv_license.unwrap_unchecked().price.clone());
+            if deposit < price {
+                return Err(format!(
+                    "Attached deposit of {} NEAR is less than license price of {} NEAR",
+                    format_balance(deposit),
+                    inv_license.unwrap_unchecked().price.clone(),
+                ))
+            }
+
             let license = TokenLicense {
                 title: Some(inv_license.unwrap_unchecked().title.clone()),
                 metadata: Some(serde_json::to_string(&inv_license.unwrap_unchecked().license).unwrap_unchecked()),
@@ -175,6 +219,10 @@ impl Contract {
                 uri: inv_license.unwrap_unchecked().license.pdf_url.clone(),
             };
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
+            let metadata = asset.metadata.issue_new_metadata(
+                asset.minter_id.clone().to_string(), asset_id.clone(), license_id,
+            );
+
             let lic_token = LicenseToken {
                 token_id: token_id.clone(),
                 metadata,
@@ -185,14 +233,14 @@ impl Contract {
                 license: Some(license.clone()),
             };
             let (ok, reason) = self.policies.check_new(
-                full_inventory,
+                full_inventory.clone(),
                 lic_token.clone(),
             );
             if !ok {
                 return Err(reason);
             }
 
-            Ok((lic_token, asset_id))
+            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset_id))
         }
     }
 

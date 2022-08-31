@@ -2,7 +2,7 @@
 mod tests {
     use crate::policy::{init_policies};
     use crate::policy::ConfigInterface;
-    use crate::types::{FullInventory, InventoryLicense, LicenseData};
+    use crate::types::{balance_from_string, format_balance, FullInventory, InventoryLicense, LicenseData};
 
     #[test]
     fn test_init_policies() {
@@ -318,5 +318,31 @@ mod tests {
         );
         assert_eq!(res2, false);
         assert_eq!(reason2.contains("max count 1"), true)
+    }
+
+    #[test]
+    fn test_balance_from_string() {
+        let price1 = "0.3".to_string();
+        let price2 = "0.1".to_string();
+        let price3 = "1".to_string();
+        let price4 = "0.0002".to_string();
+        let price5 = "155.242".to_string();
+
+        let balance1 = balance_from_string(price1.clone());
+        let balance2 = balance_from_string(price2.clone());
+        let balance3 = balance_from_string(price3.clone());
+        let balance4 = balance_from_string(price4.clone());
+        let balance5 = balance_from_string(price5.clone());
+        assert_eq!(balance1, 300000000000000000000000);
+        assert_eq!(balance2, 100000000000000000000000);
+        assert_eq!(balance3, 1000000000000000000000000);
+        assert_eq!(balance4, 200000000000000000000);
+        assert_eq!(balance5, 155242000000000000000000000);
+
+        assert_eq!(format_balance(balance1), price1);
+        assert_eq!(format_balance(balance2), price2);
+        assert_eq!(format_balance(balance3), price3);
+        assert_eq!(format_balance(balance4), price4);
+        assert_eq!(format_balance(balance5), price5);
     }
 }
