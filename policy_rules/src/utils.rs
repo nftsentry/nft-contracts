@@ -25,7 +25,7 @@ pub fn refund_deposit(storage_used: u64, predecessor_id: Option<AccountId>, char
 
     //if the refund is greater than 1 yocto NEAR, we refund the predecessor that amount
     let predecessor_account_id = predecessor_id.unwrap_or(env::predecessor_account_id());
-    env::log_str(&format!("Refund {} yoctoNEAR to {}", refund, predecessor_account_id));
+    env::log_str(&format!("Refund {} NEAR to {}", format_balance(refund), predecessor_account_id));
     if refund > 1 {
         Promise::new(predecessor_account_id).transfer(refund);
     }
