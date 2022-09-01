@@ -43,11 +43,19 @@ pub const NFT_LICENSE_STANDARD_NAME: &str = "nepTBD";
 pub const TGAS: u64 = 1_000_000_000_000;
 pub const MAX_LIMIT: u64 = 1_000_000;
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct BenefitConfig {
+    account_id: AccountId,
+    fee_milli_percent_amount: u32,
+}
+
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     //contract owner
     pub owner_id: AccountId,
+    pub benefit_config: Option<BenefitConfig>,
 
     //keeps track of all the token IDs for a given account
     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
@@ -105,6 +113,7 @@ impl Contract {
         //calls the other function "new: with some default metadata and the owner_id passed in 
         Self::new(
             owner_id,
+            None,
             NFTContractMetadata {
                 spec: "nft-1.0.0".to_string(),
                 name: "NFTSentry Contract 0.0.1".to_string(),
@@ -123,7 +132,7 @@ impl Contract {
         the owner_id. 
     */
     #[init]
-    pub fn new(owner_id: AccountId, metadata: NFTContractMetadata) -> Self {
+    pub fn new(owner_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata) -> Self {
         //create a variable of type Self with all the fields initialized.
         let policies = init_policies();
         let this = Self {
@@ -147,6 +156,7 @@ impl Contract {
             ),
             disable_events: false,
             policies,
+            benefit_config,
         };
 
         //return the Contract object

@@ -29,7 +29,6 @@ pub struct JsonToken {
 //The Json token is what will be returned from view calls. 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
-#[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonTokenLicense {
     //token ID

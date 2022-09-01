@@ -1,4 +1,4 @@
-use near_sdk::{Gas, PromiseError};
+use near_sdk::{PromiseError};
 use policy_rules::policy::ConfigInterface;
 use policy_rules::types::{InventoryLicense, NFTMintResult};
 use policy_rules::utils::{balance_from_string, format_balance};
@@ -22,9 +22,9 @@ impl Contract {
 
         // Schedule calls to metadata and asset token
         let promise_meta: Promise = inventory_contract::ext(inventory_id.clone())
-            .with_static_gas(Gas(5*TGAS)).inventory_metadata();
+            .with_unused_gas_weight(3).inventory_metadata();
         let promise_asset: Promise = inventory_contract::ext(inventory_id.clone())
-            .with_static_gas(Gas(5*TGAS)).asset_token(asset_id.clone(), None);
+            .with_unused_gas_weight(3).asset_token(asset_id.clone(), None);
         let promise_inventory = promise_meta.and(promise_asset);
         // Then schedule call to self.callback
 
@@ -32,7 +32,7 @@ impl Contract {
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
-                .with_static_gas(Gas(15*TGAS))
+                .with_unused_gas_weight(6)
                 .on_nft_mint(
                     token_id, license_id, receiver_id, perpetual_royalties, predecessor_id
                 )
