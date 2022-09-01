@@ -159,9 +159,10 @@ impl Contract {
             return NFTMintResult{license_token:None, error:msg}
         }
 
-        inventory_contract::ext(inventory_id).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
+        inventory_contract::ext(inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
             asset.token_id.clone(), self.token_metadata_by_id.len()
         );
+        self.process_fees(balance_from_string(inv_license.price), inventory_id);
 
         // Log the serialized json.
         self.log_event(&nft_mint_log.to_string());
@@ -250,5 +251,22 @@ impl Contract {
         }
     }
 
+    fn process_fees(&self, base_deposit: Balance, base_account: AccountId) {
+        // base_deposit -> 97.5% base_account, 2.5% benefit
+        let benefit_fee_milli_percent = if self.benefit_config.is_some() {
+            unsafe {self.benefit_config.clone().unwrap_unchecked().fee_milli_percent_amount}
+        } else {
+            0
+        };
+        let benefit_fee = base_deposit / (1e5 as u128) * (benefit_fee_milli_percent as u128);
+        let base_amount = base_deposit - benefit_fee;
+
+        Promise::new(base_account).transfer(base_amount);
+        if benefit_fee != 0 {
+            unsafe {
+                Promise::new(self.benefit_config.clone().unwrap_unchecked().account_id).transfer(benefit_fee);
+            }
+        }
     }
+}
 

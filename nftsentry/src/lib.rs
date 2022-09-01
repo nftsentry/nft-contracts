@@ -42,7 +42,7 @@ pub const NFT_LICENSE_SPEC: &str = "nftsentry-1.0.0";
 pub const NFT_LICENSE_STANDARD_NAME: &str = "nepTBD";
 pub const MAX_LIMIT: u64 = 1_000_000;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct BenefitConfig {
     account_id: AccountId,
