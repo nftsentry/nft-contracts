@@ -1,4 +1,4 @@
-use near_sdk::{PromiseError};
+use near_sdk::{Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
 use policy_rules::types::{InventoryLicense, NFTMintResult};
 use policy_rules::utils::{balance_from_string, format_balance};
@@ -24,7 +24,7 @@ impl Contract {
         let promise_meta: Promise = inventory_contract::ext(inventory_id.clone())
             .with_unused_gas_weight(3).inventory_metadata();
         let promise_asset: Promise = inventory_contract::ext(inventory_id.clone())
-            .with_unused_gas_weight(3).asset_token(asset_id.clone(), None);
+            .with_unused_gas_weight(3).asset_token(asset_id.clone());
         let promise_inventory = promise_meta.and(promise_asset);
         // Then schedule call to self.callback
 
@@ -32,9 +32,9 @@ impl Contract {
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
-                .with_unused_gas_weight(6)
+                .with_unused_gas_weight(7)
                 .on_nft_mint(
-                    token_id, license_id, receiver_id, perpetual_royalties, predecessor_id
+                    token_id, inventory_id, license_id, receiver_id, perpetual_royalties, predecessor_id
                 )
         )
     }
@@ -46,6 +46,7 @@ impl Contract {
         #[callback_result] metadata_res: Result<InventoryContractMetadata, PromiseError>,
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
+        inventory_id: AccountId,
         license_id: String,
         receiver_id: AccountId,
         perpetual_royalties: Option<HashMap<AccountId, u32>>,
@@ -55,7 +56,7 @@ impl Contract {
         let initial_storage_usage = env::storage_usage();
 
         let result = self.ensure_nft_mint(
-            metadata_res, asset_res, token_id.clone(), license_id.clone(), receiver_id.clone()
+            metadata_res, asset_res, token_id.clone(),  inventory_id.clone(),license_id.clone(), receiver_id.clone()
         );
 
         if result.is_err() {
@@ -70,7 +71,7 @@ impl Contract {
                 }
             }
         }
-        let (lic_token, inv_license, asset_id) = unsafe {result.unwrap_unchecked()};
+        let (lic_token, inv_license, asset) = unsafe {result.unwrap_unchecked()};
 
         // we add an optional parameter for perpetual royalties
         // create a royalty map to store in the token
@@ -92,7 +93,7 @@ impl Contract {
             token_id,
             //set the owner ID equal to the receiver ID passed into the function
             owner_id: receiver_id,
-            asset_id,
+            asset_id: asset.token_id.clone(),
             //we set the approved account IDs to the default value (an empty map)
             approved_account_ids: Default::default(),
             //the next approval ID is set to 0
@@ -158,6 +159,10 @@ impl Contract {
             return NFTMintResult{license_token:None, error:msg}
         }
 
+        inventory_contract::ext(inventory_id).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
+            asset.token_id.clone(), self.token_metadata_by_id.len()
+        );
+
         // Log the serialized json.
         self.log_event(&nft_mint_log.to_string());
 
@@ -172,9 +177,10 @@ impl Contract {
         metadata_res: Result<InventoryContractMetadata, PromiseError>,
         asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
+        inventory_id: AccountId,
         license_id: String,
         receiver_id: AccountId,
-        ) -> Result<(LicenseToken, InventoryLicense, String), String> {
+        ) -> Result<(LicenseToken, InventoryLicense, JsonAssetToken), String> {
 
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() {
@@ -220,7 +226,7 @@ impl Contract {
             };
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
             let metadata = asset.metadata.issue_new_metadata(
-                asset.minter_id.clone().to_string(), asset_id.clone(), license_id,
+                inventory_id.clone().to_string(), asset_id.clone(), license_id,
             );
 
             let lic_token = LicenseToken {
@@ -240,7 +246,7 @@ impl Contract {
                 return Err(reason);
             }
 
-            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset_id))
+            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset))
         }
     }
 

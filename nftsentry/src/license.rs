@@ -31,7 +31,7 @@ impl Contract {
         let promise_meta: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
             .inventory_metadata();
         let promise_asset: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
-            .asset_token(asset_id, None);
+            .asset_token(asset_id);
         let promise_inventory = promise_meta.and(promise_asset);
         // Then schedule call to self.callback
 

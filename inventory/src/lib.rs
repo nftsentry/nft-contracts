@@ -13,13 +13,14 @@ pub use policy_rules::*;
 pub use policy_rules::types::{TokenMetadata, AssetToken};
 pub use policy_rules::types::{AssetLicenses, AssetLicense, InventoryLicenseAvailability, FilterOpt};
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicenses, InventoryLicense};
-pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken, AssetTokenOpt};
+pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken};
 use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};
 
 mod enumeration;
 mod internal;
 pub mod metadata;
 pub mod mint;
+pub mod nft_callbacks;
 mod events;
 mod tests;
 mod asset;

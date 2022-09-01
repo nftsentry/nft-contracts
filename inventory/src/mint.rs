@@ -25,6 +25,7 @@ impl InventoryContract {
             token_id: token_id.clone(),
             owner_id: receiver_id,
             minter_id: minter_id.clone(),
+            license_token_count: 0,
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
@@ -76,6 +77,7 @@ impl InventoryContract {
             minter_id: token.minter_id,
             metadata,
             licenses: licenses.clone(),
+            license_token_count: 0,
         }
     }
     

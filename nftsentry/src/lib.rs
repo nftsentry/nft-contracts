@@ -10,7 +10,7 @@ use policy_rules::policy::{AllPolicies, init_policies};
 pub use policy_rules::types::{NFTContractMetadata, Token, TokenLicense, TokenMetadata};
 pub use policy_rules::types::{LicenseToken, FilterOpt};
 pub use policy_rules::utils::*;
-use policy_rules::types::{AssetTokenOpt, InventoryContractMetadata, JsonAssetToken};
+use policy_rules::types::{ExtendedInventoryMetadata, InventoryContractMetadata, JsonAssetToken};
 
 use crate::internal::*;
 pub use crate::metadata::*;
@@ -40,7 +40,6 @@ pub const NFT_STANDARD_NAME: &str = "nep171";
 pub const NFT_LICENSE_SPEC: &str = "nftsentry-1.0.0";
 /// This is the name of the NFT standard we're using
 pub const NFT_LICENSE_STANDARD_NAME: &str = "nepTBD";
-pub const TGAS: u64 = 1_000_000_000_000;
 pub const MAX_LIMIT: u64 = 1_000_000;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -81,8 +80,9 @@ pub struct Contract {
 
 #[ext_contract(inventory_contract)]
 pub trait InventoryContract {
-    fn inventory_metadata(&self) -> InventoryContractMetadata;
-    fn asset_token(&self, token_id: String, opt: Option<AssetTokenOpt>) -> Option<JsonAssetToken>;
+    fn inventory_metadata(&self) -> ExtendedInventoryMetadata;
+    fn on_nft_mint(&mut self, token_id: String, token_count: u64) -> Option<String>;
+    fn asset_token(&self, token_id: String) -> Option<JsonAssetToken>;
     fn asset_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonAssetToken>;
 }
 

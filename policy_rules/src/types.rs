@@ -297,6 +297,14 @@ pub struct AssetLicense {
     pub price: Option<String>,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ExtendedInventoryMetadata {
+    pub asset_count: u64,
+
+    #[serde(flatten)]
+    pub metadata: InventoryContractMetadata,
+}
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -341,10 +349,10 @@ pub struct AssetToken {
     pub owner_id: AccountId,
     //minter of the token
     pub minter_id: AccountId,
+    pub license_token_count: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-//#[derive(PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonAssetToken {
     //token ID
@@ -353,17 +361,12 @@ pub struct JsonAssetToken {
     pub owner_id: AccountId,
     // minter_id
     pub minter_id: AccountId,
+    pub license_token_count: u64,
     //token metadata
     pub metadata: TokenMetadata,
     // license metadata
     pub licenses: Option<AssetLicenses>,
     // pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AssetTokenOpt {
-    pub list_available: Option<bool>
 }
 
 #[derive(Serialize, Deserialize, Clone)]

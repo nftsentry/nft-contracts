@@ -25,6 +25,7 @@ impl InventoryContract {
             metadata,
             licenses,
             minter_id: token.minter_id,
+            license_token_count: token.license_token_count,
         };
         Some(asset)
     }

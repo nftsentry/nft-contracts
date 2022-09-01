@@ -1,6 +1,7 @@
 use crate::*;
 // use near_sdk::{require};
 use near_sdk::serde::{Deserialize, Serialize};
+use policy_rules::types::ExtendedInventoryMetadata;
 use policy_rules::utils::refund_deposit;
 
 /// This spec can be treated like a version of the standard.
@@ -45,16 +46,19 @@ pub struct JsonTokenLicense {
 
 pub trait InventoryMetadata {
     //view call for returning the contract metadata
-    fn inventory_metadata(&self) -> InventoryContractMetadata;
+    fn inventory_metadata(&self) -> ExtendedInventoryMetadata;
     fn inventory_licenses(&self) -> InventoryLicenses;
-    fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> InventoryContractMetadata;
-    fn add_inventory_license(&mut self, license: InventoryLicense) -> InventoryContractMetadata;
+    fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> ExtendedInventoryMetadata;
+    fn add_inventory_license(&mut self, license: InventoryLicense) -> ExtendedInventoryMetadata;
 }
 
 #[near_bindgen]
 impl InventoryMetadata for InventoryContract {
-    fn inventory_metadata(&self) -> InventoryContractMetadata {
-        self.metadata.get().unwrap()
+    fn inventory_metadata(&self) -> ExtendedInventoryMetadata {
+        ExtendedInventoryMetadata{
+            metadata: self.metadata.get().unwrap(),
+            asset_count: self.token_metadata_by_id.len(),
+        }
     }
 
     fn inventory_licenses(&self) -> InventoryLicenses {
@@ -63,7 +67,7 @@ impl InventoryMetadata for InventoryContract {
     }
 
     #[payable]
-    fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> InventoryContractMetadata {
+    fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> ExtendedInventoryMetadata {
         let (ok, reason) = self.policies.check_inventory_state(licenses.clone());
         if !ok {
             env::panic_str(reason.as_str())
@@ -83,10 +87,13 @@ impl InventoryMetadata for InventoryContract {
             let _ = refund_deposit(storage_usage_diff, None, None);
         }
 
-        self.metadata.get().unwrap()
+        ExtendedInventoryMetadata{
+            metadata: self.metadata.get().unwrap(),
+            asset_count: self.token_metadata_by_id.len(),
+        }
     }
     #[payable]
-    fn add_inventory_license(&mut self, license: InventoryLicense) -> InventoryContractMetadata {
+    fn add_inventory_license(&mut self, license: InventoryLicense) -> ExtendedInventoryMetadata {
         let initial_storage_usage = env::storage_usage();
 
 
@@ -98,7 +105,10 @@ impl InventoryMetadata for InventoryContract {
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
         let _ = refund_deposit(required_storage_in_bytes, None, None);
 
-        self.metadata.get().unwrap()
+        ExtendedInventoryMetadata{
+            metadata: self.metadata.get().unwrap(),
+            asset_count: self.token_metadata_by_id.len(),
+        }
     }
 }
 
