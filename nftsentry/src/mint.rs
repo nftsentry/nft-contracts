@@ -251,7 +251,8 @@ impl Contract {
         }
     }
 
-    fn process_fees(&self, base_deposit: Balance, base_account: AccountId) {
+    #[private]
+    pub fn process_fees(&self, base_deposit: Balance, base_account: AccountId) {
         // base_deposit -> 97.5% base_account, 2.5% benefit
         let benefit_fee_milli_percent = if self.benefit_config.is_some() {
             unsafe {self.benefit_config.clone().unwrap_unchecked().fee_milli_percent_amount}

@@ -26,18 +26,19 @@ impl Contract {
             env::panic_str("License can only be updated directly by the token owner");
         }
         let (inventory_id, asset_id, _license_id) = token_meta.inventory_asset_license();
+        let inventory_account_id = AccountId::new_unchecked(inventory_id.clone());
 
         // Schedule calls to metadata and asset token
-        let promise_meta: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
+        let promise_meta: Promise = inventory_contract::ext(inventory_account_id.clone())
             .inventory_metadata();
-        let promise_asset: Promise = inventory_contract::ext(AccountId::new_unchecked(inventory_id.clone()))
+        let promise_asset: Promise = inventory_contract::ext(inventory_account_id.clone())
             .asset_token(asset_id);
         let promise_inventory = promise_meta.and(promise_asset);
         // Then schedule call to self.callback
 
         return promise_inventory.then(
             Self::ext(env::current_account_id()).on_license_update(
-                token_id, predecessor_id, new_license_id
+                token_id, inventory_account_id, predecessor_id, new_license_id
             )
         )
     }
@@ -47,6 +48,7 @@ impl Contract {
         #[callback_result] metadata_res: Result<InventoryContractMetadata, PromiseError>,
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
+        inventory_id: AccountId,
         predecessor_id: AccountId,
         new_license_id: String,
     ) -> NFTUpdateLicenseResult {
@@ -106,6 +108,9 @@ impl Contract {
                 return NFTUpdateLicenseResult{error: msg}
             }
         }
+
+        self.process_fees(price_diff, inventory_id);
+
         // Log the serialized json.
         self.log_event(&nft_update_license_log.to_string());
 
