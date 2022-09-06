@@ -1,6 +1,6 @@
 use near_sdk::{Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
-use policy_rules::types::{InventoryLicense, NFTMintResult};
+use policy_rules::types::{InventoryLicense, NFTMintResult, SourceLicenseMeta};
 use policy_rules::utils::{balance_from_string, format_balance};
 use crate::*;
 
@@ -213,22 +213,23 @@ impl Contract {
             }
 
             let license = TokenLicense {
+                id: license_id.clone(),
                 title: Some(inv_license.unwrap_unchecked().title.clone()),
-                metadata: Some(serde_json::to_string(&inv_license.unwrap_unchecked().license).unwrap_unchecked()),
+                metadata: inv_license.unwrap_unchecked().license.clone(),
+                from: SourceLicenseMeta{
+                    asset_id: asset_id.clone(),
+                    inventory_id: inventory_id.clone().to_string(),
+                },
                 description: None,
                 expires_at: None,
                 issued_at: Some(env::block_timestamp_ms()),
                 starts_at: Some(env::block_timestamp_ms()),
                 issuer_id: Some(env::current_account_id()),
-                reference: None,
-                reference_hash: None,
                 updated_at: None,
                 uri: inv_license.unwrap_unchecked().license.pdf_url.clone(),
             };
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
-            let metadata = asset.metadata.issue_new_metadata(
-                inventory_id.clone().to_string(), asset_id.clone(), license_id,
-            );
+            let metadata = asset.metadata.issue_new_metadata();
 
             let lic_token = LicenseToken {
                 token_id: token_id.clone(),

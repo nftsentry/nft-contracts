@@ -2,7 +2,8 @@
 mod tests {
     use crate::policy::{init_policies};
     use crate::policy::ConfigInterface;
-    use crate::types::{balance_from_string, format_balance, FullInventory, InventoryLicense, LicenseData};
+    use crate::utils::{balance_from_string, format_balance};
+    use crate::types::{FullInventory, InventoryLicense, LicenseData};
 
     #[test]
     fn test_init_policies() {
@@ -46,7 +47,7 @@ mod tests {
                 pdf_url: None
             }
         };
-        let old_token = old_l.as_license_token("1".to_string()).expect("");
+        let old_token = old_l.as_license_token("1".to_string());
         let inventory = FullInventory{
             inventory_licenses: vec![old_l.clone(), new_l.clone()],
             issued_licenses:    vec![old_token.clone()],
@@ -108,7 +109,7 @@ mod tests {
                 pdf_url: None
             }
         };
-        let personal_token = personal.as_license_token("1".to_string()).expect("");
+        let personal_token = personal.as_license_token("1".to_string());
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_token.clone()],
@@ -171,7 +172,7 @@ mod tests {
                 pdf_url: None
             }
         };
-        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string()).expect("");
+        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string());
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
@@ -234,8 +235,8 @@ mod tests {
                 pdf_url: None
             }
         };
-        let personal_token = personal.as_license_token("1".to_string()).expect("");
-        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string()).expect("");
+        let personal_token = personal.as_license_token("1".to_string());
+        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string());
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
@@ -297,7 +298,7 @@ mod tests {
                 pdf_url: None
             }
         };
-        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string()).expect("");
+        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string());
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],

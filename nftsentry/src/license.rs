@@ -2,7 +2,7 @@ use crate::*;
 
 use near_sdk::{log, Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
-use policy_rules::types::{FullInventory, InventoryLicense, NFTUpdateLicenseResult};
+use policy_rules::types::{FullInventory, InventoryLicense, NFTUpdateLicenseResult, SourceLicenseMeta};
 use policy_rules::utils::{balance_from_string, format_balance};
 
 // const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
@@ -19,13 +19,16 @@ impl Contract {
         new_license_id: String,
     ) -> Promise {
         let predecessor_id = env::predecessor_account_id();
-        let token = self.tokens_by_id.get(&token_id).expect("Token does not exist");
-        let token_meta = self.token_metadata_by_id.get(&token_id).expect("Token does not exist");
+        let token_opt = self.nft_token(token_id.clone());
+        if token_opt.is_none() {
+            env::panic_str("Token does not exist")
+        }
+        let token = unsafe {token_opt.unwrap_unchecked()};
 
         if predecessor_id != token.owner_id {
             env::panic_str("License can only be updated directly by the token owner");
         }
-        let (inventory_id, asset_id, _license_id) = token_meta.inventory_asset_license();
+        let (inventory_id, asset_id, _license_id) = token.inventory_asset_license();
         let inventory_account_id = AccountId::new_unchecked(inventory_id.clone());
 
         // Schedule calls to metadata and asset token
@@ -133,14 +136,14 @@ impl Contract {
                 Err("Failed call asset_token".to_string())
             }
         }
-        let asset = asset_res.unwrap();
-        let metadata = metadata_res.unwrap();
+        let asset = unsafe{asset_res.unwrap_unchecked()};
+        let metadata = unsafe{metadata_res.unwrap_unchecked()};
         let token = self.nft_token(token_id).unwrap();
-        let (_, _, old_license_id) = token.metadata.inventory_asset_license();
+        let (inv_id, _, old_license_id) = token.inventory_asset_license();
 
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
-        let full_inventory = self.get_full_inventory(asset, metadata.clone());
+        let full_inventory = self.get_full_inventory(asset.clone(), metadata.clone());
         let new_license = metadata.licenses.iter().find(|x| x.license_id == new_license_id).unwrap();
         let old_license = metadata.licenses.iter().find(|x| x.license_id == old_license_id).unwrap();
 
@@ -166,17 +169,20 @@ impl Contract {
             }
         }
         let lic = TokenLicense{
+            id: new_license_id,
             title: Some(new_license.title.clone()),
             description: None,
+            from: SourceLicenseMeta{
+                asset_id: asset.token_id.clone(),
+                inventory_id: inv_id.clone(),
+            },
             issuer_id: Some(env::current_account_id()),
             uri: new_license.license.pdf_url.clone(),
-            metadata: Some(serde_json::to_string(&new_license.license).unwrap()),
+            metadata: new_license.license.clone(),
             issued_at: Some(env::block_timestamp_ms()),
             starts_at: Some(env::block_timestamp_ms()),
             expires_at: None,
             updated_at: None,
-            reference: None,
-            reference_hash: None
         };
         Ok((lic, must_attach))
     }

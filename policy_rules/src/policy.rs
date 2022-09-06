@@ -218,15 +218,13 @@ impl ConfigInterface for AllPolicies {
     fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability> {
         let mut available: Vec<InventoryLicenseAvailability> = Vec::new();
         for inv_license in &inventory.inventory_licenses {
-            unsafe {
-                let token = inv_license.as_license_token("0".to_string()).unwrap_unchecked();
-                let (res, reason) = self.check_new(inventory.clone(), token);
-                available.push(InventoryLicenseAvailability {
-                    available: res,
-                    reason_not_available: Some(reason),
-                    inventory_license: inv_license.clone(),
-                });
-            }
+            let token = inv_license.as_license_token("0".to_string());
+            let (res, reason) = self.check_new(inventory.clone(), token);
+            available.push(InventoryLicenseAvailability {
+                available: res,
+                reason_not_available: Some(reason),
+                inventory_license: inv_license.clone(),
+            });
         }
         available
     }
@@ -268,14 +266,13 @@ impl AllPolicies {
         let mut future_state = inventory.clone();
         for token in future_state.issued_licenses.iter_mut() {
             if token.token_id == old.token_id {
-                let meta = serde_json::to_string(&new.license.clone()).unwrap_unchecked();
-                let (inv_id, asset_id, _) = token.metadata.inventory_asset_license();
-                token.license.as_mut().unwrap_unchecked().metadata = Some(meta);
+                let (inv_id, asset_id, lic_id) = token.inventory_asset_license();
+                token.license.as_mut().unwrap_unchecked().metadata = new.license.clone();
                 token.license.as_mut().unwrap_unchecked().title = Some(new.title.clone());
-                token.metadata.extra = Some(extra_reference_for_asset_path(
-                    token.metadata.extra.clone().unwrap_or("".to_string()),
-                    inv_id, asset_id, new.license_id.clone(),
-                ));
+                token.license.as_mut().unwrap_unchecked().id = lic_id.clone();
+                token.license.as_mut().unwrap_unchecked().from.inventory_id = inv_id.clone();
+                token.license.as_mut().unwrap_unchecked().from.asset_id = asset_id.clone();
+                token.metadata.extra = token.metadata.extra.clone();
             }
         }
         // future_state.issued_licenses.push(new);
