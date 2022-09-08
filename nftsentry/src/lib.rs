@@ -162,4 +162,20 @@ impl Contract {
         //return the Contract object
         this
     }
+
+    #[init]
+    pub fn restore(owner_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Self {
+        // Restore metadata
+        let mut this = Self::new(owner_id, benefit_config, metadata);
+        for token in tokens {
+            let mint_res = this.internal_mint(token);
+            if mint_res.is_err() {
+                unsafe {
+                    env::panic_str(&*mint_res.unwrap_err_unchecked())
+                }
+            }
+        }
+
+        this
+    }
 }

@@ -102,21 +102,15 @@ impl Contract {
             royalty: royalty.clone(),
         };
 
-        //insert the token ID and token struct and make sure that the token doesn't exist
-        let exists = self.tokens_by_id.insert(&token.token_id, &token);
-        if exists.is_some() {
-            let msg = "Token already exists";
-            env::log_str( &format!("Error: {}",msg));
-            return NFTMintResult{license_token:None, error:msg.to_string()}
+
+        // ----- Token mint start -----
+        let mint_result = self.internal_mint(lic_token.clone());
+        if mint_result.is_err() {
+            let msg = unsafe{mint_result.unwrap_err_unchecked()};
+            env::log_str( &format!("Error: {}", msg));
+            return NFTMintResult{license_token: None, error: msg.to_string()}
         }
-        self.token_metadata_by_id.insert(&token.token_id, &lic_token.metadata);
-        //insert the token ID and license
-        self.token_license_by_id.insert(&token.token_id, lic_token.license.as_ref().unwrap());
-
-        //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
-
-        //call the internal method for adding the token to the owner
-        self.internal_add_token_to_owner(&token.owner_id, &token.token_id);
+        // ----- Token mint end -----
 
         // Construct the mint log as per the events standard.
         let nft_mint_log: EventLog = EventLog {
@@ -269,6 +263,32 @@ impl Contract {
                 Promise::new(self.benefit_config.clone().unwrap_unchecked().account_id).transfer(benefit_fee);
             }
         }
+    }
+
+    #[private]
+    pub(crate) fn internal_mint(&mut self, lic_token: LicenseToken) -> Result<(), String> {
+        let token = Token{
+            token_id: lic_token.token_id.clone(),
+            asset_id: lic_token.asset_id.clone(),
+            owner_id: lic_token.owner_id.clone(),
+            approved_account_ids: lic_token.approved_account_ids.clone(),
+            next_approval_id: 0,
+            royalty: lic_token.royalty.clone(),
+        };
+        let exists = self.tokens_by_id.insert(&lic_token.token_id, &token);
+        if exists.is_some() {
+            let msg = "Token already exists";
+            env::log_str( &format!("Error: {}",msg));
+            return Err(msg.to_string())
+        }
+        self.token_metadata_by_id.insert(&lic_token.token_id, &lic_token.metadata);
+        //insert the token ID and license
+        self.token_license_by_id.insert(&lic_token.token_id, lic_token.license.as_ref().unwrap());
+
+        //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
+
+        self.internal_add_token_to_owner(&lic_token.owner_id, &lic_token.token_id);
+        Ok(())
     }
 }
 

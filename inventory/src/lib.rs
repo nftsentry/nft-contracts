@@ -137,6 +137,23 @@ impl InventoryContract {
         //return the Contract object
         this
     }
+
+    #[init]
+    pub fn restore(owner_id: AccountId, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Self {
+        // Restore metadata
+        let mut this = Self::new(owner_id, metadata);
+        for token in tokens {
+            this.asset_mint(
+                token.token_id.clone(),
+                token.metadata.clone(),
+                token.owner_id.clone(),
+                token.minter_id.clone(),
+                token.licenses,
+            );
+        }
+
+        this
+    }
  
 
     // get information abount the contract
