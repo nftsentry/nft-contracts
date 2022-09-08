@@ -73,11 +73,10 @@ impl InventoryMetadata for InventoryContract {
         self.metadata.replace(&metadata);
 
         let new_storage_usage = env::storage_usage();
-        let storage_usage_diff = new_storage_usage - initial_storage_usage;
-        if storage_usage_diff > 0 {
-            let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
+        if new_storage_usage > initial_storage_usage {
+            let log_message = format!("Storage usage increased by {} bytes", new_storage_usage - initial_storage_usage);
             env::log_str(&log_message);
-            let _ = refund_deposit(storage_usage_diff, None, None);
+            let _ = refund_deposit(new_storage_usage - initial_storage_usage, None, None);
         }
 
         ExtendedInventoryMetadata{
