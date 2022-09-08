@@ -1,3 +1,4 @@
+use policy_rules::policy::Limitation;
 use policy_rules::utils::refund_deposit;
 use crate::*;
 
@@ -10,7 +11,8 @@ impl InventoryContract {
         metadata: TokenMetadata,
         receiver_id: AccountId,
         minter_id: AccountId,
-        licenses: Option<AssetLicenses>,
+        licenses: Option<Vec<AssetLicense>>,
+        policy_rules: Option<Vec<Limitation>>
     ) -> JsonAssetToken {
         
         let initial_storage_usage = env::storage_usage();
@@ -26,6 +28,7 @@ impl InventoryContract {
             owner_id: receiver_id,
             minter_id: minter_id.clone(),
             license_token_count: 0,
+            policy_rules: policy_rules.clone(),
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
@@ -78,6 +81,7 @@ impl InventoryContract {
             metadata,
             licenses: licenses.clone(),
             license_token_count: 0,
+            policy_rules: policy_rules.clone()
         }
     }
     

@@ -7,8 +7,8 @@ impl InventoryContract {
     pub fn asset_update_licenses(
         &mut self,
         token_id: String,
-        licenses: AssetLicenses,
-    ) -> AssetLicenses {
+        licenses: Vec<AssetLicense>,
+    ) -> Vec<AssetLicense> {
         let initial_storage_usage = env::storage_usage();
 
         let _old_licenses = self.token_licenses_by_id.get(&token_id);
@@ -36,7 +36,7 @@ impl InventoryContract {
         metadata: TokenMetadata,
     ) {
         let initial_storage_usage = env::storage_usage();
-        
+
         let old_meta = self.token_metadata_by_id.get(&token_id);
         if old_meta.is_none() {
             env::panic_str("Token does not exist")

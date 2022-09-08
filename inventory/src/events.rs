@@ -111,37 +111,6 @@ mod tests {
         };
         assert_eq!(expected, log.to_string());
     }
-
-    #[test]
-    fn nep_format_asset_add_license_all_fields() {
-        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"asset_add_license","data":[{"authorized_id":"market.near","owner_id":"foundation.near","token_ids":["token"],"memo":"Go Team!"}]}"#;
-        let log = EventLog {
-            standard: "nep171".to_string(),
-            version: "1.0.0".to_string(),
-            event: EventLogVariant::AssetAddLicense(vec![AssetAddLicenseLog {
-                authorized_id: Some("market.near".to_string()),
-                owner_id: "foundation.near".to_string(),
-                token_ids: vec!["token".to_string()],
-                memo: Some("Go Team!".to_owned()),
-            }]),
-        };
-        assert_eq!(expected, log.to_string());
-    }
-    #[test]
-    fn nep_format_asset_remove_license_all_fields() {
-        let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"asset_remove_license","data":[{"authorized_id":"market.near","owner_id":"foundation.near","token_ids":["token"],"memo":"Go Team!"}]}"#;
-        let log = EventLog {
-            standard: "nep171".to_string(),
-            version: "1.0.0".to_string(),
-            event: EventLogVariant::AssetRemoveLicense(vec![AssetRemoveLicenseLog {
-                authorized_id: Some("market.near".to_string()),
-                owner_id: "foundation.near".to_string(),
-                token_ids: vec!["token".to_string()],
-                memo: Some("Go Team!".to_owned()),
-            }]),
-        };
-        assert_eq!(expected, log.to_string());
-    }
     #[test]
     fn nep_format_asset_update_license_all_fields() {
         let expected = r#"EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"asset_update_license","data":[{"authorized_id":"market.near","owner_id":"foundation.near","token_ids":["token"],"memo":"Go Team!"}]}"#;

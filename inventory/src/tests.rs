@@ -6,7 +6,7 @@ mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
 
     use crate::InventoryContract;
-    use policy_rules::types::{LicenseData, TokenLicense, TokenMetadata, AssetLicense};
+    use policy_rules::types::{LicenseData, TokenMetadata, AssetLicense};
     // use crate::approval::NonFungibleTokenCore;
     // use crate::nft_core::NonFungibleTokenCore as NFTCore;
 
@@ -114,13 +114,17 @@ mod tests {
             token_id.clone(),
             sample_token_metadata(),
             accounts(0),
-            None,
+            AccountId::new_unchecked("some".to_string()),
             Some(vec![sample_asset_license()]),
+            None,
         );
 
         assert_eq!(token.token_id, token_id);
         assert_eq!(token.owner_id, accounts(0));
-        assert_eq!(token.metadata, sample_token_metadata());
+        assert_eq!(token.metadata.title, sample_token_metadata().title);
+        assert_eq!(token.metadata.description, sample_token_metadata().description);
+        assert_eq!(token.metadata.copies, sample_token_metadata().copies);
+        assert_eq!(token.metadata.media, sample_token_metadata().media);
     //    assert_eq!(token.approved_account_ids, HashMap::new());
     }
 

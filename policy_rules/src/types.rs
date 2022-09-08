@@ -1,10 +1,9 @@
 use near_sdk::env;
 use crate::*;
+use crate::policy::{Limitation};
 
 pub type TokenId = String;
 pub type AssetId = String;
-pub type AssetLicenses = Vec<AssetLicense>;
-pub type InventoryLicenses = Vec<InventoryLicense>;
 //defines the payout type we'll be returning as a part of the royalty standards.
 
 /// This spec can be treated like a version of the standard.
@@ -14,6 +13,9 @@ pub trait LicenseGeneral {
     fn is_exclusive(&self) -> bool;
     fn is_personal(&self) -> bool;
     fn is_commercial(&self) -> bool;
+    fn license_id(&self) -> String;
+    fn license_title(&self) -> String;
+    // fn license_title(&self) -> String;
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -194,6 +196,18 @@ impl LicenseGeneral for LicenseToken {
             !self.license.as_ref().unwrap_unchecked().metadata.personal_use
         }
     }
+
+    fn license_id(&self) -> String {
+        unsafe {
+            self.license.as_ref().unwrap_unchecked().id.clone()
+        }
+    }
+
+    fn license_title(&self) -> String {
+        unsafe {
+            self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap_unchecked().clone()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -243,6 +257,14 @@ impl LicenseGeneral for InventoryLicense {
 
     fn is_commercial(&self) -> bool {
         !self.license.personal_use
+    }
+
+    fn license_id(&self) -> String {
+        self.license_id.clone()
+    }
+
+    fn license_title(&self) -> String {
+        self.title.clone()
     }
 }
 
@@ -307,7 +329,7 @@ pub struct InventoryContractMetadata {
     // pub base_uri: Option<String>, // Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs
     // pub reference: Option<String>, // URL to a JSON file with more info
     // pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
-    pub licenses: InventoryLicenses,            // required, ex. "MOSIAC"
+    pub licenses: Vec<InventoryLicense>,            // required, ex. "MOSIAC"
     pub default_minter_id: String,
 }
 
@@ -322,6 +344,7 @@ pub struct AssetToken {
     //minter of the token
     pub minter_id: AccountId,
     pub license_token_count: u64,
+    pub policy_rules: Option<Vec<Limitation>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -337,7 +360,8 @@ pub struct JsonAssetToken {
     //token metadata
     pub metadata: TokenMetadata,
     // license metadata
-    pub licenses: Option<AssetLicenses>,
+    pub licenses: Option<Vec<AssetLicense>>,
+    pub policy_rules: Option<Vec<Limitation>>
     // pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
 }
 

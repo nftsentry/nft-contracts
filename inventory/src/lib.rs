@@ -11,8 +11,8 @@ pub use crate::events::*;
 pub use crate::mint::*;
 pub use policy_rules::*;
 pub use policy_rules::types::{TokenMetadata, AssetToken};
-pub use policy_rules::types::{AssetLicenses, AssetLicense, InventoryLicenseAvailability, FilterOpt};
-pub use policy_rules::types::{InventoryContractMetadata, InventoryLicenses, InventoryLicense};
+pub use policy_rules::types::{AssetLicense, InventoryLicenseAvailability, FilterOpt};
+pub use policy_rules::types::{InventoryContractMetadata, InventoryLicense};
 pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken};
 use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};
 
@@ -46,7 +46,7 @@ pub struct InventoryContract {
     pub token_metadata_by_id: UnorderedMap<String, TokenMetadata>,
 
     //keeps track of the asset minter for a given token ID
-    pub token_licenses_by_id: UnorderedMap<String, AssetLicenses>,
+    pub token_licenses_by_id: UnorderedMap<String, Vec<AssetLicense>>,
 
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<InventoryContractMetadata>,
@@ -149,6 +149,7 @@ impl InventoryContract {
                 token.owner_id.clone(),
                 token.minter_id.clone(),
                 token.licenses,
+                token.policy_rules.clone()
             );
         }
 

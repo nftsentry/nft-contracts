@@ -47,8 +47,7 @@ pub struct JsonTokenLicense {
 pub trait InventoryMetadata {
     fn inventory_metadata(&self) -> ExtendedInventoryMetadata;
     fn update_inventory_metadata(&mut self, metadata: InventoryContractMetadata) -> ExtendedInventoryMetadata;
-    fn inventory_licenses(&self) -> InventoryLicenses;
-    fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> ExtendedInventoryMetadata;
+    fn update_inventory_licenses(&mut self, licenses: Vec<InventoryLicense>) -> ExtendedInventoryMetadata;
     fn add_inventory_license(&mut self, license: InventoryLicense) -> ExtendedInventoryMetadata;
 }
 
@@ -85,13 +84,8 @@ impl InventoryMetadata for InventoryContract {
         }
     }
 
-    fn inventory_licenses(&self) -> InventoryLicenses {
-        let met = self.metadata.get().unwrap();
-        met.licenses
-    }
-
     #[payable]
-    fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> ExtendedInventoryMetadata {
+    fn update_inventory_licenses(&mut self, licenses: Vec<InventoryLicense>) -> ExtendedInventoryMetadata {
         let (ok, reason) = self.policies.check_inventory_state(licenses.clone());
         if !ok {
             env::panic_str(reason.as_str())

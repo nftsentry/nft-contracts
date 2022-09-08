@@ -7,7 +7,7 @@ mod tests {
 
     use crate::{Contract};
     use crate::approval::NonFungibleTokenCore;
-    use policy_rules::types::{LicenseData, TokenLicense, TokenMetadata, FilterOpt};
+    use policy_rules::types::{LicenseData, TokenLicense, TokenMetadata, FilterOpt, SourceLicenseMeta};
     // use crate::nft_core::NonFungibleTokenCore as NFTCore;
 
     // use crate::license::*;
@@ -55,13 +55,25 @@ mod tests {
             description: Some("First NFTSentry License Template".into()),
             issuer_id: None,
             uri: Some("https://bafybeihjuk544ww4e5qexjlrfyzdl6mkht6rk6cmbfvbosknvrjni364x4.ipfs.nftstorage.link".into()), // URL to associated pdf, preferably to decentralized, content-addressed storage
-            metadata: None, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
+            metadata: LicenseData{
+                personal_use: true,
+                commercial_use: false,
+                exclusivity: false,
+                perpetuity: true,
+                i_agree: true,
+                limited_display_sublicensee: true,
+                pdf_url: None,
+                template: None,
+            }, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
             issued_at: None, // When token was issued or minted, Unix epoch in milliseconds
             expires_at: None, // When token expires, Unix epoch in milliseconds
             starts_at: None, // When token starts being valid, Unix epoch in milliseconds
             updated_at: None, // When token was last updated, Unix epoch in milliseconds
-            reference: None, // URL to an off-chain JSON file with more info.
-            reference_hash: None, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+            id: "some_id".to_string(),
+            from: SourceLicenseMeta{
+                asset_id: "asset".to_string(),
+                inventory_id: "inventory".to_string(),
+            }
         }
     }
 
@@ -103,9 +115,12 @@ mod tests {
 
         let token_id = "token-1".to_string();
 
+        let sample_license = sample_token_license();
         let _token = contract.nft_mint(
             token_id.clone(),
-            sample_token_metadata(),
+            AccountId::new_unchecked(sample_license.from.inventory_id.clone()),
+            sample_license.from.asset_id.clone(),
+            sample_license.id.clone(),
             test_accounts(0),
             None,
         );
