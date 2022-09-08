@@ -45,8 +45,8 @@ pub struct JsonTokenLicense {
 
 
 pub trait InventoryMetadata {
-    //view call for returning the contract metadata
     fn inventory_metadata(&self) -> ExtendedInventoryMetadata;
+    fn update_inventory_metadata(&mut self, metadata: InventoryContractMetadata) -> ExtendedInventoryMetadata;
     fn inventory_licenses(&self) -> InventoryLicenses;
     fn update_inventory_licenses(&mut self, licenses: InventoryLicenses) -> ExtendedInventoryMetadata;
     fn add_inventory_license(&mut self, license: InventoryLicense) -> ExtendedInventoryMetadata;
@@ -55,6 +55,31 @@ pub trait InventoryMetadata {
 #[near_bindgen]
 impl InventoryMetadata for InventoryContract {
     fn inventory_metadata(&self) -> ExtendedInventoryMetadata {
+        ExtendedInventoryMetadata{
+            metadata: self.metadata.get().unwrap(),
+            asset_count: self.token_metadata_by_id.len(),
+        }
+    }
+
+    #[payable]
+    fn update_inventory_metadata(&mut self, metadata: InventoryContractMetadata) -> ExtendedInventoryMetadata {
+        let (ok, reason) = self.policies.check_inventory_state(metadata.licenses.clone());
+        if !ok {
+            env::panic_str(reason.as_str())
+        }
+
+        let initial_storage_usage = env::storage_usage();
+
+        self.metadata.replace(&metadata);
+
+        let new_storage_usage = env::storage_usage();
+        let storage_usage_diff = new_storage_usage - initial_storage_usage;
+        if storage_usage_diff > 0 {
+            let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
+            env::log_str(&log_message);
+            let _ = refund_deposit(storage_usage_diff, None, None);
+        }
+
         ExtendedInventoryMetadata{
             metadata: self.metadata.get().unwrap(),
             asset_count: self.token_metadata_by_id.len(),
