@@ -189,7 +189,7 @@ impl NonFungibleTokenCore for Contract {
                 license,
             //    proposed_license,     TODO: show proposed license. If proposed license
                 approved_account_ids: token.approved_account_ids,
-                royalty: token.royalty,
+                // royalty: token.royalty,
             })
         } else { //if there wasn't a token ID in the tokens_by_id collection, we return None
             None

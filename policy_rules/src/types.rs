@@ -113,7 +113,7 @@ pub struct Token {
     //the next approval ID to give out.
     pub next_approval_id: u64,
     //keep track of the royalty percentages for the token in a hash map
-    pub royalty: HashMap<AccountId, u32>,
+    // pub royalty: HashMap<AccountId, u32>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -143,7 +143,7 @@ pub struct LicenseToken {
     //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
     pub approved_account_ids: HashMap<AccountId, u64>,
     //keep track of the royalty percentages for the token in a hash map
-    pub royalty: HashMap<AccountId, u32>,
+    // pub royalty: HashMap<AccountId, u32>,
 }
 
 impl LicenseToken {
@@ -291,7 +291,7 @@ impl InventoryLicense {
                 }
             }),
             approved_account_ids: Default::default(),
-            royalty: Default::default(),
+            // royalty: Default::default(),
             owner_id: AccountId::new_unchecked("alice".to_string()),
             asset_id: String::new(),
             metadata: token_metadata,

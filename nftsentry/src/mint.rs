@@ -10,20 +10,18 @@ impl Contract {
     pub fn nft_mint(
         &mut self,
         token_id: TokenId,
-        inventory_id: AccountId,
         asset_id: String,
         license_id: String,
         receiver_id: AccountId,
-        perpetual_royalties: Option<HashMap<AccountId, u32>>,
     ) -> Promise {
         if self.tokens_by_id.get(&token_id).is_some() {
             env::panic_str("Token already exists")
         }
 
         // Schedule calls to metadata and asset token
-        let promise_meta: Promise = inventory_contract::ext(inventory_id.clone())
+        let promise_meta: Promise = inventory_contract::ext(self.inventory_id.clone())
             .with_unused_gas_weight(3).inventory_metadata();
-        let promise_asset: Promise = inventory_contract::ext(inventory_id.clone())
+        let promise_asset: Promise = inventory_contract::ext(self.inventory_id.clone())
             .with_unused_gas_weight(3).asset_token(asset_id.clone());
         let promise_inventory = promise_meta.and(promise_asset);
         // Then schedule call to self.callback
@@ -34,7 +32,7 @@ impl Contract {
                 .with_attached_deposit(env::attached_deposit())
                 .with_unused_gas_weight(7)
                 .on_nft_mint(
-                    token_id, inventory_id, license_id, receiver_id, perpetual_royalties, predecessor_id
+                    token_id, license_id, receiver_id, predecessor_id
                 )
         )
     }
@@ -46,17 +44,15 @@ impl Contract {
         #[callback_result] metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
-        inventory_id: AccountId,
         license_id: String,
         receiver_id: AccountId,
-        perpetual_royalties: Option<HashMap<AccountId, u32>>,
         predecessor_id: AccountId,
     ) -> NFTMintResult {
         //measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
 
         let result = self.ensure_nft_mint(
-            metadata_res, asset_res, token_id.clone(),  inventory_id.clone(),license_id.clone(), receiver_id.clone()
+            metadata_res, asset_res, token_id.clone(),  license_id.clone(), receiver_id.clone()
         );
 
         if result.is_err() {
@@ -75,18 +71,18 @@ impl Contract {
 
         // we add an optional parameter for perpetual royalties
         // create a royalty map to store in the token
-        let mut royalty = HashMap::new();
+        // let mut royalty = HashMap::new();
 
         // if perpetual royalties were passed into the function:
-        if let Some(perpetual_royalties) = perpetual_royalties {
+        // if let Some(perpetual_royalties) = perpetual_royalties {
             //make sure that the length of the perpetual royalties is below 7 since we won't have enough GAS to pay out that many people
-            assert!(perpetual_royalties.len() < 7, "Cannot add more than 6 perpetual royalty amounts");
+            // assert!(perpetual_royalties.len() < 7, "Cannot add more than 6 perpetual royalty amounts");
 
             //iterate through the perpetual royalties and insert the account and amount in the royalty map
-            for (account, amount) in perpetual_royalties {
-                royalty.insert(account, amount);
-            }
-        }
+            // for (account, amount) in perpetual_royalties {
+            //     royalty.insert(account, amount);
+            // }
+        // }
 
         //specify the token struct that contains the owner ID
         let token = Token {
@@ -99,7 +95,7 @@ impl Contract {
             //the next approval ID is set to 0
             next_approval_id: 0,
             //the map of perpetual royalties for the token (The owner will get 100% - total perpetual royalties)
-            royalty: royalty.clone(),
+            // royalty: royalty.clone(),
         };
 
 
@@ -153,7 +149,7 @@ impl Contract {
             return NFTMintResult{license_token:None, error:msg}
         }
 
-        inventory_contract::ext(inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
+        inventory_contract::ext(self.inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
             asset.token_id.clone(), self.token_metadata_by_id.len()
         );
         self.process_fees(balance_from_string(inv_license.price), inventory_owner);
@@ -172,7 +168,6 @@ impl Contract {
         metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
         asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
-        inventory_id: AccountId,
         license_id: String,
         receiver_id: AccountId,
         ) -> Result<(LicenseToken, InventoryLicense, JsonAssetToken, AccountId), String> {
@@ -212,7 +207,7 @@ impl Contract {
                 metadata: inv_license.unwrap_unchecked().license.clone(),
                 from: SourceLicenseMeta{
                     asset_id: asset_id.clone(),
-                    inventory_id: inventory_id.clone().to_string(),
+                    inventory_id: self.inventory_id.clone().to_string(),
                 },
                 description: None,
                 expires_at: None,
@@ -231,7 +226,7 @@ impl Contract {
                 asset_id: asset_id.clone(),
                 owner_id: receiver_id.clone(),
                 approved_account_ids: HashMap::new(),
-                royalty: HashMap::new(),
+                // royalty: HashMap::new(),
                 license: Some(license.clone()),
             };
             let (ok, reason) = self.policies.check_new(
@@ -273,7 +268,7 @@ impl Contract {
             owner_id: lic_token.owner_id.clone(),
             approved_account_ids: lic_token.approved_account_ids.clone(),
             next_approval_id: 0,
-            royalty: lic_token.royalty.clone(),
+            // royalty: lic_token.royalty.clone(),
         };
         let exists = self.tokens_by_id.insert(&lic_token.token_id, &token);
         if exists.is_some() {

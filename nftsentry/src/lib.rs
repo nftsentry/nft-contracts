@@ -54,6 +54,7 @@ pub struct BenefitConfig {
 pub struct Contract {
     //contract owner
     pub owner_id: AccountId,
+    pub inventory_id: AccountId,
     pub benefit_config: Option<BenefitConfig>,
 
     //keeps track of all the token IDs for a given account
@@ -109,10 +110,11 @@ impl Contract {
         user doesn't have to manually type metadata.
     */
     #[init]
-    pub fn new_default_meta(owner_id: AccountId) -> Self {
+    pub fn new_default_meta(owner_id: AccountId, inventory_id: AccountId) -> Self {
         //calls the other function "new: with some default metadata and the owner_id passed in 
         Self::new(
             owner_id,
+            inventory_id,
             None,
             NFTContractMetadata {
                 spec: "nft-1.0.0".to_string(),
@@ -132,7 +134,7 @@ impl Contract {
         the owner_id. 
     */
     #[init]
-    pub fn new(owner_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata) -> Self {
+    pub fn new(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata) -> Self {
         //create a variable of type Self with all the fields initialized.
         let policies = init_policies();
         let this = Self {
@@ -150,6 +152,7 @@ impl Contract {
             ),
             //set the owner_id field equal to the passed in owner_id. 
             owner_id,
+            inventory_id,
             metadata: LazyOption::new(
                 StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
@@ -164,9 +167,9 @@ impl Contract {
     }
 
     #[init]
-    pub fn restore(owner_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Self {
+    pub fn restore(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Self {
         // Restore metadata
-        let mut this = Self::new(owner_id, benefit_config, metadata);
+        let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata);
         for token in tokens {
             let mint_res = this.internal_mint(token);
             if mint_res.is_err() {
