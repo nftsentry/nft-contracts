@@ -43,7 +43,7 @@ impl Contract {
     #[payable]
     pub fn on_nft_mint(
         &mut self,
-        #[callback_result] metadata_res: Result<InventoryContractMetadata, PromiseError>,
+        #[callback_result] metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
         inventory_id: AccountId,
@@ -71,7 +71,7 @@ impl Contract {
                 }
             }
         }
-        let (lic_token, inv_license, asset) = unsafe {result.unwrap_unchecked()};
+        let (lic_token, inv_license, asset, inventory_owner) = unsafe {result.unwrap_unchecked()};
 
         // we add an optional parameter for perpetual royalties
         // create a royalty map to store in the token
@@ -156,7 +156,7 @@ impl Contract {
         inventory_contract::ext(inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
             asset.token_id.clone(), self.token_metadata_by_id.len()
         );
-        self.process_fees(balance_from_string(inv_license.price), inventory_id);
+        self.process_fees(balance_from_string(inv_license.price), inventory_owner);
 
         // Log the serialized json.
         self.log_event(&nft_mint_log.to_string());
@@ -169,13 +169,13 @@ impl Contract {
 
     fn ensure_nft_mint(
         &self,
-        metadata_res: Result<InventoryContractMetadata, PromiseError>,
+        metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
         asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
         inventory_id: AccountId,
         license_id: String,
         receiver_id: AccountId,
-        ) -> Result<(LicenseToken, InventoryLicense, JsonAssetToken), String> {
+        ) -> Result<(LicenseToken, InventoryLicense, JsonAssetToken, AccountId), String> {
 
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() {
@@ -191,7 +191,7 @@ impl Contract {
             let inv_metadata = metadata_res.unwrap_unchecked();
             let asset_id = asset.token_id.clone();
 
-            let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata);
+            let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
             let inv_license = full_inventory.inventory_licenses.iter().find(|x| x.license_id == license_id);
             if inv_license.is_none() {
                 return Err("Inventory license not found by id".to_string())
@@ -242,12 +242,12 @@ impl Contract {
                 return Err(reason);
             }
 
-            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset))
+            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset, inv_metadata.owner_id.clone()))
         }
     }
 
     #[private]
-    pub fn process_fees(&self, base_deposit: Balance, base_account: AccountId) {
+    pub fn process_fees(&self, base_deposit: Balance, master_account: AccountId) {
         // base_deposit -> 97.5% base_account, 2.5% benefit
         let benefit_fee_milli_percent = if self.benefit_config.is_some() {
             unsafe {self.benefit_config.clone().unwrap_unchecked().fee_milli_percent_amount}
@@ -257,7 +257,7 @@ impl Contract {
         let benefit_fee = base_deposit / (1e5 as u128) * (benefit_fee_milli_percent as u128);
         let base_amount = base_deposit - benefit_fee;
 
-        Promise::new(base_account).transfer(base_amount);
+        Promise::new(master_account).transfer(base_amount);
         if benefit_fee != 0 {
             unsafe {
                 Promise::new(self.benefit_config.clone().unwrap_unchecked().account_id).transfer(benefit_fee);

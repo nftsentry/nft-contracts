@@ -57,6 +57,7 @@ impl InventoryMetadata for InventoryContract {
         ExtendedInventoryMetadata{
             metadata: self.metadata.get().unwrap(),
             asset_count: self.token_metadata_by_id.len(),
+            owner_id: self.owner_id.clone(),
         }
     }
 
@@ -81,6 +82,7 @@ impl InventoryMetadata for InventoryContract {
         ExtendedInventoryMetadata{
             metadata: self.metadata.get().unwrap(),
             asset_count: self.token_metadata_by_id.len(),
+            owner_id: self.owner_id.clone(),
         }
     }
 
@@ -108,6 +110,7 @@ impl InventoryMetadata for InventoryContract {
         ExtendedInventoryMetadata{
             metadata: self.metadata.get().unwrap(),
             asset_count: self.token_metadata_by_id.len(),
+            owner_id: self.owner_id.clone(),
         }
     }
     #[payable]
@@ -126,6 +129,7 @@ impl InventoryMetadata for InventoryContract {
         ExtendedInventoryMetadata{
             metadata: self.metadata.get().unwrap(),
             asset_count: self.token_metadata_by_id.len(),
+            owner_id: self.owner_id.clone(),
         }
     }
 }

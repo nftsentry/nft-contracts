@@ -312,6 +312,7 @@ pub struct AssetLicense {
 #[serde(crate = "near_sdk::serde")]
 pub struct ExtendedInventoryMetadata {
     pub asset_count: u64,
+    pub owner_id: AccountId,
 
     #[serde(flatten)]
     pub metadata: InventoryContractMetadata,
