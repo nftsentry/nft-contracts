@@ -40,12 +40,15 @@ impl Contract {
         // Then schedule call to self.callback
 
         return promise_inventory.then(
-            Self::ext(env::current_account_id()).on_license_update(
+            Self::ext(env::current_account_id())
+                .with_attached_deposit(env::attached_deposit())
+                .on_license_update(
                 token_id, inventory_account_id, predecessor_id, new_license_id
             )
         )
     }
 
+    #[payable]
     pub fn on_license_update(
         &mut self,
         #[callback_result] metadata_res: Result<InventoryContractMetadata, PromiseError>,

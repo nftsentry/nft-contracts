@@ -10,7 +10,7 @@ pub fn refund_deposit(storage_used: u64, predecessor_id: Option<AccountId>, char
     //make sure that the attached deposit is greater than or equal to the required cost
     if required_cost > attached_deposit - charged_price.unwrap_or(0) {
         let msg = &format!(
-            "Must attach {} yoctoNEAR to cover storage",
+            "Must attach {} NEAR to cover storage",
             format_balance(required_cost)
         );
         if predecessor_id.is_some() {
