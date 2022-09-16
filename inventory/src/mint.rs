@@ -18,7 +18,8 @@ impl InventoryContract {
         let initial_storage_usage = env::storage_usage();
 
         let sender_id = env::predecessor_account_id();
-        if sender_id != self.owner_id {
+        // Allow only owner_id and self_id
+        if sender_id != self.owner_id && sender_id != env::current_account_id() {
             // sender must be the owner of the contract
             env::panic_str("Unauthorized");
         }

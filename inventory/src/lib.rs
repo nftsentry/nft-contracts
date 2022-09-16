@@ -155,10 +155,4 @@ impl InventoryContract {
 
         this
     }
- 
-
-    // get information abount the contract
-    pub fn inventory_contract_metadata(&self) -> Option<InventoryContractMetadata> {
-        self.metadata.get()
-    }
 }
