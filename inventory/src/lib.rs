@@ -139,6 +139,7 @@ impl InventoryContract {
     }
 
     #[init]
+    #[payable]
     pub fn restore(owner_id: AccountId, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Self {
         // Restore metadata
         let mut this = Self::new(owner_id, metadata);

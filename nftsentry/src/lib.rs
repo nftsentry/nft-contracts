@@ -167,6 +167,7 @@ impl Contract {
     }
 
     #[init]
+    #[payable]
     pub fn restore(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Self {
         // Restore metadata
         let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata);
