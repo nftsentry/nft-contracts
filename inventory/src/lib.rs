@@ -152,6 +152,8 @@ impl InventoryContract {
                 token.licenses,
                 token.policy_rules.clone()
             );
+            let asset_token = this.tokens_by_id.get(&token.token_id);
+            this._on_nft_mint(asset_token.unwrap().clone(), token.license_token_count);
         }
 
         this

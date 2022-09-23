@@ -149,8 +149,13 @@ impl Contract {
             return NFTMintResult{license_token:None, error:msg}
         }
 
+        let license_sold = self.nft_tokens(
+            None,
+            Some(MAX_LIMIT),
+            Some(FilterOpt{asset_id: Some(asset.token_id.clone()), account_id: None})
+        ).len() as u64;
         inventory_contract::ext(self.inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
-            asset.token_id.clone(), self.token_metadata_by_id.len()
+            asset.token_id.clone(), license_sold
         );
         self.process_fees(balance_from_string(inv_license.price), inventory_owner);
 

@@ -7,16 +7,21 @@ impl InventoryContract {
         if token_opt.is_none() {
             return Some("Token does not exist".to_string())
         }
-        let mut token = unsafe {token_opt.unwrap_unchecked()};
+        let token = unsafe {token_opt.unwrap_unchecked()};
         if env::predecessor_account_id() != token.minter_id {
             return Some("Forbidden: call must be from the license contract".to_string())
         }
 
-        token.license_token_count = token_count;
-
-        self.tokens_by_id.remove(&token_id);
-        self.tokens_by_id.insert(&token_id, &token);
+        self._on_nft_mint(token.clone(), token_count);
 
         None
+    }
+
+    #[private]
+    pub fn _on_nft_mint(&mut self, mut token: AssetToken, token_count: u64) {
+        token.license_token_count = token_count;
+
+        self.tokens_by_id.remove(&token.token_id);
+        self.tokens_by_id.insert(&token.token_id, &token);
     }
 }
