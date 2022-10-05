@@ -63,6 +63,12 @@ impl InventoryMetadata for InventoryContract {
 
     #[payable]
     fn update_inventory_metadata(&mut self, metadata: InventoryContractMetadata) -> ExtendedInventoryMetadata {
+        let sender_id = env::predecessor_account_id();
+        // Allow only owner_id and self_id
+        if sender_id != self.owner_id && sender_id != env::current_account_id() {
+            // sender must be the owner of the contract
+            env::panic_str("Unauthorized");
+        }
         let (ok, reason) = self.policies.check_inventory_state(metadata.licenses.clone());
         if !ok {
             env::panic_str(reason.as_str())
@@ -88,6 +94,12 @@ impl InventoryMetadata for InventoryContract {
 
     #[payable]
     fn update_inventory_licenses(&mut self, licenses: Vec<InventoryLicense>) -> ExtendedInventoryMetadata {
+        let sender_id = env::predecessor_account_id();
+        // Allow only owner_id and self_id
+        if sender_id != self.owner_id && sender_id != env::current_account_id() {
+            // sender must be the owner of the contract
+            env::panic_str("Unauthorized");
+        }
         let (ok, reason) = self.policies.check_inventory_state(licenses.clone());
         if !ok {
             env::panic_str(reason.as_str())

@@ -11,6 +11,13 @@ impl InventoryContract {
     ) -> Vec<AssetLicense> {
         let initial_storage_usage = env::storage_usage();
 
+        let sender_id = env::predecessor_account_id();
+        // Allow only owner_id and self_id
+        if sender_id != self.owner_id && sender_id != env::current_account_id() {
+            // sender must be the owner of the contract
+            env::panic_str("Unauthorized");
+        }
+
         let _old_licenses = self.token_licenses_by_id.get(&token_id);
         self.token_licenses_by_id.remove(&token_id);
 
@@ -36,6 +43,13 @@ impl InventoryContract {
         metadata: TokenMetadata,
     ) {
         let initial_storage_usage = env::storage_usage();
+
+        let sender_id = env::predecessor_account_id();
+        // Allow only owner_id and self_id
+        if sender_id != self.owner_id && sender_id != env::current_account_id() {
+            // sender must be the owner of the contract
+            env::panic_str("Unauthorized");
+        }
 
         let old_meta = self.token_metadata_by_id.get(&token_id);
         if old_meta.is_none() {
