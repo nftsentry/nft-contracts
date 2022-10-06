@@ -14,9 +14,46 @@ impl InventoryContract {
         licenses: Option<Vec<AssetLicense>>,
         policy_rules: Option<Vec<Limitation>>
     ) -> JsonAssetToken {
-        
         let initial_storage_usage = env::storage_usage();
 
+        let event = self.internal_mint(
+            token_id.clone(),
+            metadata.clone(),
+            receiver_id.clone(),
+            minter_id.clone(),
+            licenses.clone(),
+            policy_rules.clone(),
+        );
+        
+        //calculate the required storage which was the used - initial
+        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+
+        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+        let _ = refund_deposit(required_storage_in_bytes, None, None);
+
+        // Log the serialized json.
+        self.log_event(&event.to_string());
+
+        JsonAssetToken {
+            token_id: token_id.clone(),
+            owner_id: receiver_id,
+            minter_id: minter_id,
+            metadata,
+            licenses: licenses.clone(),
+            license_token_count: 0,
+            policy_rules: policy_rules.clone()
+        }
+    }
+
+    fn internal_mint(
+        &mut self,
+        token_id: String,
+        metadata: TokenMetadata,
+        receiver_id: AccountId,
+        minter_id: AccountId,
+        licenses: Option<Vec<AssetLicense>>,
+        policy_rules: Option<Vec<Limitation>>
+    ) -> EventLog {
         let sender_id = env::predecessor_account_id();
         // Allow only owner_id and self_id
         if sender_id != self.owner_id && sender_id != env::current_account_id() {
@@ -40,7 +77,7 @@ impl InventoryContract {
 
         //insert the token ID and metadata
         self.token_metadata_by_id.insert(&token.token_id, &metadata);
-        // Insert the token ID and list of available licenses  
+        // Insert the token ID and list of available licenses
         if licenses.is_some() {
             //insert the token ID and license
             self.token_licenses_by_id.insert(&token.token_id, unsafe{licenses.as_ref().unwrap_unchecked()});
@@ -65,26 +102,32 @@ impl InventoryContract {
                 memo: None,
             }]),
         };
-        
-        //calculate the required storage which was the used - initial
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+        asset_mint_log
+    }
 
-        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+    #[payable]
+    pub fn batch_mint(
+        &mut self,
+        tokens: Vec<JsonAssetToken>,
+    ) {
+        let initial_storage_usage = env::storage_usage();
+        let mut events: Vec<EventLog> = Vec::new();
+        for asset in tokens {
+            let event = self.internal_mint(
+                asset.token_id.clone(),
+                asset.metadata.clone(),
+                asset.owner_id,
+                asset.minter_id,
+                asset.licenses,
+                asset.policy_rules,
+            );
+            events.push(event);
+        }
+        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
         let _ = refund_deposit(required_storage_in_bytes, None, None);
 
-        // Log the serialized json.
-        self.log_event(&asset_mint_log.to_string());
-
-        JsonAssetToken {
-            token_id: token_id.clone(),
-            owner_id: token.owner_id,
-            minter_id: token.minter_id,
-            metadata,
-            licenses: licenses.clone(),
-            license_token_count: 0,
-            policy_rules: policy_rules.clone()
+        for event in events {
+            self.log_event(&event.to_string());
         }
     }
-    
-
 }
