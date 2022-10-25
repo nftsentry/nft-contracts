@@ -45,7 +45,7 @@ impl InventoryContract {
         }
     }
 
-    fn internal_mint(
+    pub(crate) fn internal_mint(
         &mut self,
         token_id: String,
         metadata: TokenMetadata,

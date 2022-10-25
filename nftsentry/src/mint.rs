@@ -108,23 +108,6 @@ impl Contract {
         }
         // ----- Token mint end -----
 
-        // Construct the mint log as per the events standard.
-        let nft_mint_log: EventLog = EventLog {
-            // Standard name ("nep171").
-            standard: NFT_STANDARD_NAME.to_string(),
-            // Version of the standard ("nft-1.0.0").
-            version: NFT_METADATA_SPEC.to_string(),
-            // The data related with the event stored in a vector.
-            event: EventLogVariant::NftMint(vec![NftMintLog {
-                // Owner of the token.
-                owner_id: token.owner_id.to_string(),
-                // Vector of token IDs that were minted.
-                token_ids: vec![token.token_id.to_string()],
-                // An optional memo to include.
-                memo: None,
-            }]),
-        };
-
         //calculate the required storage which was the used - initial
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
@@ -160,7 +143,7 @@ impl Contract {
         self.process_fees(balance_from_string(inv_license.price), inventory_owner);
 
         // Log the serialized json.
-        self.log_event(&nft_mint_log.to_string());
+        self.log_event(&mint_result.unwrap().to_string());
 
         NFTMintResult{
             license_token: Some(lic_token),
@@ -266,7 +249,7 @@ impl Contract {
     }
 
     #[private]
-    pub(crate) fn internal_mint(&mut self, lic_token: LicenseToken) -> Result<(), String> {
+    pub(crate) fn internal_mint(&mut self, lic_token: LicenseToken) -> Result<EventLog, String> {
         let token = Token{
             token_id: lic_token.token_id.clone(),
             asset_id: lic_token.asset_id.clone(),
@@ -288,7 +271,24 @@ impl Contract {
         //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
 
         self.internal_add_token_to_owner(&lic_token.owner_id, &lic_token.token_id);
-        Ok(())
+
+        // Construct the mint log as per the events standard.
+        let nft_mint_log: EventLog = EventLog {
+            // Standard name ("nep171").
+            standard: NFT_STANDARD_NAME.to_string(),
+            // Version of the standard ("nft-1.0.0").
+            version: NFT_METADATA_SPEC.to_string(),
+            // The data related with the event stored in a vector.
+            event: EventLogVariant::NftMint(vec![NftMintLog {
+                // Owner of the token.
+                owner_id: token.owner_id.to_string(),
+                // Vector of token IDs that were minted.
+                token_ids: vec![token.token_id.to_string()],
+                // An optional memo to include.
+                memo: None,
+            }]),
+        };
+        Ok(nft_mint_log)
     }
 }
 

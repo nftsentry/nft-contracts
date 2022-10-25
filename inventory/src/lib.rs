@@ -15,6 +15,7 @@ pub use policy_rules::types::{AssetLicense, InventoryLicenseAvailability, Filter
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicense};
 pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken};
 use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};
+use policy_rules::utils::refund_deposit;
 
 mod enumeration;
 mod internal;
@@ -141,10 +142,13 @@ impl InventoryContract {
     #[init]
     #[payable]
     pub fn restore(owner_id: AccountId, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Self {
+        let initial_storage_usage = env::storage_usage();
         // Restore metadata
         let mut this = Self::new(owner_id, metadata);
+        let mut logs: Vec<EventLog> = Vec::new();
+
         for token in tokens {
-            this.asset_mint(
+            let event = this.internal_mint(
                 token.token_id.clone(),
                 token.metadata.clone(),
                 token.owner_id.clone(),
@@ -154,6 +158,18 @@ impl InventoryContract {
             );
             let asset_token = this.tokens_by_id.get(&token.token_id);
             this._on_nft_mint(asset_token.unwrap().clone(), token.license_token_count);
+
+            logs.push(event);
+        }
+
+        //calculate the required storage which was the used - initial
+        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+
+        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+        let _ = refund_deposit(required_storage_in_bytes, None, None);
+
+        for log in logs {
+            this.log_event(&log.to_string())
         }
 
         this

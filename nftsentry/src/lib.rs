@@ -169,8 +169,11 @@ impl Contract {
     #[init]
     #[payable]
     pub fn restore(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Self {
+        let initial_storage_usage = env::storage_usage();
         // Restore metadata
         let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata);
+        let mut logs: Vec<EventLog> = Vec::new();
+
         for token in tokens {
             let mint_res = this.internal_mint(token);
             if mint_res.is_err() {
@@ -178,6 +181,17 @@ impl Contract {
                     env::panic_str(&*mint_res.unwrap_err_unchecked())
                 }
             }
+            logs.push(mint_res.unwrap());
+        }
+
+        //calculate the required storage which was the used - initial
+        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+
+        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+        let _ = refund_deposit(required_storage_in_bytes, None, None);
+
+        for log in logs {
+            this.log_event(&log.to_string())
         }
 
         this
