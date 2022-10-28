@@ -15,7 +15,6 @@ pub trait LicenseGeneral {
     fn is_commercial(&self) -> bool;
     fn license_id(&self) -> String;
     fn license_title(&self) -> String;
-    // fn license_title(&self) -> String;
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

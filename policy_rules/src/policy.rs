@@ -283,16 +283,36 @@ impl ConfigInterface for AllPolicies {
     }
 
     fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability> {
+        // Make issued map by license ID
+        let mut license_map: HashMap<String, i32> = HashMap::new();
+        for lic in &inventory.issued_licenses {
+            if license_map.contains_key(&lic.license_id()) {
+                *license_map.get_mut(&lic.license_id()).unwrap() += 1;
+            } else {
+                license_map.insert(lic.license_id(), 1);
+            }
+        }
+
         let mut available: Vec<InventoryLicenseAvailability> = Vec::new();
         for inv_license in &inventory.inventory_licenses {
             let token = inv_license.as_license_token("0".to_string());
-            let res = self.check_new(inventory.clone(), token);
+            let mut res = self.check_new(inventory.clone(), token);
+
+            if res.additional_info.is_some() {
+                unsafe {
+                    for (_k, mut v) in res.additional_info.as_mut().unwrap_unchecked() {
+                        v.issued = *license_map.get(&inv_license.license_id()).unwrap_or(&0);
+                        v.remains += 1
+                    }
+                }
+            }
+
             available.push(InventoryLicenseAvailability {
                 available: res.result,
                 reason_not_available: Some(res.reason_not_available),
                 inventory_license: inv_license.clone(),
                 upgrade_price: None,
-                additional_info: res.additional_info,
+                additional_info: res.additional_info.clone(),
             });
         }
         available

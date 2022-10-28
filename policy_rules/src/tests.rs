@@ -413,10 +413,10 @@ mod tests {
         let count3pers = res[0].additional_info.as_ref().unwrap().get("3count").unwrap();
         let count3comm = res[1].additional_info.as_ref().unwrap().get("3count").unwrap();
 
-        // assert_eq!(count3pers.remains == 1, true);
-        // assert_eq!(count3pers.issued == 2, true);
-        // assert_eq!(count3comm.remains == 1, true);
-        // assert_eq!(count3comm.issued == 0, true);
+        assert_eq!(count3pers.remains == 1, true);
+        assert_eq!(count3pers.issued == 2, true);
+        assert_eq!(count3comm.remains == 1, true);
+        assert_eq!(count3comm.issued == 0, true);
     }
 
     #[test]
