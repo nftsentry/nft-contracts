@@ -1,18 +1,21 @@
-use crate::*;
-use crate::types::*;
-use std::collections::{HashMap};
+use std::collections::HashMap;
+
 use minijinja::value::Value;
 
-const LEVEL_INVENTORY: &str = "inventory";
-const LEVEL_LICENSES: &str  = "licenses";
+use crate::*;
+use crate::types::*;
+
+pub const LEVEL_INVENTORY: &str = "inventory";
+pub const LEVEL_LICENSES: &str = "licenses";
 
 pub trait ConfigInterface {
-    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<(bool, String), String>;
-    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> (bool, String);
-    fn check_state(&self, licenses: Vec<LicenseToken>) -> (bool, String);
-    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> (bool, String);
+    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<IsAvailableResponse, String>;
+    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> IsAvailableResponse;
+    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse;
+    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse;
     fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability>;
     fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability>;
+    fn clone_with_additional(&self, l: Vec<Limitation>) -> Self;
 }
 
 pub fn init_policies() -> AllPolicies {
@@ -30,17 +33,41 @@ pub fn init_policies() -> AllPolicies {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AllPolicies {
-    pub version:     String,
-    pub policies:    HashMap<String, Policy>,
+    pub version: String,
+    pub policies: HashMap<String, Policy>,
     pub limitations: Vec<Limitation>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Policy {
-    pub name:       Option<String>,
-    pub template:   String,
+    pub name: Option<String>,
+    pub template: String,
     pub upgrade_to: Vec<String>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct IsAvailableResponse {
+    pub result: bool,
+    pub reason_not_available: String,
+    pub additional_info: Option<HashMap<String, LimitsInfo>>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct LimitsInfo {
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub remains: i32,
+    pub total: i32,
+    pub issued: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Context {
+    pub full: FullInventory,
 }
 
 impl Policy {
@@ -50,29 +77,30 @@ impl Policy {
 }
 
 pub trait LimitCheck {
-    fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation) -> (bool, String);
+    fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation, ctx: Context) -> IsAvailableResponse;
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct  CheckNewOpt {
-    in_assets:   Option<bool>,
+pub struct CheckNewOpt {
+    in_assets: Option<bool>,
     in_licenses: Option<bool>,
-    token_id:    Option<String>,
+    token_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct FutureStateOpt {
     pub level: String,
+    pub ctx: Context,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Limitation {
-    pub name:      String,
-    pub level:     String,
-    pub template:  String,
+    pub name: String,
+    pub level: String,
+    pub template: String,
     pub max_count: Option<MaxCount>,
     pub exclusive: Option<Exclusive>,
     // Add another limit types
@@ -85,65 +113,83 @@ pub struct MaxCount {
 }
 
 impl LimitCheck for MaxCount {
-    fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation) -> (bool, String) {
+    fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation, _: Context) -> IsAvailableResponse {
         if matched.len() > self.count as usize {
             let msg = format!(
                 "Cannot set more {}: max count {}",
                 l.name, self.count,
             );
-            (false, msg)
+            IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None}
         } else {
-            (true, "".to_string())
+            let info = LimitsInfo{
+                remains: self.count - matched.len() as i32,
+                total:   self.count,
+                issued:  matched.len() as i32,
+                type_:    "max_count".to_string(),
+            };
+            let infos: HashMap<String, LimitsInfo> = vec![("check".to_string(), info)].into_iter().collect();
+            IsAvailableResponse{result: true, reason_not_available: "".to_string(), additional_info: Some(infos)}
         }
     }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct Exclusive {
-    pub template: String,
-}
+pub struct Exclusive {}
 
 impl LimitCheck for Exclusive {
-    fn check(&self, all: Vec<&dyn LicenseGeneral>, l: &Limitation) -> (bool, String) {
-        let mut count_excl = 0;
-        for lic in &all {
-            let res = exec_template(&self.template, *lic);
-            if res.is_true() {
-                count_excl += 1;
-            }
-        }
+    fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation, ctx: Context) -> IsAvailableResponse {
+        let count_excl = matched.len();
+        let count_all: usize = if l.level == LEVEL_LICENSES {
+            ctx.full.issued_licenses.len()
+        } else {
+            ctx.full.inventory_licenses.len()
+        };
         if count_excl > 1 {
-            return (false, format!("Count of {} cannot be greater than 1", l.name));
+            let msg = format!("Count of {} cannot be greater than 1", l.name);
+            return IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None};
         }
-        if count_excl == 1 && all.len() != count_excl {
-            return (false, format!("There can be no other licenses, except for {} one.", l.name));
+        if count_excl == 1 && count_all != count_excl {
+            let msg = format!("There can be no other licenses, except for {} one.", l.name);
+            return IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None};
         }
-        (true, "".to_string())
+        let info = LimitsInfo{
+            remains: 1 - count_excl as i32,
+            total:   1,
+            issued:  count_excl as i32,
+            type_:    "exclusive".to_string(),
+        };
+        let infos: HashMap<String, LimitsInfo> = vec![("check".to_string(), info)].into_iter().collect();
+        IsAvailableResponse{result: true, reason_not_available: "".to_string(), additional_info: Some(infos)}
     }
 }
 
 impl Limitation {
-    pub fn check(&self, licenses: &Vec<&dyn LicenseGeneral>) -> (bool, String) {
-        let matched_licenses= self.find_all(licenses);
+    pub fn check(&self, licenses: &Vec<&dyn LicenseGeneral>, ctx: Context) -> IsAvailableResponse {
+        let matched_licenses = self.find_all(licenses);
         let checks: Vec<Option<&dyn LimitCheck>> = vec![
             self.max_count.as_ref().map(|x| x as &dyn LimitCheck),
-            self.exclusive.as_ref().map(|x| x as &dyn LimitCheck)
+            self.exclusive.as_ref().map(|x| x as &dyn LimitCheck),
         ];
 
+        let mut infos: HashMap<String, LimitsInfo> = HashMap::new();
         for check in checks {
             if check.is_none() {
-                continue
+                continue;
             }
             unsafe {
                 let must_check = check.unwrap_unchecked();
-                let (ok, reason) = must_check.check(matched_licenses.clone(), self);
-                if !ok {
-                    return (ok, reason)
+                let res = must_check.check(matched_licenses.clone(), self, ctx.clone());
+                if !res.result {
+                    return res;
                 }
+                infos.insert(
+                    self.name.clone(),
+                    res.additional_info.unwrap_unchecked().get("check").unwrap_unchecked().clone()
+                );
             }
         }
-        return (true, String::new())
+        return IsAvailableResponse{result: true, reason_not_available: String::new(), additional_info: Some(infos)};
     }
 
     fn find_all<'a>(&'a self, licenses: &Vec<&'a dyn LicenseGeneral>) -> Vec<&dyn LicenseGeneral> {
@@ -159,88 +205,103 @@ impl Limitation {
 }
 
 impl ConfigInterface for AllPolicies {
-    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<(bool, String), String> {
+    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<IsAvailableResponse, String> {
         let old_inv_lic = old.as_inventory_license(None);
         if old_inv_lic.is_none() {
-            return Err("Failed old.as_inventory_license()".to_string())
+            return Err("Failed old.as_inventory_license()".to_string());
         }
         unsafe {
             let policy_old = self.find_policy(old_inv_lic.unwrap_unchecked())?;
             let policy_new = self.find_policy(new.clone())?;
             let exists = policy_old.has_upgrade_to(policy_new.name.as_ref().unwrap_unchecked().clone());
             if !exists {
-                return Ok((false, format!("No upgrade path to {}", policy_new.name.as_ref().unwrap_unchecked().clone())))
+                let msg = format!("No upgrade path to {}", policy_new.name.as_ref().unwrap_unchecked().clone());
+                return Ok(IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None});
             } else {
                 // Check restrictions
                 // compute future state
                 let future_state = self.get_future_state_with_transition(inventory, old, new);
 
-                let (ok, reason) = self.check_future_state(
+                let ctx = Context{full: future_state.clone()};
+                let res = self.check_future_state(
                     future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
-                    FutureStateOpt{level: LEVEL_LICENSES.to_string()}
+                    FutureStateOpt { level: LEVEL_LICENSES.to_string(), ctx },
                 );
-                return Ok((ok, reason))
+                return Ok(res);
             }
         }
     }
 
+    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> IsAvailableResponse {
+        // For asset_mint, nft_mint, update_licenses and
+        // update inventory metadata (license list).
+        let future_state = self.get_future_state_with_new(inventory.clone(), new.clone());
+        let ctx = Context{full: future_state.clone()};
+        self.check_future_state(
+            future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+            FutureStateOpt { level: LEVEL_LICENSES.to_string(), ctx },
+        )
+    }
+
+    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse {
+        let ctx = Context{full: FullInventory{issued_licenses: licenses.clone(), inventory_licenses: Vec::new()}};
+        self.check_future_state(
+            licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+            FutureStateOpt { level: LEVEL_LICENSES.to_string(), ctx },
+        )
+    }
+
+    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse {
+        let ctx = Context{full: FullInventory{issued_licenses: Vec::new(), inventory_licenses: licenses.clone()}};
+        self.check_future_state(
+            licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
+            FutureStateOpt { level: LEVEL_INVENTORY.to_string(), ctx },
+        )
+    }
+
     fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability> {
-        let mut res: Vec<InventoryLicenseAvailability> = Vec::new();
+        let mut result: Vec<InventoryLicenseAvailability> = Vec::new();
         for license in &inventory.inventory_licenses {
             let check_transition_res = self.check_transition(inventory.clone(), from.clone(), license.clone());
 
             unsafe {
-                let (can_upgrade, reason) = if check_transition_res.is_err() {
-                    (false, check_transition_res.unwrap_err())
+                let res = if check_transition_res.is_err() {
+                    IsAvailableResponse{result: false, reason_not_available: check_transition_res.unwrap_err_unchecked(), additional_info: None}
                 } else {
                     check_transition_res.unwrap_unchecked()
                 };
-                res.push(InventoryLicenseAvailability {
-                    available: can_upgrade,
-                    reason_not_available: Some(reason.clone()),
+                result.push(InventoryLicenseAvailability {
+                    available: res.result,
+                    reason_not_available: Some(res.reason_not_available.clone()),
                     inventory_license: license.clone(),
+                    upgrade_price: None,
+                    additional_info: res.additional_info,
                 });
             }
         }
-        res
-    }
-
-    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> (bool, String) {
-        // For asset_mint, nft_mint, update_licenses and
-        // update inventory metadata (license list).
-        let future_state = self.get_future_state_with_new(inventory.clone(), new.clone());
-        self.check_future_state(
-            future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
-            FutureStateOpt{level: LEVEL_LICENSES.to_string()}
-        )
+        result
     }
 
     fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability> {
         let mut available: Vec<InventoryLicenseAvailability> = Vec::new();
         for inv_license in &inventory.inventory_licenses {
             let token = inv_license.as_license_token("0".to_string());
-            let (res, reason) = self.check_new(inventory.clone(), token);
+            let res = self.check_new(inventory.clone(), token);
             available.push(InventoryLicenseAvailability {
-                available: res,
-                reason_not_available: Some(reason),
+                available: res.result,
+                reason_not_available: Some(res.reason_not_available),
                 inventory_license: inv_license.clone(),
+                upgrade_price: None,
+                additional_info: res.additional_info,
             });
         }
         available
     }
 
-    fn check_state(&self, licenses: Vec<LicenseToken>) -> (bool, String) {
-        self.check_future_state(
-            licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
-            FutureStateOpt{level: LEVEL_LICENSES.to_string()},
-        )
-    }
-
-    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> (bool, String) {
-        self.check_future_state(
-            licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
-            FutureStateOpt{level: LEVEL_INVENTORY.to_string()},
-        )
+    fn clone_with_additional(&self, mut l: Vec<Limitation>) -> Self {
+        let mut policies = self.clone();
+        policies.limitations.append(&mut l);
+        return policies;
     }
 }
 
@@ -285,17 +346,51 @@ impl AllPolicies {
         future_state
     }
 
-    pub fn check_future_state(&self, licenses: Vec<&dyn LicenseGeneral>, opt: FutureStateOpt) -> (bool, String) {
+    pub fn check_future_state(&self, licenses: Vec<&dyn LicenseGeneral>, opt: FutureStateOpt) -> IsAvailableResponse {
+        let mut infos: HashMap<String, LimitsInfo> = HashMap::new();
         for l in &self.limitations {
             if l.level != opt.level {
-                continue
+                continue;
             }
-            let (ok, reason) = l.check(&licenses);
-            if !ok {
-                return (ok, reason)
+            let res = l.check(&licenses, opt.ctx.clone());
+            if !res.result {
+                return res;
+            }
+            unsafe {
+                for (k, v) in res.additional_info.unwrap_unchecked() {
+                    infos.insert(k, v);
+                }
             }
         }
-        return (true, "".to_string())
+        return IsAvailableResponse{result: true, reason_not_available: String::new(), additional_info: Some(infos)};
+    }
+
+    pub fn filter_by_limits(&self, result: IsAvailableResponse, new: &dyn LicenseGeneral) -> IsAvailableResponse {
+        if result.additional_info.is_none() {
+            return result
+        }
+        let mut add_info = unsafe {result.additional_info.unwrap_unchecked()};
+
+        let new_as_general = vec![new];
+        for l in &self.limitations {
+            let matched = l.find_all(&new_as_general);
+            if matched.len() != 1 {
+                add_info.remove(&l.name);
+            }
+        }
+        // Filter by minimum remains
+        let (min_name, min) = unsafe { add_info.iter().min_by_key(
+                |&(_k, v)| v.remains
+            ).unwrap_unchecked()
+        };
+        let new_result = IsAvailableResponse {
+            additional_info: Some(
+                vec![(min_name.to_string(), min.clone())].into_iter().collect()
+            ),
+            result: result.result,
+            reason_not_available: result.reason_not_available,
+        };
+        return new_result
     }
 }
 

@@ -161,14 +161,16 @@ impl Contract {
         }
 
 
-        let result = self.policies.check_transition(full_inventory, token, new_license.clone());
+        let result = self.policies.clone_with_additional(
+            asset.policy_rules.clone().unwrap_or_default().clone()
+        ).check_transition(full_inventory, token, new_license.clone());
         // Check result of transition attempt.
         if result.is_err() {
-            env::panic_str(result.unwrap_err().as_str())
+            env::panic_str(unsafe{result.unwrap_err_unchecked().as_str()})
         } else {
-            let (ok, reason) = result.unwrap();
-            if !ok {
-                env::panic_str(reason.as_str())
+            let avail = result.unwrap();
+            if !avail.result {
+                env::panic_str(avail.reason_not_available.as_str())
             }
         }
         let lic = TokenLicense{

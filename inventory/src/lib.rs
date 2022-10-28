@@ -112,9 +112,9 @@ impl InventoryContract {
     pub fn new(owner_id: AccountId, metadata: InventoryContractMetadata) -> Self {
         //create a variable of type Self with all the fields initialized.
         let policies = init_policies();
-        let (res, reason) = policies.check_inventory_state(metadata.licenses.clone());
-        if !res {
-            env::panic_str(reason.as_str())
+        let res = policies.check_inventory_state(metadata.licenses.clone());
+        if !res.result {
+            env::panic_str(res.reason_not_available.as_str())
         }
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision

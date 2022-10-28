@@ -1,6 +1,6 @@
 use near_sdk::env;
 use crate::*;
-use crate::policy::{Limitation};
+use crate::policy::{Limitation, LimitsInfo};
 
 pub type TokenId = String;
 pub type AssetId = String;
@@ -373,7 +373,9 @@ pub struct JsonAssetToken {
 pub struct InventoryLicenseAvailability {
     pub inventory_license:    InventoryLicense,
     pub available:            bool,
+    pub upgrade_price: Option<String>,
     pub reason_not_available: Option<String>,
+    pub additional_info: Option<HashMap<String, LimitsInfo>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

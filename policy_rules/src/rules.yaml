@@ -35,9 +35,8 @@ limitations:
       count: 1000000
   - name: exclusive
     level: licenses
-    template: "true"
-    exclusive:
-      template: "is_exclusive"
+    template: "is_exclusive"
+    exclusive: {}
   - name: exclusive template
     level: inventory
     template: "is_exclusive"

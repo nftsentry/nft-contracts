@@ -36,10 +36,8 @@
     {
       "name": "exclusive",
       "level": "licenses",
-      "template": "true",
-      "exclusive": {
-        "template": "is_exclusive"
-      }
+      "template": "is_exclusive",
+      "exclusive": {}
     },
     {
       "name": "exclusive template",

@@ -217,12 +217,13 @@ impl Contract {
                 // royalty: HashMap::new(),
                 license: Some(license.clone()),
             };
-            let (ok, reason) = self.policies.check_new(
-                full_inventory.clone(),
-                lic_token.clone(),
+            let res = self.policies.clone_with_additional(
+                asset.policy_rules.clone().unwrap_or_default().clone()).check_new(
+                    full_inventory.clone(),
+                    lic_token.clone(),
             );
-            if !ok {
-                return Err(reason);
+            if !res.result {
+                return Err(res.reason_not_available);
             }
 
             Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset, inv_metadata.owner_id.clone()))

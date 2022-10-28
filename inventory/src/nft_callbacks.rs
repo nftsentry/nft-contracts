@@ -18,10 +18,11 @@ impl InventoryContract {
     }
 
     #[private]
-    pub fn _on_nft_mint(&mut self, mut token: AssetToken, token_count: u64) {
-        token.license_token_count = token_count;
+    pub fn _on_nft_mint(&mut self, token: AssetToken, token_count: u64) {
+        let mut copy = token.clone();
+        copy.license_token_count = token_count;
 
-        self.tokens_by_id.remove(&token.token_id);
-        self.tokens_by_id.insert(&token.token_id, &token);
+        self.tokens_by_id.remove(&copy.token_id);
+        self.tokens_by_id.insert(&copy.token_id, &copy);
     }
 }

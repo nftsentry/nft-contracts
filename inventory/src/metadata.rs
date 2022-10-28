@@ -69,9 +69,9 @@ impl InventoryMetadata for InventoryContract {
             // sender must be the owner of the contract
             env::panic_str("Unauthorized");
         }
-        let (ok, reason) = self.policies.check_inventory_state(metadata.licenses.clone());
-        if !ok {
-            env::panic_str(reason.as_str())
+        let res = self.policies.check_inventory_state(metadata.licenses.clone());
+        if !res.result {
+            env::panic_str(res.reason_not_available.as_str())
         }
 
         let initial_storage_usage = env::storage_usage();
@@ -100,9 +100,9 @@ impl InventoryMetadata for InventoryContract {
             // sender must be the owner of the contract
             env::panic_str("Unauthorized");
         }
-        let (ok, reason) = self.policies.check_inventory_state(licenses.clone());
-        if !ok {
-            env::panic_str(reason.as_str())
+        let res = self.policies.check_inventory_state(licenses.clone());
+        if !res.result {
+            env::panic_str(res.reason_not_available.as_str())
         }
 
         let initial_storage_usage = env::storage_usage();
