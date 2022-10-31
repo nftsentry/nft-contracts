@@ -1,5 +1,4 @@
 use crate::*;
-// use near_sdk::{require};
 use near_sdk::serde::{Deserialize, Serialize};
 use policy_rules::types::ExtendedInventoryMetadata;
 use policy_rules::utils::refund_deposit;
@@ -52,6 +51,23 @@ pub trait InventoryMetadata {
 }
 
 #[near_bindgen]
+impl InventoryContract {
+    #[private]
+    pub(crate) fn _update_inventory_metadata(&mut self, metadata: InventoryContractMetadata) -> ExtendedInventoryMetadata {
+        let res = self.policies.check_inventory_state(metadata.licenses.clone());
+        if !res.result {
+            env::panic_str(res.reason_not_available.as_str())
+        }
+        self.metadata.replace(&metadata);
+        ExtendedInventoryMetadata{
+            metadata: self.metadata.get().unwrap(),
+            asset_count: self.token_metadata_by_id.len(),
+            owner_id: self.owner_id.clone(),
+        }
+    }
+}
+
+#[near_bindgen]
 impl InventoryMetadata for InventoryContract {
     fn inventory_metadata(&self) -> ExtendedInventoryMetadata {
         ExtendedInventoryMetadata{
@@ -63,20 +79,11 @@ impl InventoryMetadata for InventoryContract {
 
     #[payable]
     fn update_inventory_metadata(&mut self, metadata: InventoryContractMetadata) -> ExtendedInventoryMetadata {
-        let sender_id = env::predecessor_account_id();
-        // Allow only owner_id and self_id
-        if sender_id != self.owner_id && sender_id != env::current_account_id() {
-            // sender must be the owner of the contract
-            env::panic_str("Unauthorized");
-        }
-        let res = self.policies.check_inventory_state(metadata.licenses.clone());
-        if !res.result {
-            env::panic_str(res.reason_not_available.as_str())
-        }
+        self.ensure_owner();
 
         let initial_storage_usage = env::storage_usage();
 
-        self.metadata.replace(&metadata);
+        let res = self._update_inventory_metadata(metadata);
 
         let new_storage_usage = env::storage_usage();
         if new_storage_usage > initial_storage_usage {
@@ -85,21 +92,13 @@ impl InventoryMetadata for InventoryContract {
             let _ = refund_deposit(new_storage_usage - initial_storage_usage, None, None);
         }
 
-        ExtendedInventoryMetadata{
-            metadata: self.metadata.get().unwrap(),
-            asset_count: self.token_metadata_by_id.len(),
-            owner_id: self.owner_id.clone(),
-        }
+        res
     }
 
     #[payable]
     fn update_inventory_licenses(&mut self, licenses: Vec<InventoryLicense>) -> ExtendedInventoryMetadata {
-        let sender_id = env::predecessor_account_id();
-        // Allow only owner_id and self_id
-        if sender_id != self.owner_id && sender_id != env::current_account_id() {
-            // sender must be the owner of the contract
-            env::panic_str("Unauthorized");
-        }
+        self.ensure_owner();
+
         let res = self.policies.check_inventory_state(licenses.clone());
         if !res.result {
             env::panic_str(res.reason_not_available.as_str())

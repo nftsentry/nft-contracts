@@ -171,18 +171,9 @@ impl Contract {
     pub fn restore(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Self {
         let initial_storage_usage = env::storage_usage();
         // Restore metadata
-        let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata);
-        let mut logs: Vec<EventLog> = Vec::new();
+        let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata.clone());
 
-        for token in tokens {
-            let mint_res = this.internal_mint(token);
-            if mint_res.is_err() {
-                unsafe {
-                    env::panic_str(&*mint_res.unwrap_err_unchecked())
-                }
-            }
-            logs.push(mint_res.unwrap());
-        }
+        let logs = this._restore_data(metadata, tokens);
 
         //calculate the required storage which was the used - initial
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
@@ -195,5 +186,24 @@ impl Contract {
         }
 
         this
+    }
+
+    #[payable]
+    fn _restore_data(&mut self, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Vec<EventLog> {
+        let mut logs: Vec<EventLog> = Vec::new();
+
+        self.metadata.replace(&metadata);
+
+        for token in tokens {
+            let mint_res = self.internal_mint(token);
+            if mint_res.is_err() {
+                unsafe {
+                    env::panic_str(&*mint_res.unwrap_err_unchecked())
+                }
+            }
+            logs.push(mint_res.unwrap());
+        }
+
+        logs
     }
 }

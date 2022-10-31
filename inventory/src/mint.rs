@@ -54,12 +54,7 @@ impl InventoryContract {
         licenses: Option<Vec<AssetLicense>>,
         policy_rules: Option<Vec<Limitation>>
     ) -> EventLog {
-        let sender_id = env::predecessor_account_id();
-        // Allow only owner_id and self_id
-        if sender_id != self.owner_id && sender_id != env::current_account_id() {
-            // sender must be the owner of the contract
-            env::panic_str("Unauthorized");
-        }
+        self.ensure_owner();
 
         let token = AssetToken {
             token_id: token_id.clone(),
@@ -103,6 +98,28 @@ impl InventoryContract {
             }]),
         };
         asset_mint_log
+    }
+
+    #[private]
+    pub(crate) fn asset_replace(
+        &mut self,
+        token_id: String,
+        metadata: TokenMetadata,
+        licenses: Option<Vec<AssetLicense>>,
+        policy_rules: Option<Vec<Limitation>>
+    ) {
+        let old_token = unsafe{self.tokens_by_id.get(&token_id).unwrap_unchecked()};
+        let token = AssetToken {
+            token_id: token_id.clone(),
+            owner_id: old_token.owner_id,
+            minter_id: old_token.minter_id.clone(),
+            license_token_count: old_token.license_token_count,
+            policy_rules: policy_rules.clone(),
+        };
+
+        self.tokens_by_id.insert(&token_id, &token);
+        self.token_licenses_by_id.insert(&token_id, unsafe{licenses.as_ref().unwrap_unchecked()});
+        self.token_metadata_by_id.insert(&token_id, &metadata);
     }
 
     #[payable]

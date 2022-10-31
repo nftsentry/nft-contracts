@@ -144,23 +144,9 @@ impl InventoryContract {
     pub fn restore(owner_id: AccountId, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Self {
         let initial_storage_usage = env::storage_usage();
         // Restore metadata
-        let mut this = Self::new(owner_id, metadata);
-        let mut logs: Vec<EventLog> = Vec::new();
+        let mut this = Self::new(owner_id, metadata.clone());
 
-        for token in tokens {
-            let event = this.internal_mint(
-                token.token_id.clone(),
-                token.metadata.clone(),
-                token.owner_id.clone(),
-                token.minter_id.clone(),
-                token.licenses,
-                token.policy_rules.clone()
-            );
-            let asset_token = this.tokens_by_id.get(&token.token_id);
-            this._on_nft_mint(asset_token.unwrap().clone(), token.license_token_count);
-
-            logs.push(event);
-        }
+        let logs = this._restore_data(metadata, tokens);
 
         //calculate the required storage which was the used - initial
         let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
@@ -173,5 +159,65 @@ impl InventoryContract {
         }
 
         this
+    }
+
+    #[payable]
+    pub fn set_state(&mut self, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) {
+        self.ensure_owner();
+
+        let initial_storage_usage = env::storage_usage();
+        // Restore metadata & data
+        let logs = self._restore_data(metadata, tokens);
+
+        //calculate the required storage which was the used - initial
+        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+
+        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+        let _ = refund_deposit(required_storage_in_bytes, None, None);
+
+        for log in logs {
+            self.log_event(&log.to_string())
+        }
+    }
+
+    #[payable]
+    fn _restore_data(&mut self, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Vec<EventLog> {
+        let mut logs: Vec<EventLog> = Vec::new();
+
+        self._update_inventory_metadata(metadata);
+
+        for token in tokens {
+            let exists = self.tokens_by_id.contains_key(&token.token_id);
+            if exists {
+                self.asset_replace(
+                    token.token_id.clone(),
+                    token.metadata.clone(),
+                    token.licenses,
+                    token.policy_rules.clone(),
+                );
+            } else {
+                let event = self.internal_mint(
+                    token.token_id.clone(),
+                    token.metadata.clone(),
+                    token.owner_id.clone(),
+                    token.minter_id.clone(),
+                    token.licenses,
+                    token.policy_rules.clone()
+                );
+                logs.push(event);
+            }
+            let asset_token = self.tokens_by_id.get(&token.token_id);
+            self._on_nft_mint(asset_token.unwrap().clone(), token.license_token_count);
+
+        }
+
+        logs
+    }
+
+    fn ensure_owner(&self) {
+        let sender = env::predecessor_account_id();
+        if sender != self.owner_id && sender != env::current_account_id() {
+            env::panic_str("Unauthorized")
+        }
     }
 }
