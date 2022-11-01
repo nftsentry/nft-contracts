@@ -46,6 +46,8 @@ mod tests {
             extra: None,
             reference: None,
             reference_hash: None,
+            object: None,
+            previews: None,
         }
     }
 
@@ -56,6 +58,7 @@ mod tests {
             title: "NFTSentry License #1".into(),
             license_id: "lic_id".into(),
             price: Some("1".into()),
+            objects: None,
         }
     }
 

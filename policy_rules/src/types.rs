@@ -307,6 +307,7 @@ pub struct AssetLicense {
     pub license_id: String,
     pub title: String,
     pub price: Option<String>,
+    pub objects: Option<Vec<String>>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
