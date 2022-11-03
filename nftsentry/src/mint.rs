@@ -176,8 +176,12 @@ impl Contract {
 
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
             let inv_license = full_inventory.inventory_licenses.iter().find(|x| x.license_id == license_id);
+            let asset_license = asset.licenses.unwrap_unchecked().iter().find(|x| x.license_id == license_id);
             if inv_license.is_none() {
                 return Err("Inventory license not found by id".to_string())
+            }
+            if asset_license.is_none() {
+                return Err("Asset license not found by id".to_string())
             }
             let deposit = env::attached_deposit();
             let price = balance_from_string(inv_license.unwrap_unchecked().price.clone());
@@ -206,7 +210,7 @@ impl Contract {
                 uri: inv_license.unwrap_unchecked().license.pdf_url.clone(),
             };
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
-            let metadata = asset.metadata.issue_new_metadata();
+            let metadata = asset.issue_new_metadata(asset_license.unwrap_unchecked().objects.unwrap_or_default());
 
             let lic_token = LicenseToken {
                 token_id: token_id.clone(),

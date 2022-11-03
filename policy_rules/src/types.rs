@@ -55,13 +55,34 @@ pub struct TokenMetadata {
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
 }
 
-impl TokenMetadata {
-    pub fn issue_new_metadata(&self) -> TokenMetadata {
-        let mut metadata = self.clone();
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ObjectData {
+    link: Option<String>,
+    #[serde(rename = "type")]
+    type_: String,
+    id: String,
+    title: Option<String>,
+    icon: Option<String>,
+}
+
+impl JsonAssetToken {
+    pub fn issue_new_metadata(&self, object_ids: Vec<String>) -> TokenMetadata {
+        let mut metadata = self.metadata.clone();
         metadata.issued_at = Some(env::block_timestamp_ms());
         metadata.updated_at = Some(env::block_timestamp_ms());
         metadata.starts_at = Some(env::block_timestamp_ms());
-        metadata
+
+        if self.metadata.object.is_none() {
+            return metadata
+        }
+        unsafe {
+            let obj_data: Vec<ObjectData> = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
+            let filtered: Vec<&ObjectData> = obj_data.iter().filter(|x| object_ids.contains(&x.id)).collect();
+            metadata.object = Some(serde_json::to_string(&filtered).expect("Failed to serialize"));
+            return metadata
+        }
     }
 }
 

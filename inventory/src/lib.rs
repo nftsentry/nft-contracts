@@ -142,17 +142,17 @@ impl InventoryContract {
     #[init]
     #[payable]
     pub fn restore(owner_id: AccountId, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Self {
-        let initial_storage_usage = env::storage_usage();
+        // let initial_storage_usage = env::storage_usage();
         // Restore metadata
         let mut this = Self::new(owner_id, metadata.clone());
 
         let logs = this._restore_data(metadata, tokens);
 
         //calculate the required storage which was the used - initial
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+        // let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
 
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        let _ = refund_deposit(required_storage_in_bytes, None, None);
+        // let _ = refund_deposit(required_storage_in_bytes, None, None);
 
         for log in logs {
             this.log_event(&log.to_string())

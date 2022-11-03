@@ -1,9 +1,10 @@
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
+    use near_sdk::AccountId;
     use crate::policy::{init_policies, Limitation, MaxCount};
     use crate::policy::{ConfigInterface, LEVEL_LICENSES};
     use crate::utils::{balance_from_string, format_balance};
-    use crate::types::{FullInventory, InventoryLicense, LicenseData};
+    use crate::types::{AssetLicense, FullInventory, InventoryLicense, JsonAssetToken, LicenseData, TokenMetadata};
 
     #[test]
     fn test_init_policies() {
@@ -443,5 +444,61 @@ mod tests {
         assert_eq!(format_balance(balance3), price3);
         assert_eq!(format_balance(balance4), price4);
         assert_eq!(format_balance(balance5), price5);
+    }
+
+    #[test]
+    fn test_issue_new_metadata() {
+        let json_asset = JsonAssetToken{
+            metadata: TokenMetadata{
+                title: None,
+                description: None,
+                media: None,
+                previews: Some("preview".to_string()),
+                object: Some("[
+                {\"id\": \"1\", \"type\": \"image\"},
+                {\"id\": \"2\", \"type\": \"video\"},
+                {\"id\": \"3\", \"type\": \"model\"}
+                ]".to_string()),
+                media_hash: None,
+                copies: None,
+                issued_at: None,
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: None,
+                reference_hash: None
+            },
+            licenses: Some(vec![
+                AssetLicense{
+                    objects: Some(
+                        vec!["1".to_string(), "2".to_string(), "3".to_string()]
+                    ),
+                    license_id: "id1".to_string(),
+                    price: None,
+                    title: "id1 title".to_string(),
+                },
+                AssetLicense{
+                    objects: Some(
+                        vec!["4".to_string(), "3".to_string(), "2".to_string()]
+                    ),
+                    license_id: "id2".to_string(),
+                    price: None,
+                    title: "id2 title".to_string(),
+                },
+            ]),
+            license_token_count: 2,
+            token_id: "asset_normal".to_string(),
+            owner_id: AccountId::new_unchecked("rocketscience".to_string()),
+            policy_rules: None,
+            minter_id: AccountId::new_unchecked("license_rocketscience".to_string()),
+        };
+
+        let new_meta = json_asset.issue_new_metadata(vec!["1".to_string(), "2".to_string()]);
+
+        assert_eq!(new_meta.object.clone().unwrap().contains("\"1\""), true);
+        assert_eq!(new_meta.object.clone().unwrap().contains("\"2\""), true);
+        assert_eq!(new_meta.object.clone().unwrap().contains("\"3\""), false);
+        // println!("{}", serde_json::to_string(&new_meta).unwrap())
     }
 }
