@@ -176,7 +176,8 @@ impl Contract {
 
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
             let inv_license = full_inventory.inventory_licenses.iter().find(|x| x.license_id == license_id);
-            let asset_license = asset.licenses.unwrap_unchecked().iter().find(|x| x.license_id == license_id);
+            let asset_licenses = asset.licenses.clone().unwrap_or_default();
+            let asset_license = asset_licenses.iter().find(|x| x.license_id == license_id);
             if inv_license.is_none() {
                 return Err("Inventory license not found by id".to_string())
             }
@@ -210,7 +211,9 @@ impl Contract {
                 uri: inv_license.unwrap_unchecked().license.pdf_url.clone(),
             };
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
-            let metadata = asset.issue_new_metadata(asset_license.unwrap_unchecked().objects.unwrap_or_default());
+            let metadata = asset.issue_new_metadata(
+                asset_license.unwrap_unchecked().objects.clone().unwrap_or_default()
+            );
 
             let lic_token = LicenseToken {
                 token_id: token_id.clone(),
