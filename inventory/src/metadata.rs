@@ -58,7 +58,12 @@ impl InventoryContract {
         if !res.result {
             env::panic_str(res.reason_not_available.as_str())
         }
-        self.metadata.replace(&metadata);
+        let old_metadata = self.metadata.get().unwrap();
+        let old_minter = old_metadata.default_minter_id;
+        let mut new_metadata = metadata.clone();
+        new_metadata.default_minter_id = old_minter;
+
+        self.metadata.replace(&new_metadata);
         ExtendedInventoryMetadata{
             metadata: self.metadata.get().unwrap(),
             asset_count: self.token_metadata_by_id.len(),
