@@ -56,9 +56,14 @@ pub struct TokenMetadata {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
-#[derive(Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ObjectData {
+    items: Vec<ObjectItem>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ObjectItem {
     link: Option<String>,
     #[serde(rename = "type")]
     type_: String,
@@ -78,9 +83,10 @@ impl JsonAssetToken {
             return metadata
         }
         unsafe {
-            let obj_data: Vec<ObjectData> = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
-            let filtered: Vec<&ObjectData> = obj_data.iter().filter(|x| object_ids.contains(&x.id)).collect();
-            metadata.object = Some(serde_json::to_string(&filtered).expect("Failed to serialize"));
+            let obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
+            let filtered: Vec<ObjectItem> = obj_data.items.into_iter().filter(|x| object_ids.contains(&x.id)).collect();
+            let new_obj_data: ObjectData = ObjectData{items: filtered};
+            metadata.object = Some(serde_json::to_string(&new_obj_data).expect("Failed to serialize"));
             return metadata
         }
     }

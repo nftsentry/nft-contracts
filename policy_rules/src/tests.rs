@@ -454,11 +454,12 @@ mod tests {
                 description: None,
                 media: None,
                 previews: Some("preview".to_string()),
-                object: Some("[
-                {\"id\": \"1\", \"type\": \"image\"},
-                {\"id\": \"2\", \"type\": \"video\"},
-                {\"id\": \"3\", \"type\": \"model\"}
-                ]".to_string()),
+                object: Some("{\"items\":
+                [
+                  {\"id\": \"1\", \"type\": \"image\"},
+                  {\"id\": \"2\", \"type\": \"video\"},
+                  {\"id\": \"3\", \"type\": \"model\"}
+                ]}".to_string()),
                 media_hash: None,
                 copies: None,
                 issued_at: None,
@@ -499,6 +500,7 @@ mod tests {
         assert_eq!(new_meta.object.clone().unwrap().contains("\"1\""), true);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"2\""), true);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"3\""), false);
-        // println!("{}", serde_json::to_string(&new_meta).unwrap())
+        assert_eq!(new_meta.object.clone().unwrap().contains("\"4\""), false);
+        // println!("{}", serde_json::to_string(&new_meta.object).unwrap())
     }
 }
