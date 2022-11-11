@@ -82,7 +82,11 @@ impl JsonAssetToken {
         if self.metadata.object.is_none() {
             return metadata
         }
+
         unsafe {
+            if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
+                return metadata
+            }
             let obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
             let filtered: Vec<ObjectItem> = obj_data.items.into_iter().filter(|x| object_ids.contains(&x.id)).collect();
             let new_obj_data: ObjectData = ObjectData{items: filtered};

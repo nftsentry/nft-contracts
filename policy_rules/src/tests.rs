@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_issue_new_metadata() {
-        let json_asset = JsonAssetToken{
+        let mut json_asset = JsonAssetToken{
             metadata: TokenMetadata{
                 title: None,
                 description: None,
@@ -501,6 +501,11 @@ mod tests {
         assert_eq!(new_meta.object.clone().unwrap().contains("\"2\""), true);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"3\""), false);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"4\""), false);
+
+        json_asset.metadata.object = Some("".to_string());
+        let new_meta = json_asset.issue_new_metadata(Vec::default());
+
+        assert_eq!(new_meta.object.unwrap().is_empty(), true);
         // println!("{}", serde_json::to_string(&new_meta.object).unwrap())
     }
 }
