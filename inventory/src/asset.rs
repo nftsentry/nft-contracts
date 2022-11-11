@@ -1,4 +1,3 @@
-use policy_rules::utils::refund_deposit;
 use crate::*;
 
 #[near_bindgen]
@@ -18,15 +17,7 @@ impl InventoryContract {
 
         self.token_licenses_by_id.insert(&token_id, &licenses);
 
-        let new_storage_usage = env::storage_usage();
-        if new_storage_usage > initial_storage_usage {
-            let storage_usage_diff = new_storage_usage - initial_storage_usage;
-            let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
-            env::log_str(&log_message);
-            let _ = refund_deposit(storage_usage_diff, None, None);
-        } else {
-            let _ = refund_deposit(0, None, None);
-        }
+        let _ = refund_storage(initial_storage_usage, None, None);
 
         licenses
     }
@@ -52,14 +43,6 @@ impl InventoryContract {
         self.token_metadata_by_id.remove(&token_id);
         self.token_metadata_by_id.insert(&token_id, &metadata);
 
-        let new_storage_usage = env::storage_usage();
-        if new_storage_usage > initial_storage_usage {
-            let storage_usage_diff = new_storage_usage - initial_storage_usage;
-            let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
-            env::log_str(&log_message);
-            let _ = refund_deposit(storage_usage_diff, None, None);
-        } else {
-            let _ = refund_deposit(0, None, None);
-        }
+        let _ = refund_storage(initial_storage_usage, None, None);
     }
 }

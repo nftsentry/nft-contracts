@@ -1,7 +1,7 @@
 use crate::*;
 use near_sdk::serde::{Deserialize, Serialize};
 use policy_rules::types::ExtendedInventoryMetadata;
-use policy_rules::utils::refund_deposit;
+use policy_rules::utils::{refund_storage};
 
 /// This spec can be treated like a version of the standard.
 pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
@@ -90,12 +90,7 @@ impl InventoryMetadata for InventoryContract {
 
         let res = self._update_inventory_metadata(metadata);
 
-        let new_storage_usage = env::storage_usage();
-        if new_storage_usage > initial_storage_usage {
-            let log_message = format!("Storage usage increased by {} bytes", new_storage_usage - initial_storage_usage);
-            env::log_str(&log_message);
-            let _ = refund_deposit(new_storage_usage - initial_storage_usage, None, None);
-        }
+        let _ = refund_storage(initial_storage_usage, None, None);
 
         res
     }
@@ -116,11 +111,7 @@ impl InventoryMetadata for InventoryContract {
         self.metadata.replace(&meta);
 
         if licenses.len() > 0 {
-            let new_storage_usage = env::storage_usage();
-            let storage_usage_diff = new_storage_usage - initial_storage_usage;
-            let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
-            env::log_str(&log_message);
-            let _ = refund_deposit(storage_usage_diff, None, None);
+            let _ = refund_storage(initial_storage_usage, None, None);
         }
 
         ExtendedInventoryMetadata{
@@ -138,9 +129,7 @@ impl InventoryMetadata for InventoryContract {
         meta.licenses.push(license);
         self.metadata.replace(&meta);
 
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        let _ = refund_deposit(required_storage_in_bytes, None, None);
+        let _ = refund_storage(initial_storage_usage, None, None);
 
         ExtendedInventoryMetadata{
             metadata: self.metadata.get().unwrap(),

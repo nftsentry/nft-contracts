@@ -1,5 +1,16 @@
 use near_sdk::{Balance, AccountId, env, Promise};
 
+pub fn refund_storage(initial_storage: u64, predecessor_id: Option<AccountId>, charged_price: Option<Balance>) -> Result<(), String> {
+    let new_storage_usage = env::storage_usage();
+    let mut storage_usage_diff =  0 as near_sdk::StorageUsage;
+    if new_storage_usage > initial_storage {
+        storage_usage_diff = new_storage_usage - initial_storage;
+        let log_message = format!("Storage usage increased by {} bytes", storage_usage_diff);
+        env::log_str(&log_message);
+    }
+    return refund_deposit(storage_usage_diff, predecessor_id, charged_price)
+}
+
 //refund the initial deposit based on the amount of storage that was used up
 pub fn refund_deposit(storage_used: u64, predecessor_id: Option<AccountId>, charged_price: Option<Balance>) -> Result<(), String> {
     //get how much it would cost to store the information

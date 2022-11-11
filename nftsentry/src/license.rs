@@ -263,13 +263,8 @@ impl Contract {
         // Log the serialized json.
         self.log_event(&nft_reject_license_log.to_string());
 
-
-        //calculate the required storage which was the used - initial
-        let storage_usage = env::storage_usage();
-        if storage_usage > initial_storage_usage {
-            //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            let _ = refund_deposit(storage_usage - initial_storage_usage, None, None);
-        }
+        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+        let _ = refund_storage(initial_storage_usage, None, None);
     }
 
 
@@ -347,12 +342,8 @@ impl Contract {
         // Log the serialized json.
         self.log_event(&nft_propose_license_log.to_string());
 
-        //calculate the required storage which was the used - initial
-        let storage_usage = env::storage_usage();
-        if storage_usage > initial_storage_usage {
-            //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-            let _ = refund_deposit(storage_usage - initial_storage_usage, None, None);
-        }
+        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
+        let _ = refund_storage(initial_storage_usage, None, None);
     }
 
     //get the information for a specific token ID

@@ -108,12 +108,9 @@ impl Contract {
         }
         // ----- Token mint end -----
 
-        //calculate the required storage which was the used - initial
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-
         //refund any excess storage if the user attached too much.
-        let result = refund_deposit(
-            required_storage_in_bytes,
+        let result = refund_storage(
+            initial_storage_usage,
             Some(predecessor_id.clone()),
             Some(balance_from_string(inv_license.price.clone())),
         );

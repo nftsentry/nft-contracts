@@ -2,9 +2,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{U128};
-use near_sdk::{
-    env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault,
-};
+use near_sdk::{env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault};
 
 pub use crate::metadata::*;
 pub use crate::events::*;
@@ -15,7 +13,7 @@ pub use policy_rules::types::{AssetLicense, InventoryLicenseAvailability, Filter
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicense};
 pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken};
 use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};
-use policy_rules::utils::refund_deposit;
+use policy_rules::utils::{refund_storage};
 
 mod enumeration;
 mod internal;
@@ -169,11 +167,7 @@ impl InventoryContract {
         // Restore metadata & data
         let logs = self._restore_data(metadata, tokens);
 
-        //calculate the required storage which was the used - initial
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-
-        //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        let _ = refund_deposit(required_storage_in_bytes, None, None);
+        let _ = refund_storage(initial_storage_usage, None, None);
 
         for log in logs {
             self.log_event(&log.to_string())

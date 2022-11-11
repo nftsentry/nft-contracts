@@ -1,5 +1,4 @@
 use policy_rules::policy::Limitation;
-use policy_rules::utils::refund_deposit;
 use crate::*;
 
 #[near_bindgen]
@@ -25,11 +24,8 @@ impl InventoryContract {
             policy_rules.clone(),
         );
         
-        //calculate the required storage which was the used - initial
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
-        let _ = refund_deposit(required_storage_in_bytes, None, None);
+        let _ = refund_storage(initial_storage_usage, None, None);
 
         // Log the serialized json.
         self.log_event(&event.to_string());
@@ -140,8 +136,7 @@ impl InventoryContract {
             );
             events.push(event);
         }
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-        let _ = refund_deposit(required_storage_in_bytes, None, None);
+        let _ = refund_storage(initial_storage_usage, None, None);
 
         for event in events {
             self.log_event(&event.to_string());
