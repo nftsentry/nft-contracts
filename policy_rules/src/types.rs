@@ -1,6 +1,6 @@
 use near_sdk::env;
 use crate::*;
-use crate::policy::{Limitation, LimitsInfo};
+use crate::policy::{Limitation, LimitsInfo, Policy};
 
 pub type TokenId = String;
 pub type AssetId = String;
@@ -59,6 +59,56 @@ pub struct TokenMetadata {
 #[serde(crate = "near_sdk::serde")]
 pub struct ObjectData {
     items: Vec<ObjectItem>,
+    sets: Option<Vec<ObjectSet>>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ObjectSet {
+    id: String,
+    objects: Option<Vec<String>>,
+    title: Option<String>,
+    icon: Option<String>,
+    description: Option<String>,
+}
+
+impl ObjectData {
+    pub fn filter_by_set_id(&self, set_id: String) -> ObjectData {
+        if self.sets.is_none() {
+
+        }
+        unsafe {
+            let object_set = self.sets.clone().unwrap_unchecked().into_iter().find(|x| x.id == set_id);
+            if object_set.is_none() {
+                env::panic_str(&("Set not found: ".to_string() + &set_id))
+            }
+            let objects = object_set.clone().unwrap_unchecked().objects.unwrap_unchecked();
+            return self.filter_by_objects(objects, object_set);
+        }
+    }
+
+    pub fn filter_by_objects(&self, objects: Vec<String>, set: Option<ObjectSet>) -> ObjectData {
+        let filtered: Vec<ObjectItem> = self.items.clone().into_iter().filter(|x| objects.contains(&x.id)).collect();
+        let ids: Vec<String> = filtered.iter().map(|x| x.id.clone()).collect();
+
+        let new_set = if set.is_none() {
+            ObjectSet{
+                icon: None,
+                objects: Some(ids.clone()),
+                id: ids[0].clone() + &"_set".to_string(),
+                title: None,
+                description: None,
+            }
+        } else {
+            unsafe { set.unwrap_unchecked().clone() }
+        };
+        let new_obj_data: ObjectData = ObjectData{
+            items: filtered,
+            sets: Some(vec![new_set])
+        };
+
+        new_obj_data
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
@@ -73,7 +123,7 @@ pub struct ObjectItem {
 }
 
 impl JsonAssetToken {
-    pub fn issue_new_metadata(&self, object_ids: Vec<String>) -> TokenMetadata {
+    pub fn issue_new_metadata(&self, set_id: String) -> TokenMetadata {
         let mut metadata = self.metadata.clone();
         metadata.issued_at = Some(env::block_timestamp_ms());
         metadata.updated_at = Some(env::block_timestamp_ms());
@@ -88,10 +138,60 @@ impl JsonAssetToken {
                 return metadata
             }
             let obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
-            let filtered: Vec<ObjectItem> = obj_data.items.into_iter().filter(|x| object_ids.contains(&x.id)).collect();
-            let new_obj_data: ObjectData = ObjectData{items: filtered};
+            let new_obj_data = obj_data.filter_by_set_id(set_id);
             metadata.object = Some(serde_json::to_string(&new_obj_data).expect("Failed to serialize"));
             return metadata
+        }
+    }
+
+    pub fn migrate_to_sets(&mut self) {
+        if self.licenses.is_none() {
+            return
+        }
+        unsafe {
+            if self.metadata.object.is_none() {
+                return
+            }
+            if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
+                return
+            }
+            let mut obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
+            let mut obj_map: HashMap<Vec<String>, String> = HashMap::new();
+            for lic in self.licenses.as_mut().unwrap_unchecked() {
+                if lic.set_id.is_some() && !lic.set_id.clone().unwrap().is_empty() {
+                    continue
+                }
+                let old_set_id = obj_map.get(&lic.objects.clone().unwrap_unchecked());
+                if old_set_id.is_none() {
+                    let set_id = lic.objects.as_ref().unwrap_unchecked()[0].clone() + "_set";
+                    obj_map.insert(lic.objects.clone().unwrap_unchecked(), set_id.clone());
+                    lic.set_id = Some(set_id.clone());
+                } else {
+                    // Re-insert existing set id
+                    lic.set_id = Some(old_set_id.unwrap_unchecked().clone());
+                }
+            }
+
+            // Add mapped objects -> set_id in object data
+            let mut obj_sets: Vec<ObjectSet> = Vec::new();
+            for (objects, set_id) in obj_map.iter() {
+                let obj_set = ObjectSet{
+                    objects: Some(objects.clone()),
+                    id: set_id.clone(),
+                    icon: None,
+                    title: None,
+                    description: None,
+                };
+                obj_sets.push(obj_set);
+            }
+            if obj_data.sets.is_none() {
+                obj_data.sets = Some(obj_sets);
+            } else {
+                obj_data.sets.as_mut().unwrap_unchecked().extend(obj_sets);
+            }
+            let obj_data_raw = serde_json::to_string(&obj_data).expect("failed serialize obj data");
+            // migrated to sets
+            self.metadata.object = Some(obj_data_raw);
         }
     }
 }
@@ -338,6 +438,7 @@ pub struct AssetLicense {
     pub license_id: String,
     pub title: String,
     pub price: Option<String>,
+    pub set_id: Option<String>,
     pub objects: Option<Vec<String>>,
 }
 
@@ -379,6 +480,7 @@ pub struct AssetToken {
     pub minter_id: AccountId,
     pub license_token_count: u64,
     pub policy_rules: Option<Vec<Limitation>>,
+    pub upgrade_rules: Option<Vec<Policy>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -395,7 +497,8 @@ pub struct JsonAssetToken {
     pub metadata: TokenMetadata,
     // license metadata
     pub licenses: Option<Vec<AssetLicense>>,
-    pub policy_rules: Option<Vec<Limitation>>
+    pub policy_rules: Option<Vec<Limitation>>,
+    pub upgrade_rules: Option<Vec<Policy>>,
     // pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
 }
 

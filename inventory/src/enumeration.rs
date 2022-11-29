@@ -27,6 +27,7 @@ impl InventoryContract {
             minter_id: token.minter_id,
             license_token_count: token.license_token_count,
             policy_rules: token.policy_rules,
+            upgrade_rules: token.upgrade_rules,
         };
         Some(asset)
     }

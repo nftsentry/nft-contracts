@@ -1,4 +1,4 @@
-use policy_rules::policy::Limitation;
+use policy_rules::policy::{Limitation, Policy};
 use crate::*;
 
 #[near_bindgen]
@@ -11,7 +11,8 @@ impl InventoryContract {
         receiver_id: AccountId,
         minter_id: AccountId,
         licenses: Option<Vec<AssetLicense>>,
-        policy_rules: Option<Vec<Limitation>>
+        policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>,
     ) -> JsonAssetToken {
         let initial_storage_usage = env::storage_usage();
 
@@ -22,6 +23,7 @@ impl InventoryContract {
             minter_id.clone(),
             licenses.clone(),
             policy_rules.clone(),
+            upgrade_rules.clone(),
         );
         
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
@@ -37,7 +39,8 @@ impl InventoryContract {
             metadata,
             licenses: licenses.clone(),
             license_token_count: 0,
-            policy_rules: policy_rules.clone()
+            policy_rules: policy_rules.clone(),
+            upgrade_rules: upgrade_rules.clone(),
         }
     }
 
@@ -48,7 +51,8 @@ impl InventoryContract {
         receiver_id: AccountId,
         minter_id: AccountId,
         licenses: Option<Vec<AssetLicense>>,
-        policy_rules: Option<Vec<Limitation>>
+        policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>,
     ) -> EventLog {
         self.ensure_owner();
 
@@ -58,6 +62,7 @@ impl InventoryContract {
             minter_id: minter_id.clone(),
             license_token_count: 0,
             policy_rules: policy_rules.clone(),
+            upgrade_rules: upgrade_rules.clone(),
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
@@ -102,7 +107,8 @@ impl InventoryContract {
         token_id: String,
         metadata: TokenMetadata,
         licenses: Option<Vec<AssetLicense>>,
-        policy_rules: Option<Vec<Limitation>>
+        policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>,
     ) {
         let old_token = unsafe{self.tokens_by_id.get(&token_id).unwrap_unchecked()};
         let token = AssetToken {
@@ -111,6 +117,7 @@ impl InventoryContract {
             minter_id: old_token.minter_id.clone(),
             license_token_count: old_token.license_token_count,
             policy_rules: policy_rules.clone(),
+            upgrade_rules: upgrade_rules.clone(),
         };
 
         self.tokens_by_id.insert(&token_id, &token);
@@ -133,6 +140,7 @@ impl InventoryContract {
                 asset.minter_id,
                 asset.licenses,
                 asset.policy_rules,
+                asset.upgrade_rules,
             );
             events.push(event);
         }

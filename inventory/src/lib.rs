@@ -180,7 +180,17 @@ impl InventoryContract {
 
         self._update_inventory_metadata(metadata);
 
-        for token in tokens {
+        for token_src in tokens {
+            // -- migration block
+            let mut token = token_src.clone();
+            if token.licenses.is_some() {
+                unsafe {
+                    if token.licenses.clone().unwrap_unchecked().iter().find(|x| x.set_id.is_none() || x.set_id.as_ref().unwrap().is_empty()).is_some() {
+                        token.migrate_to_sets();
+                    }
+                }
+            }
+            // -- end migration block
             let exists = self.tokens_by_id.contains_key(&token.token_id);
             if exists {
                 self.asset_replace(
@@ -188,6 +198,7 @@ impl InventoryContract {
                     token.metadata.clone(),
                     token.licenses,
                     token.policy_rules.clone(),
+                    token.upgrade_rules.clone(),
                 );
             } else {
                 let event = self.internal_mint(
@@ -196,7 +207,8 @@ impl InventoryContract {
                     token.owner_id.clone(),
                     token.minter_id.clone(),
                     token.licenses,
-                    token.policy_rules.clone()
+                    token.policy_rules.clone(),
+                    token.upgrade_rules.clone(),
                 );
                 logs.push(event);
             }

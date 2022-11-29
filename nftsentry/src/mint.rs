@@ -208,9 +208,22 @@ impl Contract {
                 uri: inv_license.unwrap_unchecked().license.pdf_url.clone(),
             };
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
-            let metadata = asset.issue_new_metadata(
-                asset_license.unwrap_unchecked().objects.clone().unwrap_or_default()
-            );
+            // backward compatibility
+            let metadata: TokenMetadata;
+            if asset_license.unwrap_unchecked().set_id.is_none() || asset_license.unwrap_unchecked().set_id.as_ref().unwrap().is_empty() {
+                // generate new asset/asset_license with filled set_id
+                // and issue metadata from it
+                let mut asset_copy = asset.clone();
+                asset_copy.migrate_to_sets();
+                let set_id = asset_copy.licenses.clone().unwrap_unchecked().iter().find(
+                    |&x| x.license_id == license_id
+                ).unwrap_unchecked().set_id.clone().unwrap();
+                metadata = asset_copy.issue_new_metadata(set_id);
+            } else {
+                metadata = asset.issue_new_metadata(
+                    asset_license.unwrap_unchecked().set_id.clone().unwrap()
+                );
+            }
 
             let lic_token = LicenseToken {
                 token_id: token_id.clone(),
