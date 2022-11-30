@@ -75,12 +75,13 @@ pub struct ObjectSet {
 impl ObjectData {
     pub fn filter_by_set_id(&self, set_id: String) -> ObjectData {
         if self.sets.is_none() {
-
+            return ObjectData::default()
         }
         unsafe {
             let object_set = self.sets.clone().unwrap_unchecked().into_iter().find(|x| x.id == set_id);
             if object_set.is_none() {
-                env::panic_str(&("Set not found: ".to_string() + &set_id))
+                env::log_str(&("Set not found: ".to_string() + &set_id));
+                return ObjectData::default()
             }
             let objects = object_set.clone().unwrap_unchecked().objects.unwrap_unchecked();
             return self.filter_by_objects(objects, object_set);

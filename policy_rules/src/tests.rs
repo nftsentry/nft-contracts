@@ -459,7 +459,12 @@ mod tests {
                   {\"id\": \"1\", \"type\": \"image\"},
                   {\"id\": \"2\", \"type\": \"video\"},
                   {\"id\": \"3\", \"type\": \"model\"}
-                ]}".to_string()),
+                ],
+                  \"sets\": [
+                    {\"id\": \"set1\", \"objects\": [\"1\",\"2\",\"3\"]},
+                    {\"id\": \"set2\", \"objects\": [\"4\",\"3\",\"2\"]}
+                  ]
+                }".to_string()),
                 media_hash: None,
                 copies: None,
                 issued_at: None,
@@ -472,17 +477,15 @@ mod tests {
             },
             licenses: Some(vec![
                 AssetLicense{
-                    objects: Some(
-                        vec!["1".to_string(), "2".to_string(), "3".to_string()]
-                    ),
+                    objects: None,
+                    set_id: Some("set1".to_string()),
                     license_id: "id1".to_string(),
                     price: None,
                     title: "id1 title".to_string(),
                 },
                 AssetLicense{
-                    objects: Some(
-                        vec!["4".to_string(), "3".to_string(), "2".to_string()]
-                    ),
+                    objects: None,
+                    set_id: Some("set2".to_string()),
                     license_id: "id2".to_string(),
                     price: None,
                     title: "id2 title".to_string(),
@@ -491,19 +494,21 @@ mod tests {
             license_token_count: 2,
             token_id: "asset_normal".to_string(),
             owner_id: AccountId::new_unchecked("rocketscience".to_string()),
-            policy_rules: None,
             minter_id: AccountId::new_unchecked("license_rocketscience".to_string()),
+            policy_rules: None,
+            upgrade_rules: None,
         };
 
-        let new_meta = json_asset.issue_new_metadata(vec!["1".to_string(), "2".to_string()]);
+        let new_meta = json_asset.issue_new_metadata("set1".to_string());
 
+        println!("{}", serde_json::to_string(&new_meta.object).unwrap());
         assert_eq!(new_meta.object.clone().unwrap().contains("\"1\""), true);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"2\""), true);
-        assert_eq!(new_meta.object.clone().unwrap().contains("\"3\""), false);
+        assert_eq!(new_meta.object.clone().unwrap().contains("\"3\""), true);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"4\""), false);
 
         json_asset.metadata.object = Some("".to_string());
-        let new_meta = json_asset.issue_new_metadata(Vec::default());
+        let new_meta = json_asset.issue_new_metadata("".to_string());
 
         assert_eq!(new_meta.object.unwrap().is_empty(), true);
         // println!("{}", serde_json::to_string(&new_meta.object).unwrap())
