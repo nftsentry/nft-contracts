@@ -12,6 +12,7 @@ impl Contract {
         token_id: TokenId,
         asset_id: String,
         license_id: String,
+        set_id: Option<String>,
         receiver_id: AccountId,
     ) -> Promise {
         if self.tokens_by_id.get(&token_id).is_some() {
@@ -32,7 +33,7 @@ impl Contract {
                 .with_attached_deposit(env::attached_deposit())
                 .with_unused_gas_weight(7)
                 .on_nft_mint(
-                    token_id, license_id, receiver_id, predecessor_id
+                    token_id, license_id, set_id, receiver_id, predecessor_id
                 )
         )
     }
@@ -45,6 +46,7 @@ impl Contract {
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
         license_id: String,
+        set_id: Option<String>,
         receiver_id: AccountId,
         predecessor_id: AccountId,
     ) -> NFTMintResult {
@@ -52,7 +54,8 @@ impl Contract {
         let initial_storage_usage = env::storage_usage();
 
         let result = self.ensure_nft_mint(
-            metadata_res, asset_res, token_id.clone(),  license_id.clone(), receiver_id.clone()
+            metadata_res, asset_res, token_id.clone(),
+            license_id.clone(), set_id.clone(), receiver_id.clone()
         );
 
         if result.is_err() {
@@ -154,6 +157,7 @@ impl Contract {
         asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
         license_id: String,
+        set_id: Option<String>,
         receiver_id: AccountId,
         ) -> Result<(LicenseToken, InventoryLicense, JsonAssetToken, AccountId), String> {
 
@@ -171,16 +175,22 @@ impl Contract {
             let inv_metadata = metadata_res.unwrap_unchecked();
             let asset_id = asset.token_id.clone();
 
-            let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
-            let inv_license = full_inventory.inventory_licenses.iter().find(|x| x.license_id == license_id);
             let asset_licenses = asset.licenses.clone().unwrap_or_default();
-            let asset_license = asset_licenses.iter().find(|x| x.license_id == license_id);
-            if inv_license.is_none() {
-                return Err("Inventory license not found by id".to_string())
-            }
+            let asset_license = asset_licenses.iter().find(
+                |x| x.license_id == license_id && x.set_id.as_ref().unwrap_or(&String::new()) == set_id.as_ref().unwrap_or(&String::new())
+            );
+
             if asset_license.is_none() {
                 return Err("Asset license not found by id".to_string())
             }
+
+            let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
+            let inv_license = full_inventory.inventory_licenses.iter().find(|x| x.license_id == license_id);
+
+            if inv_license.is_none() {
+                return Err("Inventory license not found by id".to_string())
+            }
+
             let deposit = env::attached_deposit();
             let price = balance_from_string(inv_license.unwrap_unchecked().price.clone());
             if deposit < price {
@@ -191,6 +201,26 @@ impl Contract {
                 ))
             }
 
+
+            // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
+            // backward compatibility
+            let metadata: TokenMetadata;
+            let new_set_id: String;
+            if asset_license.unwrap_unchecked().set_id.is_none() || asset_license.unwrap_unchecked().set_id.as_ref().unwrap().is_empty() {
+                // generate new asset/asset_license with filled set_id
+                // and issue metadata from it
+                let mut asset_copy = asset.clone();
+                asset_copy.migrate_to_sets();
+                let set_id = asset_copy.licenses.clone().unwrap_unchecked().iter().find(
+                    |&x| x.license_id == license_id
+                ).unwrap_unchecked().set_id.clone().unwrap();
+                metadata = asset_copy.issue_new_metadata(set_id.clone());
+                new_set_id = set_id.clone()
+            } else {
+                new_set_id = asset_license.unwrap_unchecked().set_id.clone().unwrap();
+                metadata = asset.issue_new_metadata(new_set_id.clone());
+            }
+
             let license = TokenLicense {
                 id: license_id.clone(),
                 title: Some(inv_license.unwrap_unchecked().title.clone()),
@@ -198,6 +228,7 @@ impl Contract {
                 from: SourceLicenseMeta{
                     asset_id: asset_id.clone(),
                     inventory_id: self.inventory_id.clone().to_string(),
+                    set_id: new_set_id,
                 },
                 description: None,
                 expires_at: None,
@@ -207,23 +238,6 @@ impl Contract {
                 updated_at: None,
                 uri: inv_license.unwrap_unchecked().license.pdf_url.clone(),
             };
-            // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
-            // backward compatibility
-            let metadata: TokenMetadata;
-            if asset_license.unwrap_unchecked().set_id.is_none() || asset_license.unwrap_unchecked().set_id.as_ref().unwrap().is_empty() {
-                // generate new asset/asset_license with filled set_id
-                // and issue metadata from it
-                let mut asset_copy = asset.clone();
-                asset_copy.migrate_to_sets();
-                let set_id = asset_copy.licenses.clone().unwrap_unchecked().iter().find(
-                    |&x| x.license_id == license_id
-                ).unwrap_unchecked().set_id.clone().unwrap();
-                metadata = asset_copy.issue_new_metadata(set_id);
-            } else {
-                metadata = asset.issue_new_metadata(
-                    asset_license.unwrap_unchecked().set_id.clone().unwrap()
-                );
-            }
 
             let lic_token = LicenseToken {
                 token_id: token_id.clone(),

@@ -9,7 +9,7 @@ pub const LEVEL_INVENTORY: &str = "inventory";
 pub const LEVEL_LICENSES: &str = "licenses";
 
 pub trait ConfigInterface {
-    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<IsAvailableResponse, String>;
+    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: LicenseToken) -> Result<IsAvailableResponse, String>;
     fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> IsAvailableResponse;
     fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse;
     fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse;
@@ -44,6 +44,7 @@ pub struct Policy {
     pub name: Option<String>,
     pub template: String,
     pub upgrade_to: Vec<String>,
+    pub user_defined: Option<bool>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
@@ -78,6 +79,12 @@ impl Policy {
 
 pub trait LimitCheck {
     fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation, ctx: Context) -> IsAvailableResponse;
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PolicyOpt {
+    set_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -205,17 +212,36 @@ impl Limitation {
 }
 
 impl ConfigInterface for AllPolicies {
-    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> Result<IsAvailableResponse, String> {
-        let old_inv_lic = old.as_inventory_license(None);
-        if old_inv_lic.is_none() {
-            return Err("Failed old.as_inventory_license()".to_string());
-        }
+    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: LicenseToken) -> Result<IsAvailableResponse, String> {
+        // Take into account asset licenses with sets
+        // and old/new license_token set_id, compare them etc.
         unsafe {
-            let policy_old = self.find_policy(old_inv_lic.unwrap_unchecked())?;
-            let policy_new = self.find_policy(new.clone())?;
+            // let old_asset_license = inventory.asset.clone().unwrap_or_default().licenses.unwrap_or_default()
+            //     .iter().find(|x| x.license_id == old.license_id());
+
+            if old.set_id() == new.set_id() {
+                // Try to find asset_license with set_id == new.set_id
+                let new_asset_licenses = inventory.asset.clone().unwrap_or_default().licenses.unwrap_or_default();
+                let new_asset_license = new_asset_licenses.iter().find(
+                    |x| x.license_id == new.license_id() && *x.set_id.as_ref().unwrap_unchecked() == new.set_id()
+                );
+                // If not found - then no upgrade.
+                if new_asset_license.is_none() {
+                    let msg = "No upgrade path with the current set to license '".to_string() + &new.license_title() + "' and id = " + &new.license_id();
+                    return Ok(IsAvailableResponse { result: false, reason_not_available: msg, additional_info: None });
+                }
+            } else {
+                // Then try to search policy rule from user-defined
+                // Currently not implemented
+                let msg = "No upgrade path between different sets.".to_string();
+                return Ok(IsAvailableResponse { result: false, reason_not_available: msg, additional_info: None });
+            }
+
+            let policy_old = self.find_policy(&old.clone())?;
+            let policy_new = self.find_policy(&new.clone())?;
             let exists = policy_old.has_upgrade_to(policy_new.name.as_ref().unwrap_unchecked().clone());
             if !exists {
-                let msg = format!("No upgrade path to {}", policy_new.name.as_ref().unwrap_unchecked().clone());
+                let msg = "No upgrade path to ".to_string() + &policy_new.name.as_ref().unwrap_unchecked().clone();
                 return Ok(IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None});
             } else {
                 // Check restrictions
@@ -234,7 +260,7 @@ impl ConfigInterface for AllPolicies {
 
     fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> IsAvailableResponse {
         // For asset_mint, nft_mint, update_licenses and
-        // update inventory metadata (license list).
+        // update inventory licenses (metadata).
         let future_state = self.get_future_state_with_new(inventory.clone(), new.clone());
         let ctx = Context{full: future_state.clone()};
         self.check_future_state(
@@ -244,7 +270,7 @@ impl ConfigInterface for AllPolicies {
     }
 
     fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse {
-        let ctx = Context{full: FullInventory{issued_licenses: licenses.clone(), inventory_licenses: Vec::new()}};
+        let ctx = Context{full: FullInventory{issued_licenses: licenses.clone(), inventory_licenses: Vec::new(), asset: None}};
         self.check_future_state(
             licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
             FutureStateOpt { level: LEVEL_LICENSES.to_string(), ctx },
@@ -252,7 +278,7 @@ impl ConfigInterface for AllPolicies {
     }
 
     fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse {
-        let ctx = Context{full: FullInventory{issued_licenses: Vec::new(), inventory_licenses: licenses.clone()}};
+        let ctx = Context{full: FullInventory{issued_licenses: Vec::new(), inventory_licenses: licenses.clone(), asset: None}};
         self.check_future_state(
             licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
             FutureStateOpt { level: LEVEL_INVENTORY.to_string(), ctx },
@@ -262,7 +288,10 @@ impl ConfigInterface for AllPolicies {
     fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability> {
         let mut result: Vec<InventoryLicenseAvailability> = Vec::new();
         for license in &inventory.inventory_licenses {
-            let check_transition_res = self.check_transition(inventory.clone(), from.clone(), license.clone());
+            let lic_token = license.as_license_token("token".to_string());
+            let check_transition_res = self.check_transition(
+                inventory.clone(), from.clone(), lic_token
+            );
 
             unsafe {
                 let res = if check_transition_res.is_err() {
@@ -326,10 +355,10 @@ impl ConfigInterface for AllPolicies {
 }
 
 impl AllPolicies {
-    fn find_policy(&self, from: InventoryLicense) -> Result<Policy, String> {
+    fn find_policy(&self, from: &dyn LicenseGeneral) -> Result<Policy, String> {
         let mut found: String = String::new();
         for (pol_name, pol) in self.policies.iter() {
-            let result = exec_template(&pol.template, &from);
+            let result = exec_template(&pol.template, from);
             if result.is_true() {
                 found = pol_name.clone();
             }
@@ -338,18 +367,43 @@ impl AllPolicies {
             if found.len() > 0 {
                 Ok(self.policies.get(&found).unwrap_unchecked().clone())
             } else {
-                Err("License policy not found for ".to_string() + &from.title)
+                Err("License policy not found for ".to_string() + &from.license_title())
             }
         }
     }
 
-    pub unsafe fn get_future_state_with_transition(&self, inventory: FullInventory, old: LicenseToken, new: InventoryLicense) -> FullInventory {
+    fn find_policy_set_id(&self, from: &dyn LicenseGeneral, opt: PolicyOpt) -> Result<Policy, String> {
+        let mut found: String = String::new();
+        for (pol_name, pol) in self.policies.iter() {
+            let result = exec_template(&pol.template, from);
+            let mut bool_res = result.is_true();
+
+            // Apply additional constraints
+            if let Some(ref set_id) = opt.set_id {
+                let inner = exec_template(&("set_id == ".to_string() + &set_id), from);
+                bool_res = bool_res && inner.is_true();
+            }
+
+            if bool_res {
+                found = pol_name.clone();
+            }
+        }
+        unsafe {
+            if found.len() > 0 {
+                Ok(self.policies.get(&found).unwrap_unchecked().clone())
+            } else {
+                Err(format!("License policy not found for {}", from.license_title()))
+            }
+        }
+    }
+
+    pub unsafe fn get_future_state_with_transition(&self, inventory: FullInventory, old: LicenseToken, new: LicenseToken) -> FullInventory {
         let mut future_state = inventory.clone();
         for token in future_state.issued_licenses.iter_mut() {
             if token.token_id == old.token_id {
                 let (inv_id, asset_id, lic_id) = token.inventory_asset_license();
-                token.license.as_mut().unwrap_unchecked().metadata = new.license.clone();
-                token.license.as_mut().unwrap_unchecked().title = Some(new.title.clone());
+                token.license.as_mut().unwrap_unchecked().metadata = new.license.clone().unwrap_unchecked().metadata;
+                token.license.as_mut().unwrap_unchecked().title = Some(new.license_title());
                 token.license.as_mut().unwrap_unchecked().id = lic_id.clone();
                 token.license.as_mut().unwrap_unchecked().from.inventory_id = inv_id.clone();
                 token.license.as_mut().unwrap_unchecked().from.asset_id = asset_id.clone();

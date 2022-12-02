@@ -140,9 +140,10 @@ impl Contract {
             }
         }
         let asset = unsafe{asset_res.unwrap_unchecked()};
+        let new_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(|x| x.license_id == new_license_id).expect("Asset license not found");
         let metadata = unsafe{metadata_res.unwrap_unchecked()};
-        let token = self.nft_token(token_id).unwrap();
-        let (inv_id, _, old_license_id) = token.inventory_asset_license();
+        let token = self.nft_token(token_id.clone()).unwrap();
+        let (inv_id, asset_id, old_license_id) = token.inventory_asset_license();
 
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
@@ -160,19 +161,6 @@ impl Contract {
             ))
         }
 
-
-        let result = self.policies.clone_with_additional(
-            asset.policy_rules.clone().unwrap_or_default().clone()
-        ).check_transition(full_inventory, token, new_license.clone());
-        // Check result of transition attempt.
-        if result.is_err() {
-            env::panic_str(unsafe{result.unwrap_err_unchecked().as_str()})
-        } else {
-            let avail = result.unwrap();
-            if !avail.result {
-                env::panic_str(avail.reason_not_available.as_str())
-            }
-        }
         let lic = TokenLicense{
             id: new_license_id,
             title: Some(new_license.title.clone()),
@@ -180,6 +168,7 @@ impl Contract {
             from: SourceLicenseMeta{
                 asset_id: asset.token_id.clone(),
                 inventory_id: inv_id.clone(),
+                set_id: unsafe{ new_asset_license.set_id.clone().unwrap_unchecked()},
             },
             issuer_id: Some(env::current_account_id()),
             uri: new_license.license.pdf_url.clone(),
@@ -189,6 +178,30 @@ impl Contract {
             expires_at: None,
             updated_at: None,
         };
+        let new_metadata = asset.issue_new_metadata(new_asset_license.set_id.clone().unwrap());
+
+        let new_token = LicenseToken{
+            owner_id: token.owner_id.clone(),
+            license: Some(lic.clone()),
+            metadata: new_metadata.clone(),
+            asset_id: asset_id.clone(),
+            token_id: token_id.clone(),
+            approved_account_ids: token.approved_account_ids.clone(),
+        };
+
+        let result = self.policies.clone_with_additional(
+            asset.policy_rules.clone().unwrap_or_default().clone()
+        ).check_transition(full_inventory, token, new_token.clone());
+        // Check result of transition attempt.
+        if result.is_err() {
+            env::panic_str(unsafe{result.unwrap_err_unchecked().as_str()})
+        } else {
+            let avail = result.unwrap();
+            if !avail.result {
+                env::panic_str(avail.reason_not_available.as_str())
+            }
+        }
+
         Ok((lic, must_attach))
     }
 
@@ -222,6 +235,7 @@ impl Contract {
         let full_inventory = FullInventory{
             inventory_licenses,
             issued_licenses: tokens,
+            asset: Some(asset.clone()),
         };
         full_inventory
     }

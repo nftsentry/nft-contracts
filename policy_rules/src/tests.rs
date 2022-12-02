@@ -14,6 +14,59 @@ mod tests {
         assert_eq!(_policies.policies.len(), 4);
     }
 
+    fn asset_license(set_id: &str, license_id: &str, title: &str) -> AssetLicense {
+        AssetLicense{
+            objects: None,
+            set_id: Some(set_id.to_string()),
+            license_id: license_id.to_string(),
+            price: None,
+            title: title.to_string(),
+        }
+    }
+
+    fn sample_asset_token() -> JsonAssetToken {
+        JsonAssetToken{
+            metadata: TokenMetadata{
+                title: None,
+                description: None,
+                media: None,
+                previews: Some("preview".to_string()),
+                object: Some("{\"items\":
+                [
+                  {\"id\": \"1\", \"type\": \"image\"},
+                  {\"id\": \"2\", \"type\": \"video\"},
+                  {\"id\": \"3\", \"type\": \"model\"}
+                ],
+                  \"sets\": [
+                    {\"id\": \"set1\", \"objects\": [\"1\",\"2\"]},
+                    {\"id\": \"set2\", \"objects\": [\"2\",\"3\"]}
+                  ]
+                }".to_string()),
+                media_hash: None,
+                copies: None,
+                issued_at: None,
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: None,
+                reference_hash: None
+            },
+            licenses: Some(vec![
+                asset_license("set1", "id1", "title1"),
+                asset_license("set2", "id1", "title1"),
+                asset_license("set1", "id2", "title2"),
+                asset_license("set2", "id2", "title2"),
+            ]),
+            license_token_count: 2,
+            token_id: "asset_normal".to_string(),
+            owner_id: AccountId::new_unchecked("rocketscience".to_string()),
+            minter_id: AccountId::new_unchecked("license_rocketscience".to_string()),
+            policy_rules: None,
+            upgrade_rules: None,
+        }
+    }
+
     #[test]
     fn test_check_transition() {
         let policies = init_policies();
@@ -48,18 +101,94 @@ mod tests {
                 pdf_url: None
             }
         };
+        let mut asset_token = sample_asset_token();
+        asset_token.metadata.object = None;
+        asset_token.licenses = Some(vec![
+            asset_license("set_id", "lic_id", "lic1"),
+            asset_license("set_id", "lic_id2", "lic2"),
+        ]);
+        let new_lic_token = new_l.as_license_token("token".to_string());
         let old_token = old_l.as_license_token("1".to_string());
         let inventory = FullInventory{
             inventory_licenses: vec![old_l.clone(), new_l.clone()],
             issued_licenses:    vec![old_token.clone()],
+            asset: Some(asset_token),
         };
 
         let res = policies.check_transition(
-            inventory, old_token, new_l
+            inventory, old_token, new_lic_token
         );
         assert_eq!(res.clone().err(), None);
         let avail = res.unwrap();
         assert_eq!(avail.result, true);
+    }
+
+    #[test]
+    fn test_check_transition_mul_sets() {
+        let policies = init_policies();
+
+        let mut json_asset = sample_asset_token();
+
+        let old_l = InventoryLicense{
+            title: "title1".to_string(),
+            price: "1".to_string(),
+            license_id: "id1".to_string(),
+            license: LicenseData{
+                personal_use: true,
+                exclusivity: false,
+                commercial_use: false,
+                i_agree: true,
+                limited_display_sublicensee: false,
+                template: None,
+                perpetuity: true,
+                pdf_url: None
+            }
+        };
+        let new_l = InventoryLicense{
+            title: "title2".to_string(),
+            price: "1".to_string(),
+            license_id: "id2".to_string(),
+            license: LicenseData{
+                personal_use: false,
+                exclusivity: false,
+                commercial_use: true,
+                i_agree: true,
+                limited_display_sublicensee: false,
+                template: None,
+                perpetuity: true,
+                pdf_url: None
+            }
+        };
+
+        json_asset.licenses = Some(vec![
+            asset_license("set1", "id1", "title1"),
+            asset_license("set2", "id1", "title1"),
+            asset_license("set1", "id2", "title2"),
+            asset_license("set2", "id2", "title2"),
+        ]);
+
+        let mut old_token = old_l.as_license_token("1".to_string());
+        old_token.metadata = json_asset.issue_new_metadata("set1".to_string());
+        old_token.license.as_mut().unwrap().from.set_id = "set1".to_owned();
+
+        // Simulate upgrade of the same token to another set
+        let mut new_lic_token = new_l.as_license_token("1".to_string());
+        new_lic_token.metadata = json_asset.issue_new_metadata("set2".to_string());
+        new_lic_token.license.as_mut().unwrap().from.set_id = "set2".to_owned();
+
+        let inventory = FullInventory{
+            inventory_licenses: vec![old_l.clone(), new_l.clone()],
+            issued_licenses:    vec![old_token.clone()],
+            asset: Some(json_asset.clone()),
+        };
+
+        let res = policies.check_transition(
+            inventory, old_token, new_lic_token
+        );
+        assert_eq!(res.clone().err(), None);
+        let avail = res.unwrap();
+        assert_eq!(avail.result, false);
+        assert_eq!(avail.reason_not_available.contains("between different sets"), true);
     }
 
     #[test]
@@ -111,10 +240,20 @@ mod tests {
                 pdf_url: None
             }
         };
+
+        let mut asset_token = sample_asset_token();
+        asset_token.metadata.object = None;
+        asset_token.licenses = Some(vec![
+            asset_license("set_id", "lic_id", "lic1"),
+            asset_license("set_id", "lic_id2", "lic2"),
+            asset_license("set_id", "lic_id3", "lic3"),
+        ]);
+
         let personal_token = personal.as_license_token("1".to_string());
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_token.clone()],
+            asset: Some(asset_token),
         };
 
         let available = policies.list_transitions(
@@ -178,6 +317,7 @@ mod tests {
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
+            asset: None,
         };
 
         let available = policies.list_transitions(
@@ -242,6 +382,7 @@ mod tests {
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
+            asset: None,
         };
 
         let res = policies.check_new(
@@ -304,6 +445,7 @@ mod tests {
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
+            asset: None,
         };
 
         let res = policies.check_inventory_state(
@@ -314,6 +456,7 @@ mod tests {
         let inventory2 = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
+            asset: None,
         };
 
         let res2 = policies.check_inventory_state(
@@ -378,6 +521,7 @@ mod tests {
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_token.clone(), personal_token2.clone(), personal_token3.clone()],
+            asset: None,
         };
 
         let new_limits = vec![Limitation{
@@ -398,6 +542,7 @@ mod tests {
         let inventory2 = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_token.clone(), personal_token2.clone()],
+            asset: None,
         };
 
         let res = policies.clone_with_additional(new_limits.clone()).check_new(

@@ -15,6 +15,7 @@ pub trait LicenseGeneral {
     fn is_commercial(&self) -> bool;
     fn license_id(&self) -> String;
     fn license_title(&self) -> String;
+    fn set_id(&self) -> String;
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -232,6 +233,7 @@ pub struct TokenLicense {
 pub struct SourceLicenseMeta {
     pub inventory_id: String,
     pub asset_id: String,
+    pub set_id: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -341,6 +343,12 @@ impl LicenseGeneral for LicenseToken {
             self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap_unchecked().clone()
         }
     }
+
+    fn set_id(&self) -> String {
+        unsafe {
+            self.license.as_ref().unwrap_unchecked().from.set_id.clone()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -399,6 +407,10 @@ impl LicenseGeneral for InventoryLicense {
     fn license_title(&self) -> String {
         self.title.clone()
     }
+
+    fn set_id(&self) -> String {
+        String::new()
+    }
 }
 
 impl InventoryLicense {
@@ -421,6 +433,7 @@ impl InventoryLicense {
                 from: SourceLicenseMeta{
                     asset_id: "asset".to_string(),
                     inventory_id: "inv".to_string(),
+                    set_id: "set_id".to_string(),
                 }
             }),
             approved_account_ids: Default::default(),
@@ -503,6 +516,21 @@ pub struct JsonAssetToken {
     // pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
 }
 
+impl Default for JsonAssetToken {
+    fn default() -> Self {
+        JsonAssetToken{
+            upgrade_rules: None,
+            policy_rules: None,
+            licenses: None,
+            minter_id: AccountId::new_unchecked("alice".to_string()),
+            owner_id: AccountId::new_unchecked("alice".to_string()),
+            metadata: TokenMetadata::default(),
+            token_id: String::new(),
+            license_token_count: 0,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct InventoryLicenseAvailability {
@@ -518,4 +546,5 @@ pub struct InventoryLicenseAvailability {
 pub struct FullInventory {
     pub inventory_licenses: Vec<InventoryLicense>,
     pub issued_licenses:    Vec<LicenseToken>,
+    pub asset: Option<JsonAssetToken>,
 }
