@@ -69,6 +69,7 @@ pub struct ObjectSet {
     id: String,
     objects: Option<Vec<String>>,
     title: Option<String>,
+    active: Option<bool>,
     icon: Option<String>,
     description: Option<String>,
 }
@@ -100,6 +101,7 @@ impl ObjectData {
                 id: ids[0].clone() + &"_set".to_string(),
                 title: None,
                 description: None,
+                active: Some(true),
             }
         } else {
             unsafe { set.unwrap_unchecked().clone() }
@@ -183,6 +185,7 @@ impl JsonAssetToken {
                     icon: None,
                     title: None,
                     description: None,
+                    active: Some(true),
                 };
                 obj_sets.push(obj_set);
             }
