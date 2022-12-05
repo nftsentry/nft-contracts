@@ -167,7 +167,8 @@ impl JsonAssetToken {
                 }
                 let old_set_id = obj_map.get(&lic.objects.clone().unwrap_unchecked());
                 if old_set_id.is_none() {
-                    let set_id = lic.objects.as_ref().unwrap_unchecked()[0].clone() + "_set";
+                    let lic_objects = lic.objects.as_ref().unwrap_unchecked();
+                    let set_id = lic_objects.first().unwrap_or(&lic.license_id).to_owned() + "_set";
                     obj_map.insert(lic.objects.clone().unwrap_unchecked(), set_id.clone());
                     lic.set_id = Some(set_id.clone());
                 } else {
