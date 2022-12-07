@@ -2,7 +2,7 @@ use crate::*;
 
 use near_sdk::{log, Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
-use policy_rules::types::{FullInventory, InventoryLicense, NFTUpdateLicenseResult, SourceLicenseMeta};
+use policy_rules::types::{FullInventory, InventoryLicense, LicenseGeneral, NFTUpdateLicenseResult, SourceLicenseMeta};
 use policy_rules::utils::{balance_from_string, format_balance};
 
 // const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
@@ -139,10 +139,11 @@ impl Contract {
                 Err("Failed call asset_token".to_string())
             }
         }
+        let token = self.nft_token(token_id.clone()).unwrap();
         let asset = unsafe{asset_res.unwrap_unchecked()};
         let new_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(|x| x.license_id == new_license_id).expect("Asset license not found");
+        let old_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(|x| x.license_id == token.license_id()).expect("Asset license not found");
         let metadata = unsafe{metadata_res.unwrap_unchecked()};
-        let token = self.nft_token(token_id.clone()).unwrap();
         let (inv_id, asset_id, old_license_id) = token.inventory_asset_license();
 
         // Build full inventory for those.
@@ -152,7 +153,11 @@ impl Contract {
         let old_license = metadata.licenses.iter().find(|x| x.license_id == old_license_id).unwrap();
 
         // Check for valid deposit
-        let must_attach = balance_from_string(new_license.price.clone()) - balance_from_string(old_license.price.clone());
+        let must_attach = balance_from_string(
+            new_asset_license.price.clone().unwrap_or(new_license.price.clone().unwrap())
+        ) - balance_from_string(
+            old_asset_license.price.clone().unwrap_or(old_license.price.clone().unwrap())
+        );
         if env::attached_deposit() < must_attach {
             return Err(format!(
                 "Attached deposit of {} NEAR is less than license price difference of {} NEAR",
@@ -213,13 +218,13 @@ impl Contract {
             for asset_l in asset.licenses.as_ref().unwrap() {
                 for inv_license in &metadata.licenses {
                     if inv_license.license_id == asset_l.license_id {
-                        let mut price = inv_license.price.clone();
+                        let mut price = inv_license.price.clone().unwrap();
                         if asset_l.price.is_some() {
                             price = asset_l.price.as_ref().unwrap().clone();
                         }
                         inventory_licenses.push(InventoryLicense{
                             license_id: inv_license.license_id.clone(),
-                            price,
+                            price: Some(price),
                             title: asset_l.title.clone(),
                             license: inv_license.license.clone(),
                         })

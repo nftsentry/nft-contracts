@@ -1,6 +1,6 @@
 use near_sdk::{Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
-use policy_rules::types::{InventoryLicense, NFTMintResult, SourceLicenseMeta};
+use policy_rules::types::{AssetLicense, InventoryLicense, NFTMintResult, SourceLicenseMeta};
 use policy_rules::utils::{balance_from_string, format_balance};
 use crate::*;
 
@@ -70,7 +70,9 @@ impl Contract {
                 }
             }
         }
-        let (lic_token, inv_license, asset, inventory_owner) = unsafe {result.unwrap_unchecked()};
+        let (lic_token, inv_license,
+            asset_license, asset,
+            inventory_owner) = unsafe {result.unwrap_unchecked()};
 
         // we add an optional parameter for perpetual royalties
         // create a royalty map to store in the token
@@ -115,7 +117,9 @@ impl Contract {
         let result = refund_storage(
             initial_storage_usage,
             Some(predecessor_id.clone()),
-            Some(balance_from_string(inv_license.price.clone())),
+            Some(balance_from_string(
+                asset_license.price.clone().unwrap_or(inv_license.price.clone().unwrap())
+            )),
         );
         if result.is_err() {
             // Refund failed due to storage costs.
@@ -140,7 +144,11 @@ impl Contract {
         inventory_contract::ext(self.inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
             asset.token_id.clone(), license_sold
         );
-        self.process_fees(balance_from_string(inv_license.price), inventory_owner);
+        self.process_fees(
+            balance_from_string(
+                asset_license.price.clone().unwrap_or(inv_license.price.clone().unwrap())
+            ), inventory_owner
+        );
 
         // Log the serialized json.
         self.log_event(&mint_result.unwrap().to_string());
@@ -159,7 +167,7 @@ impl Contract {
         license_id: String,
         set_id: Option<String>,
         receiver_id: AccountId,
-        ) -> Result<(LicenseToken, InventoryLicense, JsonAssetToken, AccountId), String> {
+        ) -> Result<(LicenseToken, InventoryLicense, AssetLicense, JsonAssetToken, AccountId), String> {
 
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() {
@@ -192,12 +200,12 @@ impl Contract {
             }
 
             let deposit = env::attached_deposit();
-            let price = balance_from_string(inv_license.unwrap_unchecked().price.clone());
+            let price = balance_from_string(asset_license.unwrap_unchecked().price.clone().unwrap());
             if deposit < price {
                 return Err(format!(
                     "Attached deposit of {} NEAR is less than license price of {} NEAR",
                     format_balance(deposit),
-                    inv_license.unwrap_unchecked().price.clone(),
+                    asset_license.unwrap_unchecked().price.clone().unwrap_unchecked(),
                 ))
             }
 
@@ -257,7 +265,7 @@ impl Contract {
                 return Err(res.reason_not_available);
             }
 
-            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset, inv_metadata.owner_id.clone()))
+            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset_license.unwrap_unchecked().clone(), asset, inv_metadata.owner_id.clone()))
         }
     }
 

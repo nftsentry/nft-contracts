@@ -310,7 +310,7 @@ impl LicenseToken {
                 license_id: lic_id,
                 title: self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap().to_string(),
                 license: license_data.clone(),
-                price: if price.is_some() { price.unwrap_unchecked() } else { String::new() },
+                price: price.clone(),
             };
             Some(res)
         }
@@ -387,7 +387,7 @@ pub struct JsonTokenLicense {
 pub struct InventoryLicense {
     pub license_id: String,
     pub title: String,
-    pub price: String,
+    pub price: Option<String>,
     pub license: LicenseData,
 }
 
