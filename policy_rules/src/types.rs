@@ -153,13 +153,22 @@ impl JsonAssetToken {
             return
         }
         unsafe {
-            if self.metadata.object.is_none() {
-                return
+            let mut obj_data: ObjectData;
+            if self.metadata.object.is_none() || self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
+                // Insert a default object
+                obj_data = ObjectData{
+                    items: vec![ObjectItem{
+                        title: self.metadata.title.clone(),
+                        link: self.metadata.media.clone(),
+                        type_: "image".to_string(),
+                        id: "default_object".to_string(),
+                        icon: None,
+                    }],
+                    sets: None,
+                };
+            } else {
+                obj_data = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
             }
-            if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
-                return
-            }
-            let mut obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
             let mut obj_map: HashMap<Vec<String>, String> = HashMap::new();
             for lic in self.licenses.as_mut().unwrap_unchecked() {
                 if lic.set_id.is_some() && !lic.set_id.clone().unwrap().is_empty() {
