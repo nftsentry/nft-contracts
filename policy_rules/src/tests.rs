@@ -73,7 +73,7 @@ mod tests {
 
         let old_l = InventoryLicense{
             title: "lic1".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -88,7 +88,7 @@ mod tests {
         };
         let new_l = InventoryLicense{
             title: "lic2".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id2".to_string(),
             license: LicenseData{
                 personal_use: false,
@@ -131,7 +131,7 @@ mod tests {
 
         let old_l = InventoryLicense{
             title: "title1".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "id1".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -146,7 +146,7 @@ mod tests {
         };
         let new_l = InventoryLicense{
             title: "title2".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "id2".to_string(),
             license: LicenseData{
                 personal_use: false,
@@ -197,7 +197,7 @@ mod tests {
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -212,7 +212,7 @@ mod tests {
         };
         let commercial = InventoryLicense{
             title: "lic2".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id2".to_string(),
             license: LicenseData{
                 personal_use: false,
@@ -227,7 +227,7 @@ mod tests {
         };
         let personal_exclusive = InventoryLicense{
             title: "lic3".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id3".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -270,7 +270,7 @@ mod tests {
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -285,7 +285,7 @@ mod tests {
         };
         let commercial = InventoryLicense{
             title: "lic2".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id2".to_string(),
             license: LicenseData{
                 personal_use: false,
@@ -300,7 +300,7 @@ mod tests {
         };
         let personal_exclusive = InventoryLicense{
             title: "lic3".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id3".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -334,7 +334,7 @@ mod tests {
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -349,7 +349,7 @@ mod tests {
         };
         let commercial = InventoryLicense{
             title: "lic2".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id2".to_string(),
             license: LicenseData{
                 personal_use: false,
@@ -364,7 +364,7 @@ mod tests {
         };
         let personal_exclusive = InventoryLicense{
             title: "lic3".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id3".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -398,7 +398,7 @@ mod tests {
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -413,7 +413,7 @@ mod tests {
         };
         let commercial = InventoryLicense{
             title: "lic2".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id2".to_string(),
             license: LicenseData{
                 personal_use: false,
@@ -428,7 +428,7 @@ mod tests {
         };
         let personal_exclusive = InventoryLicense{
             title: "lic3".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id3".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -472,7 +472,7 @@ mod tests {
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id".to_string(),
             license: LicenseData{
                 personal_use: true,
@@ -487,7 +487,7 @@ mod tests {
         };
         let commercial = InventoryLicense{
             title: "lic2".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id2".to_string(),
             license: LicenseData{
                 personal_use: false,
@@ -502,7 +502,7 @@ mod tests {
         };
         let personal_exclusive = InventoryLicense{
             title: "lic3".to_string(),
-            price: "1".to_string(),
+            price: Some("1".to_string()),
             license_id: "lic_id3".to_string(),
             license: LicenseData{
                 personal_use: true,

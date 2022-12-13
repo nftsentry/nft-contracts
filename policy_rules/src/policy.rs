@@ -288,7 +288,15 @@ impl ConfigInterface for AllPolicies {
     fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability> {
         let mut result: Vec<InventoryLicenseAvailability> = Vec::new();
         for license in &inventory.inventory_licenses {
-            let lic_token = license.as_license_token("token".to_string());
+            let mut lic_token = license.as_license_token("token".to_string());
+            if lic_token.license.is_some() {
+                lic_token.license.as_mut().unwrap().from = SourceLicenseMeta{
+                    asset_id: from.asset_id.clone(),
+                    set_id: from.set_id(),
+                    inventory_id: "".to_owned(),
+                }
+            }
+
             let check_transition_res = self.check_transition(
                 inventory.clone(), from.clone(), lic_token
             );
