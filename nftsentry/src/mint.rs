@@ -200,12 +200,15 @@ impl Contract {
             }
 
             let deposit = env::attached_deposit();
-            let price = balance_from_string(asset_license.unwrap_unchecked().price.clone().unwrap());
+            let price_str = asset_license.unwrap_unchecked().price.clone().unwrap_or(
+                inv_license.unwrap_unchecked().price.clone().unwrap()
+            );
+            let price = balance_from_string(price_str.clone());
             if deposit < price {
                 return Err(format!(
                     "Attached deposit of {} NEAR is less than license price of {} NEAR",
                     format_balance(deposit),
-                    asset_license.unwrap_unchecked().price.clone().unwrap_unchecked(),
+                    price_str,
                 ))
             }
 

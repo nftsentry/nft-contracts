@@ -153,10 +153,9 @@ impl JsonAssetToken {
             return
         }
         unsafe {
-            let mut obj_data: ObjectData;
             if self.metadata.object.is_none() || self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
                 // Insert a default object
-                obj_data = ObjectData{
+                let obj_data: ObjectData = ObjectData{
                     items: vec![ObjectItem{
                         title: self.metadata.title.clone(),
                         link: self.metadata.media.clone(),
@@ -164,11 +163,25 @@ impl JsonAssetToken {
                         id: "default_object".to_string(),
                         icon: None,
                     }],
-                    sets: None,
+                    sets: Some(vec![ObjectSet{
+                        id: "default_object_set".to_string(),
+                        objects: Some(vec!["default_object".to_string()]),
+                        title: self.metadata.title.clone(),
+                        active: Some(true),
+                        icon: None,
+                        description: None,
+                    }]),
                 };
-            } else {
-                obj_data = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
+                for lic in self.licenses.as_mut().unwrap_unchecked() {
+                    lic.set_id = Some("default_object_set".to_string());
+                    lic.objects = None;
+                }
+                let obj_data_raw = serde_json::to_string(&obj_data).expect("failed serialize obj data");
+                // migrated to sets
+                self.metadata.object = Some(obj_data_raw);
+                return
             }
+            let mut obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
             let mut obj_map: HashMap<Vec<String>, String> = HashMap::new();
             for lic in self.licenses.as_mut().unwrap_unchecked() {
                 if lic.set_id.is_some() && !lic.set_id.clone().unwrap().is_empty() {
