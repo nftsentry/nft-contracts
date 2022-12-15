@@ -480,6 +480,16 @@ pub struct AssetLicense {
     pub price: Option<String>,
     pub set_id: Option<String>,
     pub objects: Option<Vec<String>>,
+    pub params: Option<String> // Json-serialized AssetLicenseParams
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AssetLicenseParams {
+    pub icon: Option<String>,
+    pub description: Option<String>,
+    pub sole_limit: Option<i32>,
+    pub active: Option<bool>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

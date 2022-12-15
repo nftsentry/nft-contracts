@@ -17,10 +17,14 @@ mod tests {
     fn asset_license(set_id: &str, license_id: &str, title: &str) -> AssetLicense {
         AssetLicense{
             objects: None,
+            icon: None,
+            attr: None,
+            sole_limit: None,
             set_id: Some(set_id.to_string()),
             license_id: license_id.to_string(),
             price: None,
             title: title.to_string(),
+            active: None
         }
     }
 
@@ -623,17 +627,25 @@ mod tests {
             licenses: Some(vec![
                 AssetLicense{
                     objects: None,
+                    icon: None,
+                    attr: None,
+                    sole_limit: None,
                     set_id: Some("set1".to_string()),
                     license_id: "id1".to_string(),
                     price: None,
                     title: "id1 title".to_string(),
+                    active: None
                 },
                 AssetLicense{
                     objects: None,
+                    icon: None,
+                    attr: None,
+                    sole_limit: None,
                     set_id: Some("set2".to_string()),
                     license_id: "id2".to_string(),
                     price: None,
                     title: "id2 title".to_string(),
+                    active: None
                 },
             ]),
             license_token_count: 2,
