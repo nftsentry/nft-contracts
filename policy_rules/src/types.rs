@@ -475,6 +475,7 @@ impl InventoryLicense {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AssetLicense {
+    pub sku_id: Option<String>,
     pub license_id: String,
     pub title: String,
     pub price: Option<String>,
