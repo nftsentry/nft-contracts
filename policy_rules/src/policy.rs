@@ -293,6 +293,7 @@ impl ConfigInterface for AllPolicies {
                 lic_token.license.as_mut().unwrap().from = SourceLicenseMeta{
                     asset_id: from.asset_id.clone(),
                     set_id: from.set_id(),
+                    sku_id: from.sku_id(),
                     inventory_id: "".to_owned(),
                 }
             }

@@ -173,7 +173,8 @@ impl Contract {
             from: SourceLicenseMeta{
                 asset_id: asset.token_id.clone(),
                 inventory_id: inv_id.clone(),
-                set_id: unsafe{ new_asset_license.set_id.clone().unwrap_unchecked()},
+                set_id: new_asset_license.set_id.clone().unwrap_or(String::new()),
+                sku_id: new_asset_license.sku_id.clone().unwrap(),
             },
             issuer_id: Some(env::current_account_id()),
             uri: new_license.license.pdf_url.clone(),

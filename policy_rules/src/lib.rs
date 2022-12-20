@@ -7,4 +7,5 @@ use near_sdk::{AccountId};
 pub mod policy;
 pub mod types;
 pub mod utils;
+pub mod prices;
 mod tests;

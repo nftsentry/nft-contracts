@@ -1,5 +1,6 @@
 use near_sdk::{Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
+use policy_rules::prices::{Asset, get_near_price};
 use policy_rules::types::{AssetLicense, InventoryLicense, NFTMintResult, SourceLicenseMeta};
 use policy_rules::utils::{balance_from_string, format_balance};
 use crate::*;
@@ -13,6 +14,7 @@ impl Contract {
         asset_id: String,
         license_id: String,
         set_id: Option<String>,
+        sku_id: Option<String>,
         receiver_id: AccountId,
     ) -> Promise {
         if self.tokens_by_id.get(&token_id).is_some() {
@@ -24,7 +26,10 @@ impl Contract {
             .with_unused_gas_weight(3).inventory_metadata();
         let promise_asset: Promise = inventory_contract::ext(self.inventory_id.clone())
             .with_unused_gas_weight(3).asset_token(asset_id.clone());
-        let promise_inventory = promise_meta.and(promise_asset);
+        let promise_price = get_near_price();
+        let promise_inventory = promise_meta
+            .and(promise_asset)
+            .and(promise_price);
         // Then schedule call to self.callback
 
         let predecessor_id = env::predecessor_account_id();
@@ -33,7 +38,7 @@ impl Contract {
                 .with_attached_deposit(env::attached_deposit())
                 .with_unused_gas_weight(7)
                 .on_nft_mint(
-                    token_id, license_id, set_id, receiver_id, predecessor_id
+                    token_id, license_id, set_id, sku_id, receiver_id, predecessor_id
                 )
         )
     }
@@ -44,9 +49,11 @@ impl Contract {
         &mut self,
         #[callback_result] metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
+        #[callback_result] price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
         license_id: String,
         set_id: Option<String>,
+        sku_id: Option<String>,
         receiver_id: AccountId,
         predecessor_id: AccountId,
     ) -> NFTMintResult {
@@ -54,8 +61,8 @@ impl Contract {
         let initial_storage_usage = env::storage_usage();
 
         let result = self.ensure_nft_mint(
-            metadata_res, asset_res, token_id.clone(),
-            license_id.clone(), set_id.clone(), receiver_id.clone()
+            metadata_res, asset_res, price_res, token_id.clone(),
+            license_id.clone(), set_id.clone(), sku_id, receiver_id.clone()
         );
 
         if result.is_err() {
@@ -163,33 +170,43 @@ impl Contract {
         &self,
         metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
         asset_res: Result<JsonAssetToken, PromiseError>,
+        price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
         license_id: String,
         set_id: Option<String>,
+        sku_id: Option<String>,
         receiver_id: AccountId,
         ) -> Result<(LicenseToken, InventoryLicense, AssetLicense, JsonAssetToken, AccountId), String> {
 
         // 1. Check callback results first.
-        if metadata_res.is_err() || asset_res.is_err() {
+        if metadata_res.is_err() || asset_res.is_err() || price_res.is_err() {
             if metadata_res.is_err() {
                 return Err("Failed call inventory_metadata".to_string())
-            } else {
+            } else if asset_res.is_err() {
                 return Err("Failed call asset_token".to_string())
+            } else {
+                return Err("Failed call priceoracle.get_asset".to_string())
             }
         }
 
         unsafe {
             let asset = asset_res.unwrap_unchecked();
             let inv_metadata = metadata_res.unwrap_unchecked();
+
+            // TODO take account prices
+            let near_price_data = price_res.unwrap_unchecked().unwrap();
+            env::log_str(&format!("NEAR price: {} USD", near_price_data.reports.last().unwrap().price.string_price()));
+
             let asset_id = asset.token_id.clone();
 
             let asset_licenses = asset.licenses.clone().unwrap_or_default();
             let asset_license = asset_licenses.iter().find(
-                |x| x.license_id == license_id && x.set_id.as_ref().unwrap_or(&String::new()) == set_id.as_ref().unwrap_or(&String::new())
+                |x| x.license_id == license_id && x.sku_id.as_ref().unwrap_or(
+                    &String::new()) == sku_id.as_ref().unwrap_or(&String::new())
             );
 
             if asset_license.is_none() {
-                return Err("Asset license not found by id".to_string())
+                return Err(format!("Asset license not found by id/sku_id {}/{}", license_id, sku_id.unwrap_or(String::new())))
             }
 
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
@@ -216,20 +233,20 @@ impl Contract {
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
             // backward compatibility
             let metadata: TokenMetadata;
-            let new_set_id: String;
-            if asset_license.unwrap_unchecked().set_id.is_none() || asset_license.unwrap_unchecked().set_id.as_ref().unwrap().is_empty() {
-                // generate new asset/asset_license with filled set_id
+            let new_sku_id: String;
+            if asset_license.unwrap_unchecked().sku_id.is_none() || asset_license.unwrap_unchecked().sku_id.as_ref().unwrap().is_empty() {
+                // generate new asset/asset_license with filled sku_id
                 // and issue metadata from it
                 let mut asset_copy = asset.clone();
                 asset_copy.migrate_to_sets();
-                let set_id = asset_copy.licenses.clone().unwrap_unchecked().iter().find(
+                let sku_id = asset_copy.licenses.clone().unwrap_unchecked().iter().find(
                     |&x| x.license_id == license_id
-                ).unwrap_unchecked().set_id.clone().unwrap();
-                metadata = asset_copy.issue_new_metadata(set_id.clone());
-                new_set_id = set_id.clone()
+                ).unwrap_unchecked().sku_id.clone().unwrap();
+                metadata = asset_copy.issue_new_metadata(sku_id.clone());
+                new_sku_id = sku_id.clone()
             } else {
-                new_set_id = asset_license.unwrap_unchecked().set_id.clone().unwrap();
-                metadata = asset.issue_new_metadata(new_set_id.clone());
+                new_sku_id = asset_license.unwrap_unchecked().sku_id.clone().unwrap();
+                metadata = asset.issue_new_metadata(new_sku_id.clone());
             }
 
             let license = TokenLicense {
@@ -239,7 +256,8 @@ impl Contract {
                 from: SourceLicenseMeta{
                     asset_id: asset_id.clone(),
                     inventory_id: self.inventory_id.clone().to_string(),
-                    set_id: new_set_id,
+                    set_id: String::new(),
+                    sku_id: new_sku_id,
                 },
                 description: None,
                 expires_at: None,

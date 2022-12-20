@@ -3,6 +3,7 @@ mod tests {
     use near_sdk::AccountId;
     use crate::policy::{init_policies, Limitation, MaxCount};
     use crate::policy::{ConfigInterface, LEVEL_LICENSES};
+    use crate::prices::Price;
     use crate::utils::{balance_from_string, format_balance};
     use crate::types::{AssetLicense, FullInventory, InventoryLicense, JsonAssetToken, LicenseData, TokenMetadata};
 
@@ -591,6 +592,24 @@ mod tests {
         assert_eq!(format_balance(balance3), price3);
         assert_eq!(format_balance(balance4), price4);
         assert_eq!(format_balance(balance5), price5);
+    }
+
+    #[test]
+    fn test_price_string() {
+        let price_near = Price{
+            multiplier: 13564.to_string(),
+            decimals: 28,
+        };
+        let str = price_near.string_price();
+
+        // let price_btc = Price {
+        //     multiplier: 1664197.to_string(),
+        //     decimals: 10,
+        // };
+        // let str_btc = price_btc.string_price();
+
+        assert_eq!(str, "1.3564".to_string());
+        // assert_eq!(str_btc, "16641.97".to_string());
     }
 
     #[test]

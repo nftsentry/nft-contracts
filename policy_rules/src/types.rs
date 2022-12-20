@@ -16,6 +16,7 @@ pub trait LicenseGeneral {
     fn license_id(&self) -> String;
     fn license_title(&self) -> String;
     fn set_id(&self) -> String;
+    fn sku_id(&self) -> String;
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -92,23 +93,24 @@ impl ObjectData {
 
     pub fn filter_by_objects(&self, objects: Vec<String>, set: Option<ObjectSet>) -> ObjectData {
         let filtered: Vec<ObjectItem> = self.items.clone().into_iter().filter(|x| objects.contains(&x.id)).collect();
-        let ids: Vec<String> = filtered.iter().map(|x| x.id.clone()).collect();
+        // let ids: Vec<String> = filtered.iter().map(|x| x.id.clone()).collect();
 
-        let new_set = if set.is_none() {
-            ObjectSet{
-                icon: None,
-                objects: Some(ids.clone()),
-                id: ids[0].clone() + &"_set".to_string(),
-                title: None,
-                description: None,
-                active: Some(true),
-            }
-        } else {
-            unsafe { set.unwrap_unchecked().clone() }
-        };
+        // let new_set = if set.is_none() {
+        //     ObjectSet{
+        //         icon: None,
+        //         objects: Some(ids.clone()),
+        //         id: ids[0].clone() + &"_set".to_string(),
+        //         title: None,
+        //         description: None,
+        //         active: Some(true),
+        //     }
+        // } else {
+        //     unsafe { set.unwrap_unchecked().clone() }
+        // };
         let new_obj_data: ObjectData = ObjectData{
             items: filtered,
-            sets: Some(vec![new_set])
+            // sets: Some(vec![new_set]),
+            sets: None,
         };
 
         new_obj_data
@@ -124,104 +126,6 @@ pub struct ObjectItem {
     id: String,
     title: Option<String>,
     icon: Option<String>,
-}
-
-impl JsonAssetToken {
-    pub fn issue_new_metadata(&self, set_id: String) -> TokenMetadata {
-        let mut metadata = self.metadata.clone();
-        metadata.issued_at = Some(env::block_timestamp_ms());
-        metadata.updated_at = Some(env::block_timestamp_ms());
-        metadata.starts_at = Some(env::block_timestamp_ms());
-
-        if self.metadata.object.is_none() {
-            return metadata
-        }
-
-        unsafe {
-            if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
-                return metadata
-            }
-            let obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
-            let new_obj_data = obj_data.filter_by_set_id(set_id);
-            metadata.object = Some(serde_json::to_string(&new_obj_data).expect("Failed to serialize"));
-            return metadata
-        }
-    }
-
-    pub fn migrate_to_sets(&mut self) {
-        if self.licenses.is_none() {
-            return
-        }
-        unsafe {
-            if self.metadata.object.is_none() || self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
-                // Insert a default object
-                let obj_data: ObjectData = ObjectData{
-                    items: vec![ObjectItem{
-                        title: self.metadata.title.clone(),
-                        link: self.metadata.media.clone(),
-                        type_: "image".to_string(),
-                        id: "default_object".to_string(),
-                        icon: None,
-                    }],
-                    sets: Some(vec![ObjectSet{
-                        id: "default_object_set".to_string(),
-                        objects: Some(vec!["default_object".to_string()]),
-                        title: self.metadata.title.clone(),
-                        active: Some(true),
-                        icon: None,
-                        description: None,
-                    }]),
-                };
-                for lic in self.licenses.as_mut().unwrap_unchecked() {
-                    lic.set_id = Some("default_object_set".to_string());
-                    lic.objects = None;
-                }
-                let obj_data_raw = serde_json::to_string(&obj_data).expect("failed serialize obj data");
-                // migrated to sets
-                self.metadata.object = Some(obj_data_raw);
-                return
-            }
-            let mut obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
-            let mut obj_map: HashMap<Vec<String>, String> = HashMap::new();
-            for lic in self.licenses.as_mut().unwrap_unchecked() {
-                if lic.set_id.is_some() && !lic.set_id.clone().unwrap().is_empty() {
-                    continue
-                }
-                let old_set_id = obj_map.get(&lic.objects.clone().unwrap_unchecked());
-                if old_set_id.is_none() {
-                    let lic_objects = lic.objects.as_ref().unwrap_unchecked();
-                    let set_id = lic_objects.first().unwrap_or(&lic.license_id).to_owned() + "_set";
-                    obj_map.insert(lic.objects.clone().unwrap_unchecked(), set_id.clone());
-                    lic.set_id = Some(set_id.clone());
-                } else {
-                    // Re-insert existing set id
-                    lic.set_id = Some(old_set_id.unwrap_unchecked().clone());
-                }
-            }
-
-            // Add mapped objects -> set_id in object data
-            let mut obj_sets: Vec<ObjectSet> = Vec::new();
-            for (objects, set_id) in obj_map.iter() {
-                let obj_set = ObjectSet{
-                    objects: Some(objects.clone()),
-                    id: set_id.clone(),
-                    icon: None,
-                    title: None,
-                    description: None,
-                    active: Some(true),
-                };
-                obj_sets.push(obj_set);
-            }
-            if obj_data.sets.is_none() {
-                obj_data.sets = Some(obj_sets);
-            } else {
-                obj_data.sets.as_mut().unwrap_unchecked().extend(obj_sets);
-            }
-            let obj_data_raw = serde_json::to_string(&obj_data).expect("failed serialize obj data");
-            // migrated to sets
-            self.metadata.object = Some(obj_data_raw);
-        }
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -260,6 +164,7 @@ pub struct SourceLicenseMeta {
     pub inventory_id: String,
     pub asset_id: String,
     pub set_id: String,
+    pub sku_id: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -375,6 +280,12 @@ impl LicenseGeneral for LicenseToken {
             self.license.as_ref().unwrap_unchecked().from.set_id.clone()
         }
     }
+
+    fn sku_id(&self) -> String {
+        unsafe {
+            self.license.as_ref().unwrap_unchecked().from.sku_id.clone()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -437,6 +348,9 @@ impl LicenseGeneral for InventoryLicense {
     fn set_id(&self) -> String {
         String::new()
     }
+    fn sku_id(&self) -> String {
+        String::new()
+    }
 }
 
 impl InventoryLicense {
@@ -460,6 +374,7 @@ impl InventoryLicense {
                     asset_id: "asset".to_string(),
                     inventory_id: "inv".to_string(),
                     set_id: "set_id".to_string(),
+                    sku_id: "sku_id".to_string(),
                 }
             }),
             approved_account_ids: Default::default(),
@@ -567,6 +482,113 @@ impl Default for JsonAssetToken {
         }
     }
 }
+
+impl JsonAssetToken {
+    pub fn issue_new_metadata(&self, sku_id: String) -> TokenMetadata {
+        let mut metadata = self.metadata.clone();
+        metadata.issued_at = Some(env::block_timestamp_ms());
+        metadata.updated_at = Some(env::block_timestamp_ms());
+        metadata.starts_at = Some(env::block_timestamp_ms());
+
+        if self.metadata.object.is_none() {
+            return metadata
+        }
+
+        unsafe {
+            if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
+                return metadata
+            }
+            let obj_data: ObjectData = serde_json::from_str(
+                &self.metadata.object.clone().unwrap_unchecked()
+            ).expect("Failed parse asset object data");
+            let obj_ids = self.licenses.as_ref().unwrap().iter().find(
+                |&x| x.sku_id.clone().unwrap_or(String::new()) == sku_id.clone()
+            ).expect("Not found by sku_id").objects.clone().unwrap();
+            // let new_obj_data = obj_data.filter_by_set_id(set_id);
+            let new_obj_data = obj_data.filter_by_objects(obj_ids, None);
+            metadata.object = Some(serde_json::to_string(&new_obj_data).expect("Failed to serialize"));
+            return metadata
+        }
+    }
+
+    pub fn migrate_to_sets(&mut self) {
+        if self.licenses.is_none() {
+            return
+        }
+        unsafe {
+            if self.metadata.object.is_none() || self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
+                // Insert a default object
+                let obj_data: ObjectData = ObjectData{
+                    items: vec![ObjectItem{
+                        title: self.metadata.title.clone(),
+                        link: self.metadata.media.clone(),
+                        type_: "image".to_string(),
+                        id: "default_object".to_string(),
+                        icon: None,
+                    }],
+                    // sets: Some(vec![ObjectSet{
+                    //     id: "default_object_set".to_string(),
+                    //     objects: Some(vec!["default_object".to_string()]),
+                    //     title: self.metadata.title.clone(),
+                    //     active: Some(true),
+                    //     icon: None,
+                    //     description: None,
+                    // }]),
+                    sets: None,
+                };
+                for (i, lic) in self.licenses.as_mut().unwrap_unchecked().iter_mut().enumerate() {
+                    lic.sku_id = Some(format!("{}-{}-{}", env::block_timestamp(), self.token_id, i));
+                    // lic.objects = None;
+                }
+                let obj_data_raw = serde_json::to_string(&obj_data).expect("failed serialize obj data");
+                // migrated to sets
+                self.metadata.object = Some(obj_data_raw);
+                return
+            }
+            // let mut obj_data: ObjectData = serde_json::from_str(&self.metadata.object.clone().unwrap_unchecked()).expect("Failed parse asset object data");
+            // let mut obj_map: HashMap<Vec<String>, String> = HashMap::new();
+            for (i, lic) in self.licenses.as_mut().unwrap_unchecked().iter_mut().enumerate() {
+                if lic.sku_id.is_some() && !lic.sku_id.clone().unwrap().is_empty() {
+                    continue
+                }
+                lic.sku_id = Some(format!("{}-{}-{}", env::block_timestamp(), self.token_id, i));
+                // let old_set_id = obj_map.get(&lic.objects.clone().unwrap_unchecked());
+                // if old_set_id.is_none() {
+                //     let lic_objects = lic.objects.as_ref().unwrap_unchecked();
+                //     let set_id = lic_objects.first().unwrap_or(&lic.license_id).to_owned() + "_set";
+                //     obj_map.insert(lic.objects.clone().unwrap_unchecked(), set_id.clone());
+                //     lic.set_id = Some(set_id.clone());
+                // } else {
+                //     // Re-insert existing set id
+                //     lic.set_id = Some(old_set_id.unwrap_unchecked().clone());
+                // }
+            }
+
+            // Add mapped objects -> set_id in object data
+            // let mut obj_sets: Vec<ObjectSet> = Vec::new();
+            // for (objects, set_id) in obj_map.iter() {
+            //     let obj_set = ObjectSet{
+            //         objects: Some(objects.clone()),
+            //         id: set_id.clone(),
+            //         icon: None,
+            //         title: None,
+            //         description: None,
+            //         active: Some(true),
+            //     };
+            //     obj_sets.push(obj_set);
+            // }
+            // if obj_data.sets.is_none() {
+            //     obj_data.sets = Some(obj_sets);
+            // } else {
+            //     obj_data.sets.as_mut().unwrap_unchecked().extend(obj_sets);
+            // }
+            // let obj_data_raw = serde_json::to_string(&obj_data).expect("failed serialize obj data");
+            // migrated to sets
+            // self.metadata.object = Some(obj_data_raw);
+        }
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
