@@ -223,7 +223,7 @@ impl ConfigInterface for AllPolicies {
                 // Try to find asset_license with set_id == new.set_id
                 let new_asset_licenses = inventory.asset.clone().unwrap_or_default().licenses.unwrap_or_default();
                 let new_asset_license = new_asset_licenses.iter().find(
-                    |x| x.license_id == new.license_id() && *x.set_id.as_ref().unwrap_unchecked() == new.set_id()
+                    |x| x.sku_id.clone().unwrap() == new.sku_id()
                 );
                 // If not found - then no upgrade.
                 if new_asset_license.is_none() {
@@ -293,7 +293,7 @@ impl ConfigInterface for AllPolicies {
                 lic_token.license.as_mut().unwrap().from = SourceLicenseMeta{
                     asset_id: from.asset_id.clone(),
                     set_id: from.set_id(),
-                    sku_id: from.sku_id(),
+                    sku_id: Some(from.sku_id()),
                     inventory_id: "".to_owned(),
                 }
             }
@@ -410,13 +410,21 @@ impl AllPolicies {
         let mut future_state = inventory.clone();
         for token in future_state.issued_licenses.iter_mut() {
             if token.token_id == old.token_id {
-                let (inv_id, asset_id, lic_id) = token.inventory_asset_license();
-                token.license.as_mut().unwrap_unchecked().metadata = new.license.clone().unwrap_unchecked().metadata;
-                token.license.as_mut().unwrap_unchecked().title = Some(new.license_title());
-                token.license.as_mut().unwrap_unchecked().id = lic_id.clone();
-                token.license.as_mut().unwrap_unchecked().from.inventory_id = inv_id.clone();
-                token.license.as_mut().unwrap_unchecked().from.asset_id = asset_id.clone();
-                token.metadata.extra = token.metadata.extra.clone();
+                let (inv_id, asset_id, lic_id, _sku) = token.inventory_asset_license_sku();
+                if token.license.is_some() {
+                    token.license.as_mut().unwrap_unchecked().metadata = new.license.clone().unwrap_unchecked().metadata;
+                    token.license.as_mut().unwrap_unchecked().title = Some(new.license_title());
+                    token.license.as_mut().unwrap_unchecked().id = lic_id.clone();
+                    token.license.as_mut().unwrap_unchecked().from.inventory_id = inv_id.clone();
+                    token.license.as_mut().unwrap_unchecked().from.asset_id = asset_id.clone();
+                    token.license.as_mut().unwrap_unchecked().from.sku_id = Some(new.sku_id());
+                    token.license.as_mut().unwrap_unchecked().from.set_id = new.set_id();
+                } else {
+                    token.metadata.from.as_mut().unwrap_unchecked().inventory_id = inv_id.clone();
+                    token.metadata.from.as_mut().unwrap_unchecked().asset_id = asset_id.clone();
+                    token.metadata.from.as_mut().unwrap_unchecked().set_id = new.set_id();
+                    token.metadata.from.as_mut().unwrap_unchecked().sku_id = Some(new.sku_id());
+                }
             }
         }
         // future_state.issued_licenses.push(new);

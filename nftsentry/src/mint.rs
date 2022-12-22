@@ -1,7 +1,7 @@
 use near_sdk::{Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
 use policy_rules::prices::{Asset, get_near_price};
-use policy_rules::types::{AssetLicense, InventoryLicense, NFTMintResult, SourceLicenseMeta};
+use policy_rules::types::{AssetLicense, InventoryLicense, NFTMintResult};
 use policy_rules::utils::{balance_from_string, format_balance};
 use crate::*;
 
@@ -12,7 +12,7 @@ impl Contract {
         &mut self,
         token_id: TokenId,
         asset_id: String,
-        license_id: String,
+        license_id: Option<String>,
         set_id: Option<String>,
         sku_id: Option<String>,
         receiver_id: AccountId,
@@ -51,7 +51,7 @@ impl Contract {
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         #[callback_result] price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
-        license_id: String,
+        license_id: Option<String>,
         set_id: Option<String>,
         sku_id: Option<String>,
         receiver_id: AccountId,
@@ -77,7 +77,7 @@ impl Contract {
                 }
             }
         }
-        let (lic_token, inv_license,
+        let (lic_token, _inv_license,
             asset_license, asset,
             inventory_owner) = unsafe {result.unwrap_unchecked()};
 
@@ -125,7 +125,7 @@ impl Contract {
             initial_storage_usage,
             Some(predecessor_id.clone()),
             Some(balance_from_string(
-                asset_license.price.clone().unwrap_or(inv_license.price.clone().unwrap())
+                asset_license.price.clone().unwrap()
             )),
         );
         if result.is_err() {
@@ -153,7 +153,7 @@ impl Contract {
         );
         self.process_fees(
             balance_from_string(
-                asset_license.price.clone().unwrap_or(inv_license.price.clone().unwrap())
+                asset_license.price.clone().unwrap()
             ), inventory_owner
         );
 
@@ -172,11 +172,11 @@ impl Contract {
         asset_res: Result<JsonAssetToken, PromiseError>,
         price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
-        license_id: String,
-        set_id: Option<String>,
+        license_id: Option<String>,
+        _set_id: Option<String>,
         sku_id: Option<String>,
         receiver_id: AccountId,
-        ) -> Result<(LicenseToken, InventoryLicense, AssetLicense, JsonAssetToken, AccountId), String> {
+        ) -> Result<(LicenseToken, Option<InventoryLicense>, AssetLicense, JsonAssetToken, AccountId), String> {
 
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() || price_res.is_err() {
@@ -197,29 +197,26 @@ impl Contract {
             let near_price_data = price_res.unwrap_unchecked().unwrap();
             env::log_str(&format!("NEAR price: {} USD", near_price_data.reports.last().unwrap().price.string_price()));
 
-            let asset_id = asset.token_id.clone();
-
             let asset_licenses = asset.licenses.clone().unwrap_or_default();
             let asset_license = asset_licenses.iter().find(
-                |x| x.license_id == license_id && x.sku_id.as_ref().unwrap_or(
-                    &String::new()) == sku_id.as_ref().unwrap_or(&String::new())
+                |x| x.sku_id.clone().unwrap() == sku_id.clone().unwrap()
             );
 
             if asset_license.is_none() {
-                return Err(format!("Asset license not found by id/sku_id {}/{}", license_id, sku_id.unwrap_or(String::new())))
+                return Err(format!("Asset license not found by sku_id {}", sku_id.unwrap_or(String::new())))
             }
 
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
-            let inv_license = full_inventory.inventory_licenses.iter().find(|x| x.license_id == license_id);
+            let inv_license = full_inventory.inventory_licenses.clone().into_iter().find(
+                |x| license_id.is_some() && x.license_id == license_id.clone().unwrap()
+            );
 
-            if inv_license.is_none() {
-                return Err("Inventory license not found by id".to_string())
-            }
+            // if inv_license.is_none() {
+            //     return Err("Inventory license not found by id".to_string())
+            // }
 
             let deposit = env::attached_deposit();
-            let price_str = asset_license.unwrap_unchecked().price.clone().unwrap_or(
-                inv_license.unwrap_unchecked().price.clone().unwrap()
-            );
+            let price_str = asset_license.unwrap_unchecked().price.clone().unwrap();
             let price = balance_from_string(price_str.clone());
             if deposit < price {
                 return Err(format!(
@@ -232,51 +229,11 @@ impl Contract {
 
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
             // backward compatibility
-            let metadata: TokenMetadata;
-            let new_sku_id: String;
-            if asset_license.unwrap_unchecked().sku_id.is_none() || asset_license.unwrap_unchecked().sku_id.as_ref().unwrap().is_empty() {
-                // generate new asset/asset_license with filled sku_id
-                // and issue metadata from it
-                let mut asset_copy = asset.clone();
-                asset_copy.migrate_to_sets();
-                let sku_id = asset_copy.licenses.clone().unwrap_unchecked().iter().find(
-                    |&x| x.license_id == license_id
-                ).unwrap_unchecked().sku_id.clone().unwrap();
-                metadata = asset_copy.issue_new_metadata(sku_id.clone());
-                new_sku_id = sku_id.clone()
-            } else {
-                new_sku_id = asset_license.unwrap_unchecked().sku_id.clone().unwrap();
-                metadata = asset.issue_new_metadata(new_sku_id.clone());
-            }
+            let mut lic_token = asset.issue_new_license(
+                inv_license.clone(), sku_id.clone().unwrap(), token_id.clone()
+            );
+            lic_token.owner_id = receiver_id.clone();
 
-            let license = TokenLicense {
-                id: license_id.clone(),
-                title: Some(inv_license.unwrap_unchecked().title.clone()),
-                metadata: inv_license.unwrap_unchecked().license.clone(),
-                from: SourceLicenseMeta{
-                    asset_id: asset_id.clone(),
-                    inventory_id: self.inventory_id.clone().to_string(),
-                    set_id: String::new(),
-                    sku_id: new_sku_id,
-                },
-                description: None,
-                expires_at: None,
-                issued_at: Some(env::block_timestamp_ms()),
-                starts_at: Some(env::block_timestamp_ms()),
-                issuer_id: Some(env::current_account_id()),
-                updated_at: None,
-                uri: inv_license.unwrap_unchecked().license.pdf_url.clone(),
-            };
-
-            let lic_token = LicenseToken {
-                token_id: token_id.clone(),
-                metadata,
-                asset_id: asset_id.clone(),
-                owner_id: receiver_id.clone(),
-                approved_account_ids: HashMap::new(),
-                // royalty: HashMap::new(),
-                license: Some(license.clone()),
-            };
             let res = self.policies.clone_with_additional(
                 asset.policy_rules.clone().unwrap_or_default().clone()).check_new(
                     full_inventory.clone(),
@@ -286,7 +243,7 @@ impl Contract {
                 return Err(res.reason_not_available);
             }
 
-            Ok((lic_token, inv_license.unwrap_unchecked().clone(), asset_license.unwrap_unchecked().clone(), asset, inv_metadata.owner_id.clone()))
+            Ok((lic_token, inv_license.clone(), asset_license.unwrap_unchecked().clone(), asset, inv_metadata.owner_id.clone()))
         }
     }
 
@@ -327,7 +284,9 @@ impl Contract {
         }
         self.token_metadata_by_id.insert(&lic_token.token_id, &lic_token.metadata);
         //insert the token ID and license
-        self.token_license_by_id.insert(&lic_token.token_id, lic_token.license.as_ref().unwrap());
+        if lic_token.license.is_some() {
+            self.token_license_by_id.insert(&lic_token.token_id, lic_token.license.as_ref().unwrap());
+        }
 
         //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
 

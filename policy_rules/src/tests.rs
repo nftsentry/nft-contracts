@@ -4,7 +4,7 @@ mod tests {
     use crate::policy::{init_policies, Limitation, MaxCount};
     use crate::policy::{ConfigInterface, LEVEL_LICENSES};
     use crate::prices::Price;
-    use crate::utils::{balance_from_string, format_balance};
+    use crate::utils::{balance_from_string, format_balance, get_inventory_id};
     use crate::types::{AssetLicense, FullInventory, InventoryLicense, JsonAssetToken, LicenseData, TokenMetadata};
 
     #[test]
@@ -21,7 +21,7 @@ mod tests {
             objects: None,
             params: None,
             set_id: Some(set_id.to_string()),
-            license_id: license_id.to_string(),
+            license_id: Some(license_id.to_string()),
             price: None,
             title: title.to_string(),
         }
@@ -53,7 +53,8 @@ mod tests {
                 updated_at: None,
                 extra: None,
                 reference: None,
-                reference_hash: None
+                reference_hash: None,
+                from: None,
             },
             licenses: Some(vec![
                 asset_license("set1", "id1", "title1"),
@@ -613,6 +614,80 @@ mod tests {
     }
 
     #[test]
+    fn test_get_inventory_id() {
+        let some = "license_i45.rocketscience.testnet";
+        let inv_id = get_inventory_id(some.to_string());
+        assert_eq!(inv_id, "i45.rocketscience.testnet".to_string());
+
+        let some2 = "license_i45_awesome.rocketscience.testnet";
+        let inv_id2 = get_inventory_id(some2.to_string());
+        assert_eq!(inv_id2, "i45_awesome.rocketscience.testnet".to_string());
+    }
+
+    #[test]
+    fn test_migrate_to_sku() {
+        let mut json_asset = JsonAssetToken{
+            metadata: TokenMetadata{
+                title: None,
+                description: None,
+                media: None,
+                previews: Some("preview".to_string()),
+                object: Some("{
+                  \"items\":[
+                    {\"id\":\"ba1117f1-3951-46ed-836f-022c1b62d1f1\",\"link\":\"http://localhost:8082/api/v1/gate/assets/i51.rocketscience.testnet/sunset_at_the_lake/ba1117f1-3951-46ed-836f-022c1b62d1f1\",\"type\":\"image\",\"title\":\"sunset\",\"icon\":\"https://veriken.mypinata.cloud/ipfs/QmYnSFnRuQA8xNjxd7abkE8kf53rm4zpAutBz6UKeT6H2o\"}\
+                  ],
+                  \"sets\":[
+                    {\"id\":\"set_id1\",\"objects\":[\"ba1117f1-3951-46ed-836f-022c1b62d1f1\"]}
+                  ]
+                }".to_string()),
+                media_hash: None,
+                copies: None,
+                issued_at: None,
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: None,
+                reference_hash: None,
+                from: None,
+            },
+            licenses: Some(vec![
+                AssetLicense{
+                    objects: Some(vec!["ba1117f1-3951-46ed-836f-022c1b62d1f1".to_string()]),
+                    set_id: None,
+                    sku_id: Some("sku1".to_string()),
+                    license_id: Some("some_id".to_string()),
+                    price: Some("2".to_string()),
+                    title: "personal".to_string(),
+                    params: None,
+                },
+                AssetLicense{
+                    objects: Some(vec!["ba1117f1-3951-46ed-836f-022c1b62d1f1".to_string()]),
+                    set_id: None,
+                    sku_id: Some("sku2".to_string()),
+                    license_id: Some("some_id2".to_string()),
+                    price: Some("5".to_string()),
+                    title: "commercial".to_string(),
+                    params: None,
+                },
+            ]),
+            license_token_count: 2,
+            token_id: "asset_normal".to_string(),
+            owner_id: AccountId::new_unchecked("rocketscience".to_string()),
+            minter_id: AccountId::new_unchecked("license_rocketscience".to_string()),
+            policy_rules: None,
+            upgrade_rules: None,
+        };
+
+        json_asset.migrate_to_sets();
+
+        assert_eq!(json_asset.licenses.clone().unwrap()[0].sku_id.clone().unwrap(), "sku1");
+        assert_eq!(json_asset.licenses.clone().unwrap()[0].objects.clone().unwrap().len(), 1);
+        assert_eq!(json_asset.licenses.clone().unwrap()[1].sku_id.clone().unwrap(), "sku2");
+        assert_eq!(json_asset.licenses.clone().unwrap()[1].objects.clone().unwrap().len(), 1);
+    }
+
+    #[test]
     fn test_issue_new_metadata() {
         let mut json_asset = JsonAssetToken{
             metadata: TokenMetadata{
@@ -639,14 +714,15 @@ mod tests {
                 updated_at: None,
                 extra: None,
                 reference: None,
-                reference_hash: None
+                reference_hash: None,
+                from: None,
             },
             licenses: Some(vec![
                 AssetLicense{
                     objects: None,
                     sku_id: None,
                     set_id: Some("set1".to_string()),
-                    license_id: "id1".to_string(),
+                    license_id: Some("id1".to_string()),
                     price: None,
                     title: "id1 title".to_string(),
                     params: None,
@@ -656,7 +732,7 @@ mod tests {
                     sku_id: None,
                     params: None,
                     set_id: Some("set2".to_string()),
-                    license_id: "id2".to_string(),
+                    license_id: Some("id2".to_string()),
                     price: None,
                     title: "id2 title".to_string(),
                 },

@@ -2,7 +2,7 @@ use crate::*;
 
 use near_sdk::{log, Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
-use policy_rules::types::{FullInventory, InventoryLicense, LicenseGeneral, NFTUpdateLicenseResult, SourceLicenseMeta};
+use policy_rules::types::{FullInventory, LicenseGeneral, NFTUpdateLicenseResult};
 use policy_rules::utils::{balance_from_string, format_balance};
 
 // const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
@@ -16,7 +16,7 @@ impl Contract {
     pub fn nft_update_license(
         &mut self,  
         token_id: TokenId,
-        new_license_id: String,
+        new_sku_id: String,
     ) -> Promise {
         let predecessor_id = env::predecessor_account_id();
         let token_opt = self.nft_token(token_id.clone());
@@ -28,7 +28,7 @@ impl Contract {
         if predecessor_id != token.owner_id {
             env::panic_str("License can only be updated directly by the token owner");
         }
-        let (inventory_id, asset_id, _license_id) = token.inventory_asset_license();
+        let (inventory_id, asset_id, _license_id, _sku) = token.inventory_asset_license_sku();
         let inventory_account_id = AccountId::new_unchecked(inventory_id.clone());
 
         // Schedule calls to metadata and asset token
@@ -43,7 +43,7 @@ impl Contract {
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
                 .on_license_update(
-                token_id, inventory_account_id, predecessor_id, new_license_id
+                token_id, inventory_account_id, predecessor_id, new_sku_id
             )
         )
     }
@@ -56,12 +56,12 @@ impl Contract {
         token_id: TokenId,
         inventory_id: AccountId,
         predecessor_id: AccountId,
-        new_license_id: String,
+        new_sku_id: String,
     ) -> NFTUpdateLicenseResult {
 
         let initial_storage_usage = env::storage_usage();
         let result = self.ensure_update_license(
-            metadata_res, asset_res, token_id.clone(), new_license_id
+            metadata_res, asset_res, token_id.clone(), new_sku_id
         );
         if result.is_err() {
             let _ = refund_deposit(0, Some(predecessor_id), None);
@@ -76,7 +76,7 @@ impl Contract {
         let token = unsafe{self.nft_token(token_id.clone()).unwrap_unchecked()};
         let old_license = token.license.unwrap();
 
-        self.internal_replace_license(&predecessor_id, &token_id, &license);
+        self.internal_replace_license(&predecessor_id, &token_id, license.license);
 
         // Construct the mint log as per the events standard.
         let nft_update_license_log: EventLog = EventLog {
@@ -105,7 +105,7 @@ impl Contract {
             if result.is_err() {
                 // Refund failed due to storage costs.
                 // Rollback all changes!
-                self.internal_replace_license(&token.owner_id, &token.token_id, &old_license);
+                self.internal_replace_license(&token.owner_id, &token.token_id, Some(old_license));
                 // Refund any deposit
                 let _ = refund_deposit(0, Some(predecessor_id), None);
 
@@ -129,8 +129,8 @@ impl Contract {
         metadata_res: Result<InventoryContractMetadata, PromiseError>,
         asset_res: Result<JsonAssetToken, PromiseError>,
         token_id: TokenId,
-        new_license_id: String,
-    ) -> Result<(TokenLicense, Balance), String> {
+        new_sku_id: String,
+    ) -> Result<(LicenseToken, Balance), String> {
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() {
             return if metadata_res.is_err() {
@@ -141,22 +141,23 @@ impl Contract {
         }
         let token = self.nft_token(token_id.clone()).unwrap();
         let asset = unsafe{asset_res.unwrap_unchecked()};
-        let new_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(|x| x.license_id == new_license_id).expect("Asset license not found");
-        let old_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(|x| x.license_id == token.license_id()).expect("Asset license not found");
+        let new_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(
+            |x| x.sku_id.clone().unwrap() == new_sku_id).expect("Asset license not found");
+        let old_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(
+            |x| x.sku_id.clone().unwrap() == token.sku_id()).expect("Asset license not found");
         let metadata = unsafe{metadata_res.unwrap_unchecked()};
-        let (inv_id, asset_id, old_license_id) = token.inventory_asset_license();
 
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
         let full_inventory = self.get_full_inventory(asset.clone(), metadata.clone());
-        let new_license = metadata.licenses.iter().find(|x| x.license_id == new_license_id).unwrap();
-        let old_license = metadata.licenses.iter().find(|x| x.license_id == old_license_id).unwrap();
+        let new_license = metadata.licenses.into_iter().find(
+            |x| new_asset_license.license_id.is_some() && x.license_id == new_asset_license.license_id.clone().unwrap());
 
         // Check for valid deposit
         let must_attach = balance_from_string(
-            new_asset_license.price.clone().unwrap_or(new_license.price.clone().unwrap())
+            new_asset_license.price.clone().unwrap()
         ) - balance_from_string(
-            old_asset_license.price.clone().unwrap_or(old_license.price.clone().unwrap())
+            old_asset_license.price.clone().unwrap()
         );
         if env::attached_deposit() < must_attach {
             return Err(format!(
@@ -166,34 +167,8 @@ impl Contract {
             ))
         }
 
-        let lic = TokenLicense{
-            id: new_license_id,
-            title: Some(new_license.title.clone()),
-            description: None,
-            from: SourceLicenseMeta{
-                asset_id: asset.token_id.clone(),
-                inventory_id: inv_id.clone(),
-                set_id: new_asset_license.set_id.clone().unwrap_or(String::new()),
-                sku_id: new_asset_license.sku_id.clone().unwrap(),
-            },
-            issuer_id: Some(env::current_account_id()),
-            uri: new_license.license.pdf_url.clone(),
-            metadata: new_license.license.clone(),
-            issued_at: Some(env::block_timestamp_ms()),
-            starts_at: Some(env::block_timestamp_ms()),
-            expires_at: None,
-            updated_at: None,
-        };
-        let new_metadata = asset.issue_new_metadata(new_asset_license.set_id.clone().unwrap());
-
-        let new_token = LicenseToken{
-            owner_id: token.owner_id.clone(),
-            license: Some(lic.clone()),
-            metadata: new_metadata.clone(),
-            asset_id: asset_id.clone(),
-            token_id: token_id.clone(),
-            approved_account_ids: token.approved_account_ids.clone(),
-        };
+        let mut new_token: LicenseToken = asset.issue_new_license(new_license, new_sku_id, token_id.clone());
+        new_token.owner_id = token.owner_id.clone();
 
         let result = self.policies.clone_with_additional(
             asset.policy_rules.clone().unwrap_or_default().clone()
@@ -208,38 +183,19 @@ impl Contract {
             }
         }
 
-        Ok((lic, must_attach))
+        Ok((new_token, must_attach))
     }
 
     pub fn get_full_inventory(&self, asset: JsonAssetToken, metadata: InventoryContractMetadata) -> FullInventory {
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
-        let mut inventory_licenses: Vec<InventoryLicense> = Vec::new();
-        if asset.licenses.is_some() {
-            for asset_l in asset.licenses.as_ref().unwrap() {
-                for inv_license in &metadata.licenses {
-                    if inv_license.license_id == asset_l.license_id {
-                        let mut price = inv_license.price.clone().unwrap();
-                        if asset_l.price.is_some() {
-                            price = asset_l.price.as_ref().unwrap().clone();
-                        }
-                        inventory_licenses.push(InventoryLicense{
-                            license_id: inv_license.license_id.clone(),
-                            price: Some(price),
-                            title: asset_l.title.clone(),
-                            license: inv_license.license.clone(),
-                        })
-                    }
-                }
-            }
-        }
         let tokens = self.nft_tokens(
             None,
             Some(MAX_LIMIT),
             Some(FilterOpt{asset_id: Some(asset.token_id.clone()), account_id: None})
         );
         let full_inventory = FullInventory{
-            inventory_licenses,
+            inventory_licenses: metadata.licenses.clone(),
             issued_licenses: tokens,
             asset: Some(asset.clone()),
         };
@@ -442,13 +398,15 @@ impl Contract {
     }
 
     #[private]
-    pub fn internal_replace_license(&mut self, account_id: &AccountId, token_id: &TokenId, license: &TokenLicense) {
+    pub fn internal_replace_license(&mut self, account_id: &AccountId, token_id: &TokenId, license: Option<TokenLicense>) {
         println!("==>internal_replace_license, account={}", account_id);
         if let Some(_license) = self.token_license_by_id.get(&token_id) {
             self.token_license_by_id.remove(&token_id);
 
         }
-        self.token_license_by_id.insert(&token_id, &license);
+        if license.is_some() {
+            self.token_license_by_id.insert(&token_id, &license.unwrap());
+        }
     }
 
     #[private]

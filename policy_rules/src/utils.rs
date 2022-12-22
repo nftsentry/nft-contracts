@@ -73,3 +73,8 @@ pub fn format_balance(b: near_sdk::Balance) -> String {
     let float = (half as f64) / 1e12;
     float.to_string()
 }
+
+pub fn get_inventory_id(minter_id: String) -> String {
+    let splitted: Vec<&str> = minter_id.split("_").collect();
+    splitted[1..].join("_")
+}

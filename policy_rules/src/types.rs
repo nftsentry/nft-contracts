@@ -1,6 +1,7 @@
 use near_sdk::env;
 use crate::*;
 use crate::policy::{Limitation, LimitsInfo, Policy};
+use crate::utils::get_inventory_id;
 
 pub type TokenId = String;
 pub type AssetId = String;
@@ -38,7 +39,6 @@ pub struct TokenExtra {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
-#[derive(Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TokenMetadata {
     pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
@@ -55,6 +55,7 @@ pub struct TokenMetadata {
     pub extra: Option<String>, // anything extra the NFT wants to store on-chain. Can be stringified JSON.
     pub reference: Option<String>, // URL to an off-chain JSON file with more info.
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+    pub from: Option<SourceLicenseMeta>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
@@ -91,7 +92,7 @@ impl ObjectData {
         }
     }
 
-    pub fn filter_by_objects(&self, objects: Vec<String>, set: Option<ObjectSet>) -> ObjectData {
+    pub fn filter_by_objects(&self, objects: Vec<String>, _set: Option<ObjectSet>) -> ObjectData {
         let filtered: Vec<ObjectItem> = self.items.clone().into_iter().filter(|x| objects.contains(&x.id)).collect();
         // let ids: Vec<String> = filtered.iter().map(|x| x.id.clone()).collect();
 
@@ -164,7 +165,7 @@ pub struct SourceLicenseMeta {
     pub inventory_id: String,
     pub asset_id: String,
     pub set_id: String,
-    pub sku_id: String,
+    pub sku_id: Option<String>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -213,15 +214,25 @@ pub struct LicenseToken {
 }
 
 impl LicenseToken {
-    pub fn inventory_asset_license(&self) -> (String, String, String) {
-        if self.license.is_none() {
-           return (String::new(), String::new(), String::new())
+    pub fn inventory_asset_license_sku(&self) -> (String, String, String, String) {
+        if self.license.is_none() && self.metadata.from.is_none() {
+           return (String::new(), String::new(), String::new(), String::new())
         }
         unsafe {
+            let inv_id: String;
+            let asset_id: String;
+            if self.metadata.from.is_none() {
+                inv_id = self.license.as_ref().unwrap_unchecked().from.inventory_id.clone();
+                asset_id = self.license.as_ref().unwrap_unchecked().from.asset_id.clone();
+            } else {
+                inv_id = self.metadata.from.clone().unwrap_unchecked().inventory_id.clone();
+                asset_id = self.metadata.from.clone().unwrap_unchecked().asset_id.clone();
+            }
             return (
-                self.license.as_ref().unwrap_unchecked().from.inventory_id.clone(),
-                self.license.as_ref().unwrap_unchecked().from.asset_id.clone(),
-                self.license.as_ref().unwrap_unchecked().id.clone()
+                inv_id,
+                asset_id,
+                self.license_id(),
+                self.sku_id(),
             )
         }
     }
@@ -232,7 +243,7 @@ impl LicenseToken {
         }
         unsafe {
             let license_data = &self.license.as_ref().unwrap_unchecked().metadata;
-            let (_, _, lic_id) = self.inventory_asset_license();
+            let (_, _, lic_id, _) = self.inventory_asset_license_sku();
             let res = InventoryLicense {
                 license_id: lic_id,
                 title: self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap().to_string(),
@@ -246,24 +257,36 @@ impl LicenseToken {
 
 impl LicenseGeneral for LicenseToken {
     fn is_exclusive(&self) -> bool {
+        if self.license.is_none() {
+            return false
+        }
         unsafe {
             self.license.as_ref().unwrap_unchecked().metadata.exclusivity
         }
     }
 
     fn is_personal(&self) -> bool {
+        if self.license.is_none() {
+            return true
+        }
         unsafe {
             self.license.as_ref().unwrap_unchecked().metadata.personal_use
         }
     }
 
     fn is_commercial(&self) -> bool {
+        if self.license.is_none() {
+            return false
+        }
         unsafe {
             !self.license.as_ref().unwrap_unchecked().metadata.personal_use
         }
     }
 
     fn license_id(&self) -> String {
+        if self.license.is_none() {
+            return String::new()
+        }
         unsafe {
             self.license.as_ref().unwrap_unchecked().id.clone()
         }
@@ -271,19 +294,31 @@ impl LicenseGeneral for LicenseToken {
 
     fn license_title(&self) -> String {
         unsafe {
-            self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap_unchecked().clone()
+            if self.metadata.from.is_none() {
+                return self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap_unchecked().clone()
+            } else {
+                return self.metadata.title.clone().unwrap_or(String::new())
+            }
         }
     }
 
     fn set_id(&self) -> String {
         unsafe {
-            self.license.as_ref().unwrap_unchecked().from.set_id.clone()
+            if self.metadata.from.is_none() {
+                self.license.as_ref().unwrap_unchecked().from.set_id.clone()
+            } else {
+                self.metadata.from.as_ref().unwrap_unchecked().set_id.clone()
+            }
         }
     }
 
     fn sku_id(&self) -> String {
         unsafe {
-            self.license.as_ref().unwrap_unchecked().from.sku_id.clone()
+            if self.metadata.from.is_none() {
+                self.license.as_ref().unwrap_unchecked().from.sku_id.clone().unwrap_or(String::new())
+            } else {
+                self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
+            }
         }
     }
 }
@@ -374,7 +409,7 @@ impl InventoryLicense {
                     asset_id: "asset".to_string(),
                     inventory_id: "inv".to_string(),
                     set_id: "set_id".to_string(),
-                    sku_id: "sku_id".to_string(),
+                    sku_id: Some("sku_id".to_string()),
                 }
             }),
             approved_account_ids: Default::default(),
@@ -387,11 +422,11 @@ impl InventoryLicense {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AssetLicense {
     pub sku_id: Option<String>,
-    pub license_id: String,
+    pub license_id: Option<String>,
     pub title: String,
     pub price: Option<String>,
     pub set_id: Option<String>,
@@ -399,7 +434,7 @@ pub struct AssetLicense {
     pub params: Option<String> // Json-serialized AssetLicenseParams
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AssetLicenseParams {
     pub icon: Option<String>,
@@ -490,6 +525,14 @@ impl JsonAssetToken {
         metadata.updated_at = Some(env::block_timestamp_ms());
         metadata.starts_at = Some(env::block_timestamp_ms());
 
+        let from = SourceLicenseMeta{
+            inventory_id: get_inventory_id(self.minter_id.clone().to_string()),
+            sku_id: Some(sku_id.clone()),
+            set_id: String::new(),
+            asset_id: self.token_id.clone(),
+        };
+        metadata.from = Some(from);
+
         if self.metadata.object.is_none() {
             return metadata
         }
@@ -508,6 +551,37 @@ impl JsonAssetToken {
             let new_obj_data = obj_data.filter_by_objects(obj_ids, None);
             metadata.object = Some(serde_json::to_string(&new_obj_data).expect("Failed to serialize"));
             return metadata
+        }
+    }
+
+    pub fn issue_new_license(&self, inv_license: Option<InventoryLicense>, sku_id: String, token_id: String) -> LicenseToken {
+        let metadata = self.issue_new_metadata(sku_id.clone());
+        let license: Option<TokenLicense>;
+
+        if let Some(inv_license) = inv_license {
+            license = Some(TokenLicense{
+                id: inv_license.license_id,
+                from: metadata.from.clone().unwrap(),
+                metadata: inv_license.license.clone(),
+                title: Some(inv_license.title),
+                description: None,
+                uri: inv_license.license.pdf_url,
+                issued_at: Some(env::block_timestamp_ms()),
+                starts_at: Some(env::block_timestamp_ms()),
+                updated_at: Some(env::block_timestamp_ms()),
+                expires_at: None,
+                issuer_id: Some(self.minter_id.clone()),
+            });
+        } else {
+            license = None
+        }
+        LicenseToken{
+            asset_id: self.token_id.clone(),
+            token_id: token_id.clone(),
+            license,
+            owner_id: AccountId::new_unchecked("alice".to_string()),
+            metadata,
+            approved_account_ids: Default::default(),
         }
     }
 
