@@ -56,12 +56,13 @@ pub struct TokenMetadata {
     pub reference: Option<String>, // URL to an off-chain JSON file with more info.
     pub reference_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
     pub from: Option<SourceLicenseMeta>,
+    pub sku_data: Option<SkuTokenData>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ObjectData {
-    items: Vec<ObjectItem>,
+    items: Option<Vec<ObjectItem>>,
     sets: Option<Vec<ObjectSet>>,
 }
 
@@ -93,7 +94,7 @@ impl ObjectData {
     }
 
     pub fn filter_by_objects(&self, objects: Vec<String>, _set: Option<ObjectSet>) -> ObjectData {
-        let filtered: Vec<ObjectItem> = self.items.clone().into_iter().filter(|x| objects.contains(&x.id)).collect();
+        let filtered: Vec<ObjectItem> = self.items.clone().unwrap().into_iter().filter(|x| objects.contains(&x.id)).collect();
         // let ids: Vec<String> = filtered.iter().map(|x| x.id.clone()).collect();
 
         // let new_set = if set.is_none() {
@@ -109,7 +110,7 @@ impl ObjectData {
         //     unsafe { set.unwrap_unchecked().clone() }
         // };
         let new_obj_data: ObjectData = ObjectData{
-            items: filtered,
+            items: Some(filtered),
             // sets: Some(vec![new_set]),
             sets: None,
         };
@@ -424,6 +425,14 @@ impl InventoryLicense {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct SkuTokenData {
+    pub sku_id: Option<String>,
+    pub title: String,
+    pub params: Option<String> // Json-serialized AssetLicenseParams
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct AssetLicense {
     pub sku_id: Option<String>,
     pub license_id: Option<String>,
@@ -519,15 +528,20 @@ impl Default for JsonAssetToken {
 }
 
 impl JsonAssetToken {
-    pub fn issue_new_metadata(&self, sku_id: String) -> TokenMetadata {
+    pub fn issue_new_metadata(&self, sku_info: AssetLicense) -> TokenMetadata {
         let mut metadata = self.metadata.clone();
         metadata.issued_at = Some(env::block_timestamp_ms());
         metadata.updated_at = Some(env::block_timestamp_ms());
         metadata.starts_at = Some(env::block_timestamp_ms());
+        metadata.sku_data = Some(SkuTokenData{
+            sku_id: sku_info.sku_id.clone(),
+            title: sku_info.title.clone(),
+            params: sku_info.params.clone(),
+        });
 
         let from = SourceLicenseMeta{
             inventory_id: get_inventory_id(self.minter_id.clone().to_string()),
-            sku_id: Some(sku_id.clone()),
+            sku_id: sku_info.sku_id.clone(),
             set_id: String::new(),
             asset_id: self.token_id.clone(),
         };
@@ -537,6 +551,7 @@ impl JsonAssetToken {
             return metadata
         }
 
+        let sku_id = sku_info.sku_id.clone().unwrap();
         unsafe {
             if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
                 return metadata
@@ -554,8 +569,8 @@ impl JsonAssetToken {
         }
     }
 
-    pub fn issue_new_license(&self, inv_license: Option<InventoryLicense>, sku_id: String, token_id: String) -> LicenseToken {
-        let metadata = self.issue_new_metadata(sku_id.clone());
+    pub fn issue_new_license(&self, inv_license: Option<InventoryLicense>, sku_info: AssetLicense, token_id: String) -> LicenseToken {
+        let metadata = self.issue_new_metadata(sku_info.clone());
         let license: Option<TokenLicense>;
 
         if let Some(inv_license) = inv_license {
@@ -593,13 +608,13 @@ impl JsonAssetToken {
             if self.metadata.object.is_none() || self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
                 // Insert a default object
                 let obj_data: ObjectData = ObjectData{
-                    items: vec![ObjectItem{
+                    items: Some(vec![ObjectItem{
                         title: self.metadata.title.clone(),
                         link: self.metadata.media.clone(),
                         type_: "image".to_string(),
                         id: "default_object".to_string(),
                         icon: None,
-                    }],
+                    }]),
                     // sets: Some(vec![ObjectSet{
                     //     id: "default_object_set".to_string(),
                     //     objects: Some(vec!["default_object".to_string()]),

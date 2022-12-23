@@ -15,12 +15,12 @@ mod tests {
         assert_eq!(_policies.policies.len(), 4);
     }
 
-    fn asset_license(set_id: &str, license_id: &str, title: &str) -> AssetLicense {
+    fn asset_license(sku_id: &str, license_id: &str, title: &str) -> AssetLicense {
         AssetLicense{
-            sku_id: None,
+            sku_id: Some(sku_id.to_string()),
             objects: None,
             params: None,
-            set_id: Some(set_id.to_string()),
+            set_id: None,
             license_id: Some(license_id.to_string()),
             price: None,
             title: title.to_string(),
@@ -55,6 +55,7 @@ mod tests {
                 reference: None,
                 reference_hash: None,
                 from: None,
+                sku_data: None,
             },
             licenses: Some(vec![
                 asset_license("set1", "id1", "title1"),
@@ -165,20 +166,19 @@ mod tests {
         };
 
         json_asset.licenses = Some(vec![
-            asset_license("set1", "id1", "title1"),
-            asset_license("set2", "id1", "title1"),
-            asset_license("set1", "id2", "title2"),
-            asset_license("set2", "id2", "title2"),
+            asset_license("sku1", "id1", "title1"),
+            asset_license("sku2", "id1", "title1"),
+            asset_license("sku3", "id2", "title2"),
+            asset_license("sku4", "id2", "title2"),
         ]);
 
+        let licenses = json_asset.licenses.clone().unwrap();
         let mut old_token = old_l.as_license_token("1".to_string());
-        old_token.metadata = json_asset.issue_new_metadata("set1".to_string());
-        old_token.license.as_mut().unwrap().from.set_id = "set1".to_owned();
+        old_token.metadata = json_asset.issue_new_metadata(licenses[0].clone());
 
         // Simulate upgrade of the same token to another set
         let mut new_lic_token = new_l.as_license_token("1".to_string());
-        new_lic_token.metadata = json_asset.issue_new_metadata("set2".to_string());
-        new_lic_token.license.as_mut().unwrap().from.set_id = "set2".to_owned();
+        new_lic_token.metadata = json_asset.issue_new_metadata(licenses[1].clone());
 
         let inventory = FullInventory{
             inventory_licenses: vec![old_l.clone(), new_l.clone()],
@@ -650,6 +650,7 @@ mod tests {
                 reference: None,
                 reference_hash: None,
                 from: None,
+                sku_data: None,
             },
             licenses: Some(vec![
                 AssetLicense{
@@ -716,11 +717,12 @@ mod tests {
                 reference: None,
                 reference_hash: None,
                 from: None,
+                sku_data: None,
             },
             licenses: Some(vec![
                 AssetLicense{
-                    objects: None,
-                    sku_id: None,
+                    objects: Some(vec!["1".to_string(), "2".to_string()]),
+                    sku_id: Some("sku1".to_string()),
                     set_id: Some("set1".to_string()),
                     license_id: Some("id1".to_string()),
                     price: None,
@@ -729,7 +731,7 @@ mod tests {
                 },
                 AssetLicense{
                     objects: None,
-                    sku_id: None,
+                    sku_id: Some("sku2".to_string()),
                     params: None,
                     set_id: Some("set2".to_string()),
                     license_id: Some("id2".to_string()),
@@ -745,16 +747,17 @@ mod tests {
             upgrade_rules: None,
         };
 
-        let new_meta = json_asset.issue_new_metadata("set1".to_string());
+        let licenses = json_asset.licenses.clone().unwrap();
+        let new_meta = json_asset.issue_new_metadata(licenses[0].clone());
 
         println!("{}", serde_json::to_string(&new_meta.object).unwrap());
         assert_eq!(new_meta.object.clone().unwrap().contains("\"1\""), true);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"2\""), true);
-        assert_eq!(new_meta.object.clone().unwrap().contains("\"3\""), true);
+        assert_eq!(new_meta.object.clone().unwrap().contains("\"3\""), false);
         assert_eq!(new_meta.object.clone().unwrap().contains("\"4\""), false);
 
         json_asset.metadata.object = Some("".to_string());
-        let new_meta = json_asset.issue_new_metadata("".to_string());
+        let new_meta = json_asset.issue_new_metadata(licenses[0].clone());
 
         assert_eq!(new_meta.object.unwrap().is_empty(), true);
         // println!("{}", serde_json::to_string(&new_meta.object).unwrap())

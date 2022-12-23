@@ -26,7 +26,7 @@ impl Contract {
             .with_unused_gas_weight(3).inventory_metadata();
         let promise_asset: Promise = inventory_contract::ext(self.inventory_id.clone())
             .with_unused_gas_weight(3).asset_token(asset_id.clone());
-        let promise_price = get_near_price();
+        let promise_price = get_near_price(3);
         let promise_inventory = promise_meta
             .and(promise_asset)
             .and(promise_price);
@@ -36,7 +36,7 @@ impl Contract {
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
-                .with_unused_gas_weight(7)
+                .with_unused_gas_weight(27)
                 .on_nft_mint(
                     token_id, license_id, set_id, sku_id, receiver_id, predecessor_id
                 )
@@ -230,7 +230,7 @@ impl Contract {
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
             // backward compatibility
             let mut lic_token = asset.issue_new_license(
-                inv_license.clone(), sku_id.clone().unwrap(), token_id.clone()
+                inv_license.clone(), (*asset_license.unwrap()).clone(), token_id.clone()
             );
             lic_token.owner_id = receiver_id.clone();
 

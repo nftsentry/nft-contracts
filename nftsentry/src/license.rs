@@ -141,7 +141,7 @@ impl Contract {
         }
         let token = self.nft_token(token_id.clone()).unwrap();
         let asset = unsafe{asset_res.unwrap_unchecked()};
-        let new_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(
+        let new_asset_license = asset.licenses.clone().unwrap().into_iter().find(
             |x| x.sku_id.clone().unwrap() == new_sku_id).expect("Asset license not found");
         let old_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(
             |x| x.sku_id.clone().unwrap() == token.sku_id()).expect("Asset license not found");
@@ -167,7 +167,7 @@ impl Contract {
             ))
         }
 
-        let mut new_token: LicenseToken = asset.issue_new_license(new_license, new_sku_id, token_id.clone());
+        let mut new_token: LicenseToken = asset.issue_new_license(new_license, new_asset_license, token_id.clone());
         new_token.owner_id = token.owner_id.clone();
 
         let result = self.policies.clone_with_additional(

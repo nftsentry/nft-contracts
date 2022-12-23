@@ -94,10 +94,10 @@ pub fn wrap_account() -> String {
     }
 }
 
-pub fn get_near_price() -> Promise {
-    let promise = price_oracle_contract::ext(oracle_account()).get_asset(
-        wrap_account()
-    );
+pub fn get_near_price(gas_weight: u64) -> Promise {
+    let promise = price_oracle_contract::ext(oracle_account())
+        .with_unused_gas_weight(gas_weight)
+        .get_asset(wrap_account());
     return promise
 }
 
