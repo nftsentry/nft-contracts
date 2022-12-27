@@ -43,7 +43,7 @@ impl Price {
         // price: { multiplier: '13564', decimals: 28 }
         // should be "1.3564"
         // == 13564 / (10**(28-24))
-        return format!("{}", self.float())
+        return self.float().to_string()
     }
 
     pub fn float(&self) -> f64 {
@@ -56,7 +56,7 @@ impl Price {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Asset {
     pub reports: Vec<Report>,

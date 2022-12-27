@@ -2,6 +2,7 @@ use crate::*;
 
 use near_sdk::{log, Gas, PromiseError};
 use policy_rules::policy::ConfigInterface;
+use policy_rules::prices::{Asset, get_near_price};
 use policy_rules::types::{FullInventory, LicenseGeneral, NFTUpdateLicenseResult};
 use policy_rules::utils::{balance_from_string, format_balance};
 
@@ -33,17 +34,23 @@ impl Contract {
 
         // Schedule calls to metadata and asset token
         let promise_meta: Promise = inventory_contract::ext(inventory_account_id.clone())
+            .with_unused_gas_weight(3)
             .inventory_metadata();
         let promise_asset: Promise = inventory_contract::ext(inventory_account_id.clone())
+            .with_unused_gas_weight(3)
             .asset_token(asset_id);
-        let promise_inventory = promise_meta.and(promise_asset);
+        let promise_price = get_near_price(3);
+        let promise_inventory = promise_meta
+            .and(promise_asset)
+            .and(promise_price);
         // Then schedule call to self.callback
 
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
+                .with_unused_gas_weight(15)
                 .on_license_update(
-                token_id, inventory_account_id, predecessor_id, new_sku_id
+                    token_id, inventory_account_id, predecessor_id, new_sku_id
             )
         )
     }
@@ -53,6 +60,7 @@ impl Contract {
         &mut self,
         #[callback_result] metadata_res: Result<InventoryContractMetadata, PromiseError>,
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
+        #[callback_result] price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
         inventory_id: AccountId,
         predecessor_id: AccountId,
@@ -61,7 +69,7 @@ impl Contract {
 
         let initial_storage_usage = env::storage_usage();
         let result = self.ensure_update_license(
-            metadata_res, asset_res, token_id.clone(), new_sku_id
+            metadata_res, asset_res, price_res, token_id.clone(), new_sku_id
         );
         if result.is_err() {
             let _ = refund_deposit(0, Some(predecessor_id), None);
@@ -128,6 +136,7 @@ impl Contract {
         &self,
         metadata_res: Result<InventoryContractMetadata, PromiseError>,
         asset_res: Result<JsonAssetToken, PromiseError>,
+        price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
         new_sku_id: String,
     ) -> Result<(LicenseToken, Balance), String> {
@@ -135,8 +144,10 @@ impl Contract {
         if metadata_res.is_err() || asset_res.is_err() {
             return if metadata_res.is_err() {
                 Err("Failed call inventory_metadata".to_string())
-            } else {
+            } else if asset_res.is_err() {
                 Err("Failed call asset_token".to_string())
+            } else {
+                Err("Failed call priceoracle.get_asset".to_string())
             }
         }
         let token = self.nft_token(token_id.clone()).unwrap();
@@ -153,11 +164,15 @@ impl Contract {
         let new_license = metadata.licenses.into_iter().find(
             |x| new_asset_license.license_id.is_some() && x.license_id == new_asset_license.license_id.clone().unwrap());
 
+        let near_price_data = price_res.unwrap().unwrap();
+        let near_price = near_price_data.reports.last().unwrap().price.clone();
+        env::log_str(&format!("NEAR price: {} USD", near_price.string_price()));
+
         // Check for valid deposit
         let must_attach = balance_from_string(
-            new_asset_license.price.clone().unwrap()
+            new_asset_license.get_near_cost(near_price.clone())
         ) - balance_from_string(
-            old_asset_license.price.clone().unwrap()
+            old_asset_license.get_near_cost(near_price)
         );
         if env::attached_deposit() < must_attach {
             return Err(format!(

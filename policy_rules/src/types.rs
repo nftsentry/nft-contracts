@@ -1,7 +1,8 @@
 use near_sdk::env;
 use crate::*;
 use crate::policy::{Limitation, LimitsInfo, Policy};
-use crate::utils::get_inventory_id;
+use crate::prices::Price;
+use crate::utils::{get_inventory_id};
 
 pub type TokenId = String;
 pub type AssetId = String;
@@ -438,9 +439,31 @@ pub struct AssetLicense {
     pub license_id: Option<String>,
     pub title: String,
     pub price: Option<String>,
+    pub currency: Option<String>,
+    pub active: Option<bool>,
+    pub sole_limit: Option<i32>,
     pub set_id: Option<String>,
     pub objects: Option<Vec<String>>,
     pub params: Option<String> // Json-serialized AssetLicenseParams
+}
+
+pub const NEAR_CURRENCY: &str = "NEAR";
+
+impl AssetLicense {
+    pub fn get_near_cost(&self, near_usd_price: Price) -> String {
+        let mut currency = NEAR_CURRENCY.to_string();
+        if let Some(new_currency) = self.currency.clone() {
+            currency = new_currency;
+        }
+
+        if currency != NEAR_CURRENCY.to_string() {
+            // near cost = usd_price / near_price
+            let near_cost: f64 = self.price.clone().unwrap().parse::<f64>().unwrap() / near_usd_price.float();
+            return format!("{:.6}", near_cost);
+        }
+
+        return self.price.clone().unwrap()
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -448,8 +471,6 @@ pub struct AssetLicense {
 pub struct AssetLicenseParams {
     pub icon: Option<String>,
     pub description: Option<String>,
-    pub sole_limit: Option<i32>,
-    pub active: Option<bool>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

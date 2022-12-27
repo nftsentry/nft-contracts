@@ -114,13 +114,14 @@ impl Contract {
         // ----- Token mint start -----
         let mint_result = self.internal_mint(lic_token.clone());
         if mint_result.is_err() {
+            let _ = refund_deposit(0, Some(predecessor_id), None);
             let msg = unsafe{mint_result.unwrap_err_unchecked()};
             env::log_str( &format!("Error: {}", msg));
             return NFTMintResult{license_token: None, error: msg.to_string()}
         }
         // ----- Token mint end -----
 
-        //refund any excess storage if the user attached too much.
+        // refund any excess storage if the user attached too much.
         let result = refund_storage(
             initial_storage_usage,
             Some(predecessor_id.clone()),
@@ -180,12 +181,12 @@ impl Contract {
 
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() || price_res.is_err() {
-            if metadata_res.is_err() {
-                return Err("Failed call inventory_metadata".to_string())
+            return if metadata_res.is_err() {
+                Err("Failed call inventory_metadata".to_string())
             } else if asset_res.is_err() {
-                return Err("Failed call asset_token".to_string())
+                Err("Failed call asset_token".to_string())
             } else {
-                return Err("Failed call priceoracle.get_asset".to_string())
+                Err("Failed call priceoracle.get_asset".to_string())
             }
         }
 
@@ -193,18 +194,20 @@ impl Contract {
             let asset = asset_res.unwrap_unchecked();
             let inv_metadata = metadata_res.unwrap_unchecked();
 
-            // TODO take account prices
             let near_price_data = price_res.unwrap_unchecked().unwrap();
-            env::log_str(&format!("NEAR price: {} USD", near_price_data.reports.last().unwrap().price.string_price()));
+            let near_price = near_price_data.reports.last().unwrap().price.clone();
+            env::log_str(&format!("NEAR price: {} USD", near_price.string_price()));
 
             let asset_licenses = asset.licenses.clone().unwrap_or_default();
-            let asset_license = asset_licenses.iter().find(
+            let asset_license_opt = asset_licenses.iter().find(
                 |x| x.sku_id.clone().unwrap() == sku_id.clone().unwrap()
             );
 
-            if asset_license.is_none() {
+            if asset_license_opt.is_none() {
                 return Err(format!("Asset license not found by sku_id {}", sku_id.unwrap_or(String::new())))
             }
+            let mut asset_license = (*asset_license_opt.unwrap()).clone();
+
 
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
             let inv_license = full_inventory.inventory_licenses.clone().into_iter().find(
@@ -215,8 +218,12 @@ impl Contract {
             //     return Err("Inventory license not found by id".to_string())
             // }
 
+            // Re-calculate and re-assign a price
+            // let price_currency = asset_license.price.clone().unwrap();
+            let price_str = asset_license.get_near_cost(near_price.clone());
+            asset_license.price = Some(price_str.clone());
+
             let deposit = env::attached_deposit();
-            let price_str = asset_license.unwrap_unchecked().price.clone().unwrap();
             let price = balance_from_string(price_str.clone());
             if deposit < price {
                 return Err(format!(
@@ -230,7 +237,7 @@ impl Contract {
             // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
             // backward compatibility
             let mut lic_token = asset.issue_new_license(
-                inv_license.clone(), (*asset_license.unwrap()).clone(), token_id.clone()
+                inv_license.clone(), asset_license.clone(), token_id.clone()
             );
             lic_token.owner_id = receiver_id.clone();
 
@@ -243,7 +250,7 @@ impl Contract {
                 return Err(res.reason_not_available);
             }
 
-            Ok((lic_token, inv_license.clone(), asset_license.unwrap_unchecked().clone(), asset, inv_metadata.owner_id.clone()))
+            Ok((lic_token, inv_license.clone(), asset_license.clone(), asset, inv_metadata.owner_id.clone()))
         }
     }
 

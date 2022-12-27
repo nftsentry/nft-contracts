@@ -24,6 +24,9 @@ mod tests {
             license_id: Some(license_id.to_string()),
             price: None,
             title: title.to_string(),
+            currency: None,
+            active: None,
+            sole_limit: None,
         }
     }
 
@@ -625,6 +628,31 @@ mod tests {
     }
 
     #[test]
+    fn test_get_near_cost() {
+        let near_price = Price{multiplier: "13542".to_string(), decimals: 28};
+        let mut al = asset_license("sku", "license", "title");
+
+        al.currency = Some("USD".to_string());
+        al.price = Some("0.1".to_string());
+        let cost1 = al.get_near_cost(near_price.clone());
+
+        al.price = Some("1".to_string());
+        let cost2 = al.get_near_cost(near_price.clone());
+
+        al.price = Some("5".to_string());
+        let cost3 = al.get_near_cost(near_price.clone());
+
+        al.price = Some("10".to_string());
+        let cost4 = al.get_near_cost(near_price.clone());
+
+        // println!("{} {} {} {}", cost1, cost2, cost3, cost4);
+        assert_eq!(cost1, "0.073844".to_string());
+        assert_eq!(cost2, "0.738443".to_string());
+        assert_eq!(cost3, "3.692217".to_string());
+        assert_eq!(cost4, "7.384434".to_string());
+    }
+
+    #[test]
     fn test_migrate_to_sku() {
         let mut json_asset = JsonAssetToken{
             metadata: TokenMetadata{
@@ -661,6 +689,9 @@ mod tests {
                     price: Some("2".to_string()),
                     title: "personal".to_string(),
                     params: None,
+                    currency: None,
+                    active: None,
+                    sole_limit: None,
                 },
                 AssetLicense{
                     objects: Some(vec!["ba1117f1-3951-46ed-836f-022c1b62d1f1".to_string()]),
@@ -670,6 +701,9 @@ mod tests {
                     price: Some("5".to_string()),
                     title: "commercial".to_string(),
                     params: None,
+                    currency: None,
+                    active: None,
+                    sole_limit: None,
                 },
             ]),
             license_token_count: 2,
@@ -728,6 +762,9 @@ mod tests {
                     price: None,
                     title: "id1 title".to_string(),
                     params: None,
+                    currency: None,
+                    active: None,
+                    sole_limit: None,
                 },
                 AssetLicense{
                     objects: None,
@@ -735,8 +772,11 @@ mod tests {
                     params: None,
                     set_id: Some("set2".to_string()),
                     license_id: Some("id2".to_string()),
-                    price: None,
                     title: "id2 title".to_string(),
+                    price: None,
+                    currency: None,
+                    active: None,
+                    sole_limit: None,
                 },
             ]),
             license_token_count: 2,
