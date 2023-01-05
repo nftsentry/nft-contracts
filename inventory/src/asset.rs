@@ -1,3 +1,4 @@
+use policy_rules::utils::assert_one_yocto;
 use crate::*;
 
 #[near_bindgen]
@@ -20,6 +21,26 @@ impl InventoryContract {
         let _ = refund_storage(initial_storage_usage, None, None);
 
         licenses
+    }
+
+    #[payable]
+    pub fn asset_delete(&mut self, token_id: String) {
+        // let initial_storage_usage = env::storage_usage();
+
+        assert_one_yocto();
+
+        self.ensure_owner();
+        let meta = self.token_metadata_by_id.get(&token_id);
+        if meta.is_none() {
+            env::panic_str("Token does not exist")
+        }
+
+        self.token_metadata_by_id.remove(&token_id);
+        self.tokens_by_id.remove(&token_id);
+        self.token_licenses_by_id.remove(&token_id);
+
+        // let current_storage_usage = env::storage_usage();
+        // TODO: need refund?
     }
 
     #[payable]

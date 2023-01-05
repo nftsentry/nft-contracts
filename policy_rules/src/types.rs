@@ -650,7 +650,7 @@ impl JsonAssetToken {
                 };
                 for (i, lic) in self.licenses.as_mut().unwrap_unchecked().iter_mut().enumerate() {
                     lic.sku_id = Some(format!("{}-{}-{}", env::block_timestamp(), self.token_id, i));
-                    // lic.objects = None;
+                    lic.active = Some(true)
                 }
                 let obj_data_raw = serde_json::to_string(&obj_data).expect("failed serialize obj data");
                 // migrated to sets
@@ -664,6 +664,7 @@ impl JsonAssetToken {
                     continue
                 }
                 lic.sku_id = Some(format!("{}-{}-{}", env::block_timestamp(), self.token_id, i));
+                lic.active = Some(true)
                 // let old_set_id = obj_map.get(&lic.objects.clone().unwrap_unchecked());
                 // if old_set_id.is_none() {
                 //     let lic_objects = lic.objects.as_ref().unwrap_unchecked();
