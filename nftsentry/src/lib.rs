@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{U128};
+use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, near_bindgen, ext_contract, AccountId, Balance, CryptoHash, PanicOnDefault, Promise, PromiseOrValue,
@@ -205,5 +205,15 @@ impl Contract {
         }
 
         logs
+    }
+
+    pub fn clean(&self, keys: Vec<Base64VecU8>) {
+        let sender = env::predecessor_account_id();
+        if sender != self.owner_id && sender != env::current_account_id() {
+            env::panic_str("Unauthorized")
+        }
+        for key in keys.iter() {
+            env::storage_remove(&key.0);
+        }
     }
 }

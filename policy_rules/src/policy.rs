@@ -147,18 +147,55 @@ pub struct Exclusive {}
 impl LimitCheck for Exclusive {
     fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation, ctx: Context) -> IsAvailableResponse {
         let count_excl = matched.len();
-        let count_all: usize = if l.level == LEVEL_LICENSES {
-            ctx.full.issued_licenses.len()
-        } else {
-            ctx.full.inventory_licenses.len()
-        };
-        if count_excl > 1 {
-            let msg = format!("Count of {} cannot be greater than 1", l.name);
-            return IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None};
+
+        let mut exclusive_by_set: HashMap<String, i32> = HashMap::new();
+        let mut exclusive_by_objects: HashMap<String, i32> = HashMap::new();
+        let mut exclusives: HashMap<String, bool> = HashMap::new();
+
+        for lic in matched {
+            exclusives.insert(lic.token_id(), true);
+
+            let by_set_exists = exclusive_by_set.contains_key(&lic.object_hash());
+            if by_set_exists {
+                let msg = format!("Count of {} cannot be greater than 1", l.name);
+                return IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None}
+            } else {
+                exclusive_by_set.insert(lic.object_hash(), 1);
+            }
+
+            for object_id in lic.objects() {
+                let by_object_exists = exclusive_by_objects.contains_key(&object_id);
+                if by_object_exists {
+                    // exclusiveByObjects[objectID] += 1
+                    let msg = format!("Count of {} for object {} cannot be greater than 1", l.name, object_id);
+                    return IsAvailableResponse { result: false, reason_not_available: msg, additional_info: None }
+                } else {
+                    exclusive_by_objects.insert(object_id, 1);
+                }
+            }
         }
-        if count_excl == 1 && count_all != count_excl {
-            let msg = format!("There can be no other licenses, except for {} one.", l.name);
-            return IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None};
+
+        let mut remain_to_check: Vec<LicenseToken> = Vec::new();
+        for lic in ctx.full.issued_licenses {
+            if !exclusives.contains_key(&lic.token_id()) {
+                remain_to_check.push(lic.clone())
+            }
+        }
+
+        for lic in remain_to_check {
+            //	if _, ok := exclusiveBySet[lic.ObjectsHash()]; ok {
+            //		msg := fmt.Sprintf("Count of %v cannot be greater than 1", l.Name)
+            //		return &IsAvailableResponse{Result: false, ReasonNotAvailable: msg}, nil
+            //	} else {
+            //	}
+            //
+            for object_id in lic.objects() {
+                if exclusive_by_objects.contains_key(&object_id) {
+                    let msg = format!("Count of {} for object {} cannot be greater than 1", l.name, object_id);
+                    return IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None}
+                } else {
+                }
+            }
         }
         let info = LimitsInfo{
             remains: 1 - count_excl as i32,

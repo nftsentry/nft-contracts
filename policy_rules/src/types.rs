@@ -19,6 +19,9 @@ pub trait LicenseGeneral {
     fn license_title(&self) -> String;
     fn set_id(&self) -> String;
     fn sku_id(&self) -> String;
+    fn token_id(&self) -> String;
+    fn objects(&self) -> Vec<String>;
+    fn object_hash(&self) -> String;
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -60,11 +63,20 @@ pub struct TokenMetadata {
     pub sku_data: Option<SkuTokenData>,
 }
 
+impl TokenMetadata {
+    pub fn get_objects(&self) -> ObjectData {
+         let object_data: ObjectData = serde_json::from_str(
+             &self.object.clone().unwrap_or("{}".to_string())
+         ).expect("Failed parse object data");
+         return object_data
+    }
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ObjectData {
-    items: Option<Vec<ObjectItem>>,
-    sets: Option<Vec<ObjectSet>>,
+    pub items: Option<Vec<ObjectItem>>,
+    pub sets: Option<Vec<ObjectSet>>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
@@ -123,13 +135,13 @@ impl ObjectData {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ObjectItem {
-    link: Option<String>,
+    pub link: Option<String>,
     #[serde(rename = "type")]
-    type_: String,
-    id: String,
-    title: Option<String>,
-    icon: Option<String>,
-    active: Option<bool>,
+    pub type_: String,
+    pub id: String,
+    pub title: Option<String>,
+    pub icon: Option<String>,
+    pub active: Option<bool>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -324,6 +336,22 @@ impl LicenseGeneral for LicenseToken {
             }
         }
     }
+
+    fn token_id(&self) -> String {
+        self.token_id.clone()
+    }
+
+    fn objects(&self) -> Vec<String> {
+        let obj_data = self.metadata.get_objects();
+        let ids = obj_data.items.unwrap_or(Vec::new()).iter().map(|x| x.id.clone()).collect();
+        return ids
+    }
+
+    fn object_hash(&self) -> String {
+        let mut objects = self.objects();
+        objects.sort();
+        return objects.join(",")
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -387,6 +415,15 @@ impl LicenseGeneral for InventoryLicense {
         String::new()
     }
     fn sku_id(&self) -> String {
+        String::new()
+    }
+    fn token_id(&self) -> String {
+        String::new()
+    }
+    fn objects(&self) -> Vec<String> {
+        Vec::new()
+    }
+    fn object_hash(&self) -> String {
         String::new()
     }
 }
@@ -578,9 +615,7 @@ impl JsonAssetToken {
             if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
                 return metadata
             }
-            let obj_data: ObjectData = serde_json::from_str(
-                &self.metadata.object.clone().unwrap_unchecked()
-            ).expect("Failed parse asset object data");
+            let obj_data = self.metadata.get_objects();
             let obj_ids = self.licenses.as_ref().unwrap().iter().find(
                 |&x| x.sku_id.clone().unwrap_or(String::new()) == sku_id.clone()
             ).expect("Not found by sku_id").objects.clone().unwrap();
