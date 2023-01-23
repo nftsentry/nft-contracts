@@ -142,6 +142,7 @@ pub struct ObjectItem {
     pub title: Option<String>,
     pub icon: Option<String>,
     pub active: Option<bool>,
+    pub params: Option<HashMap<String, String>>
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -670,6 +671,7 @@ impl JsonAssetToken {
                         id: "default_object".to_string(),
                         icon: None,
                         active: Some(true),
+                        params: None,
                     }]),
                     // sets: Some(vec![ObjectSet{
                     //     id: "default_object_set".to_string(),

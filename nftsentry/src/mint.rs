@@ -208,7 +208,6 @@ impl Contract {
             }
             let mut asset_license = (*asset_license_opt.unwrap()).clone();
 
-
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
             let inv_license = full_inventory.inventory_licenses.clone().into_iter().find(
                 |x| license_id.is_some() && x.license_id == license_id.clone().unwrap()
