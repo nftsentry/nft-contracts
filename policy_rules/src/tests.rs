@@ -19,10 +19,8 @@ mod tests {
         LicenseData{
             pdf_url: None,
             template: None,
-            i_agree: true,
             limited_display_sublicensee: false,
             perpetuity: true,
-            commercial_use: !personal,
             personal_use: personal,
             exclusivity: exclusive,
         }

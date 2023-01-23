@@ -147,11 +147,9 @@ pub struct ObjectItem {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LicenseData {
-    pub i_agree: bool,
     pub perpetuity: bool,
     pub exclusivity: bool,
     pub personal_use: bool,
-    pub commercial_use: bool,
     pub limited_display_sublicensee: bool,
     pub template: Option<String>,
     pub pdf_url: Option<String>,
