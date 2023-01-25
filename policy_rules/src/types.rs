@@ -107,7 +107,10 @@ impl ObjectData {
     }
 
     pub fn filter_by_objects(&self, objects: Vec<String>, _set: Option<ObjectSet>) -> ObjectData {
-        let filtered: Vec<ObjectItem> = self.items.clone().unwrap().into_iter().filter(|x| objects.contains(&x.id)).collect();
+        if self.items.is_none() {
+            return ObjectData{items: None, sets: None}
+        }
+        let filtered: Vec<ObjectItem> = self.items.clone().unwrap_or_default().into_iter().filter(|x| objects.contains(&x.id)).collect();
         // let ids: Vec<String> = filtered.iter().map(|x| x.id.clone()).collect();
 
         // let new_set = if set.is_none() {
@@ -501,9 +504,15 @@ impl AssetLicense {
 
         return self.price.clone().unwrap()
     }
+
+    pub fn get_params(&self) -> AssetLicenseParams {
+        let res: AssetLicenseParams = serde_json::from_str(
+            &self.params.clone().unwrap_or("{}".to_string())).unwrap_or_default();
+        res
+    }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Default)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AssetLicenseParams {
     pub icon: Option<String>,
@@ -607,6 +616,15 @@ impl JsonAssetToken {
 
         if self.metadata.object.is_none() {
             return metadata
+        }
+        // Set metadata title to sku title
+        metadata.title = if sku_info.title.is_empty() { metadata.title } else { Some(sku_info.title.clone()) };
+        // Set metadata preview to sku icon
+        let params = sku_info.get_params();
+        if let Some(icon) = params.icon {
+            if !icon.is_empty() {
+                metadata.media = Some(icon);
+            }
         }
 
         let sku_id = sku_info.sku_id.clone().unwrap();
