@@ -6,27 +6,7 @@ use policy_rules::utils::{refund_storage};
 /// This spec can be treated like a version of the standard.
 pub const INVENTORY_METADATA_SPEC: &str = "inventory-1.0.0";
 
-//The Json token is what will be returned from view calls. 
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
-pub struct JsonToken {
-    //token ID
-    pub token_id: String,
-    //owner of the token
-    pub owner_id: AccountId,
-    //token metadata
-    pub metadata: TokenMetadata,
-    // license metadata
-    // pub license: Option<TokenLicense>,
-    // proposed license 
-    // pub proposed_license: TokenLicense,
-    //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
-    // pub approved_account_ids: HashMap<AccountId, u64>,
-    //keep track of the royalty percentages for the token in a hash map
-    // pub royalty: HashMap<AccountId, u32>,
-}
-
-//The Json token is what will be returned from view calls. 
+//The Json token is what will be returned from view calls.
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
 #[serde(crate = "near_sdk::serde")]
