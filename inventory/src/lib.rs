@@ -9,7 +9,7 @@ pub use crate::events::*;
 pub use crate::mint::*;
 pub use policy_rules::*;
 pub use policy_rules::types::{TokenMetadata, AssetToken};
-pub use policy_rules::types::{AssetLicense, InventoryLicenseAvailability, FilterOpt};
+pub use policy_rules::types::{AssetLicense, SKUAvailability, FilterOpt};
 pub use policy_rules::types::{InventoryContractMetadata, InventoryLicense};
 pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken};
 use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};

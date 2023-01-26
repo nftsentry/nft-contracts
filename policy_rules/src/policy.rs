@@ -13,8 +13,8 @@ pub trait ConfigInterface {
     fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> IsAvailableResponse;
     fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse;
     fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse;
-    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability>;
-    fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability>;
+    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<SKUAvailability>;
+    fn list_available(&self, inventory: FullInventory) -> Vec<SKUAvailability>;
     fn clone_with_additional(&self, l: Vec<Limitation>) -> Self;
 }
 
@@ -322,8 +322,8 @@ impl ConfigInterface for AllPolicies {
         )
     }
 
-    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<InventoryLicenseAvailability> {
-        let mut result: Vec<InventoryLicenseAvailability> = Vec::new();
+    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<SKUAvailability> {
+        let mut result: Vec<SKUAvailability> = Vec::new();
         for license in &inventory.inventory_licenses {
             let mut lic_token = license.as_license_token("token".to_string());
             if lic_token.license.is_some() {
@@ -345,10 +345,10 @@ impl ConfigInterface for AllPolicies {
                 } else {
                     check_transition_res.unwrap_unchecked()
                 };
-                result.push(InventoryLicenseAvailability {
+                result.push(SKUAvailability {
                     available: res.result,
                     reason_not_available: Some(res.reason_not_available.clone()),
-                    inventory_license: license.clone(),
+                    asset_license: AssetLicense::default(),
                     upgrade_price: None,
                     additional_info: res.additional_info,
                 });
@@ -357,35 +357,44 @@ impl ConfigInterface for AllPolicies {
         result
     }
 
-    fn list_available(&self, inventory: FullInventory) -> Vec<InventoryLicenseAvailability> {
-        // Make issued map by license ID
-        let mut license_map: HashMap<String, i32> = HashMap::new();
+    fn list_available(&self, inventory: FullInventory) -> Vec<SKUAvailability> {
+        // Make issued map by sku ID
+        let mut issued_map: HashMap<String, i32> = HashMap::new();
         for lic in &inventory.issued_licenses {
-            if license_map.contains_key(&lic.license_id()) {
-                *license_map.get_mut(&lic.license_id()).unwrap() += 1;
+            if issued_map.contains_key(&lic.sku_id()) {
+                *issued_map.get_mut(&lic.sku_id()).unwrap() += 1;
             } else {
-                license_map.insert(lic.license_id(), 1);
+                issued_map.insert(lic.sku_id(), 1);
             }
         }
 
-        let mut available: Vec<InventoryLicenseAvailability> = Vec::new();
-        for inv_license in &inventory.inventory_licenses {
-            let token = inv_license.as_license_token("0".to_string());
+        let mut inventory_licenses: HashMap<String, InventoryLicense> = HashMap::new();
+        for lic in &inventory.inventory_licenses {
+            inventory_licenses.insert(lic.license_id(), lic.clone());
+        }
+
+        let mut available: Vec<SKUAvailability> = Vec::new();
+        for asset_license in &inventory.asset.clone().expect("Expect asset in inventory").licenses.unwrap_or_default() {
+            let mut inv_license: Option<InventoryLicense> = None;
+            if !asset_license.license_id.clone().unwrap_or_default().is_empty() {
+                inv_license = inventory_licenses.get(&asset_license.license_id.clone().unwrap_or_default()).cloned();
+            }
+            let token = inventory.asset.as_ref().unwrap().issue_new_license(inv_license, asset_license.clone(), "0".to_string());
             let mut res = self.check_new(inventory.clone(), token);
 
             if res.additional_info.is_some() {
                 unsafe {
                     for (_k, mut v) in res.additional_info.as_mut().unwrap_unchecked() {
-                        v.issued = *license_map.get(&inv_license.license_id()).unwrap_or(&0);
+                        v.issued = *issued_map.get(&asset_license.sku_id.clone().unwrap()).unwrap_or(&0);
                         v.remains += 1
                     }
                 }
             }
 
-            available.push(InventoryLicenseAvailability {
+            available.push(SKUAvailability {
                 available: res.result,
                 reason_not_available: Some(res.reason_not_available),
-                inventory_license: inv_license.clone(),
+                asset_license: asset_license.clone(),
                 upgrade_price: None,
                 additional_info: res.additional_info.clone(),
             });

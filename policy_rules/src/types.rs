@@ -472,7 +472,7 @@ pub struct SkuTokenData {
     pub params: Option<String> // Json-serialized AssetLicenseParams
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Default)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AssetLicense {
     pub sku_id: Option<String>,
@@ -758,8 +758,8 @@ impl JsonAssetToken {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct InventoryLicenseAvailability {
-    pub inventory_license:    InventoryLicense,
+pub struct SKUAvailability {
+    pub asset_license:    AssetLicense,
     pub available:            bool,
     pub upgrade_price: Option<String>,
     pub reason_not_available: Option<String>,

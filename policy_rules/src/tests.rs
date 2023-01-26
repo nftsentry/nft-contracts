@@ -53,6 +53,7 @@ mod tests {
             type_: String::new(),
             link: None,
             icon: None,
+            params: None,
         }
     }
 
@@ -229,43 +230,6 @@ mod tests {
         assert_eq!(count, 0);
     }
 
-    // #[test]
-    // fn test_check_new_exclusive() {
-    //     let policies = init_policies();
-    //
-    //     let personal = InventoryLicense{
-    //         title: "lic1".to_string(),
-    //         price: Some("1".to_string()),
-    //         license_id: "lic_id".to_string(),
-    //         license: license_data(true, false)
-    //     };
-    //     let commercial = InventoryLicense{
-    //         title: "lic2".to_string(),
-    //         price: Some("1".to_string()),
-    //         license_id: "lic_id2".to_string(),
-    //         license: license_data(false, false)
-    //     };
-    //     let personal_exclusive = InventoryLicense{
-    //         title: "lic3".to_string(),
-    //         price: Some("1".to_string()),
-    //         license_id: "lic_id3".to_string(),
-    //         license: license_data(true, true)
-    //     };
-    //     let personal_token = personal.as_license_token("1".to_string());
-    //     let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string());
-    //     let inventory = FullInventory{
-    //         inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
-    //         issued_licenses:    vec![personal_exclusive_token.clone()],
-    //         asset: None,
-    //     };
-    //
-    //     let res = policies.check_new(
-    //         inventory, personal_token
-    //     );
-    //     assert_eq!(res.result, false);
-    //     assert_eq!(res.reason_not_available.contains("There can be no other licenses"), true);
-    // }
-
     #[test]
     fn test_check_new_exclusive_sku() {
         let policies = init_policies();
@@ -318,7 +282,7 @@ mod tests {
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![exclusive_token.clone()],
-            asset: None,
+            asset: Some(asset_token.clone()),
         };
 
         let mut res = policies.check_new(inventory.clone(), exclusive_same);
@@ -338,6 +302,15 @@ mod tests {
 
         res = policies.check_new(inventory.clone(), personal_different_object);
         assert_eq!(res.result, true);
+
+        let available = policies.list_available(inventory.clone());
+
+        assert_eq!(5, available.len());
+        assert_eq!(false, available[0].available);
+        assert_eq!(false, available[1].available);
+        assert_eq!(true, available[2].available);
+        assert_eq!(true, available[3].available);
+        assert_eq!(false, available[4].available);
     }
 
     #[test]
@@ -394,28 +367,44 @@ mod tests {
         let personal = InventoryLicense{
             title: "lic1".to_string(),
             price: Some("1".to_string()),
-            license_id: "lic_id".to_string(),
+            license_id: "personal".to_string(),
             license: license_data(true, false)
         };
         let commercial = InventoryLicense{
             title: "lic2".to_string(),
             price: Some("1".to_string()),
-            license_id: "lic_id2".to_string(),
+            license_id: "commercial".to_string(),
             license: license_data(false, false)
         };
         let personal_exclusive = InventoryLicense{
             title: "lic3".to_string(),
             price: Some("1".to_string()),
-            license_id: "lic_id3".to_string(),
+            license_id: "exclusive".to_string(),
             license: license_data(true, true)
         };
-        let personal_token = personal.as_license_token("1".to_string());
-        let personal_token2 = personal.as_license_token("2".to_string());
-        let personal_token3 = personal.as_license_token("3".to_string());
+        let mut asset_token = sample_asset_token();
+        asset_token.metadata.object = Some(to_string(object_data(vec![
+            object_item("object1"),
+        ])));
+        asset_token.licenses = Some(vec![
+            asset_license("sku1", "personal", &["object1"]),
+            asset_license("sku2", "commercial", &["object1"]),
+            asset_license("sku3", "exclusive", &["object1"]),
+        ]);
+        let lics = asset_token.licenses.clone().unwrap();
+        let personal_token = asset_token.issue_new_license(
+            Some(personal.clone()), lics[0].clone(), "1".to_string()
+        );
+        let personal_token2 = asset_token.issue_new_license(
+            Some(personal.clone()), lics[0].clone(), "2".to_string()
+        );
+        let personal_token3 = asset_token.issue_new_license(
+            Some(personal.clone()), lics[0].clone(), "3".to_string()
+        );
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_token.clone(), personal_token2.clone(), personal_token3.clone()],
-            asset: None,
+            asset: Some(asset_token.clone()),
         };
 
         let new_limits = vec![Limitation{
@@ -436,7 +425,7 @@ mod tests {
         let inventory2 = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_token.clone(), personal_token2.clone()],
-            asset: None,
+            asset: Some(asset_token.clone()),
         };
 
         let res = policies.clone_with_additional(new_limits.clone()).check_new(
