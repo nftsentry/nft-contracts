@@ -1,8 +1,9 @@
 // use std::collections::HashMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::serde::{Serialize, Deserialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base64VecU8, U128};
-use near_sdk::{env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault};
+use near_sdk::{env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault, Gas, Promise};
 
 pub use crate::metadata::*;
 pub use crate::events::*;
@@ -227,4 +228,33 @@ impl InventoryContract {
             env::storage_remove(&key.0);
         }
     }
+
+    pub fn clean_deploy_restore(
+        &self, keys: Vec<Base64VecU8>, code: Vec<u8>,
+        owner_id: AccountId, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Promise {
+        // Deploy the contract on self
+        self.clean(keys);
+
+        let args = serde_json::to_vec(
+            &RestoreArgs{ metadata, tokens, owner_id}
+        ).unwrap();
+
+        let deploy_restore = Promise::new(env::current_account_id())
+            .deploy_contract(code)
+            .function_call(
+                "restore".to_string(),
+                args,
+                0,
+                Gas::ONE_TERA * 100,
+            );
+        deploy_restore.as_return()
+    }
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+struct RestoreArgs {
+    owner_id: AccountId,
+    metadata: InventoryContractMetadata,
+    tokens: Vec<JsonAssetToken>,
 }

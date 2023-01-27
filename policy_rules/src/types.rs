@@ -409,17 +409,18 @@ impl LicenseGeneral for InventoryLicense {
     }
 
     fn is_personal(&self) -> bool {
-        if self.license.personal_use.clone().is_some() {
-            return self.license.personal_use.clone().unwrap()
+        return if self.license.personal_use.is_some() {
+            self.license.personal_use.clone().unwrap()
+        } else {
+            !self.license.commercial_use.clone().unwrap_or_default()
         }
-        !self.license.commercial_use.clone().unwrap()
     }
 
     fn is_commercial(&self) -> bool {
         if self.license.personal_use.clone().is_some() {
             return !self.license.personal_use.clone().unwrap()
         }
-        self.license.commercial_use.clone().unwrap()
+        return self.license.commercial_use.clone().unwrap_or_default()
     }
 
     fn license_id(&self) -> String {
@@ -577,7 +578,7 @@ pub struct AssetToken {
     pub upgrade_rules: Option<Vec<Policy>>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct JsonAssetToken {
     //token ID
