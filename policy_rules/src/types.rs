@@ -153,7 +153,10 @@ pub struct ObjectItem {
 pub struct LicenseData {
     pub perpetuity: bool,
     pub exclusivity: bool,
-    pub personal_use: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub personal_use: Option<bool>,
+    pub commercial_use: Option<bool>,
     pub limited_display_sublicensee: bool,
     pub template: Option<String>,
     pub pdf_url: Option<String>,
@@ -287,7 +290,11 @@ impl LicenseGeneral for LicenseToken {
             return true
         }
         unsafe {
-            self.license.as_ref().unwrap_unchecked().metadata.personal_use
+            let lic = self.license.as_ref().unwrap_unchecked();
+            if lic.metadata.personal_use.clone().is_some() {
+                return lic.metadata.personal_use.clone().unwrap()
+            }
+            !lic.metadata.commercial_use.clone().unwrap()
         }
     }
 
@@ -296,7 +303,11 @@ impl LicenseGeneral for LicenseToken {
             return false
         }
         unsafe {
-            !self.license.as_ref().unwrap_unchecked().metadata.personal_use
+            let lic = self.license.as_ref().unwrap_unchecked();
+            if lic.metadata.personal_use.clone().is_some() {
+                return !lic.metadata.personal_use.clone().unwrap()
+            }
+            lic.metadata.commercial_use.clone().unwrap()
         }
     }
 
@@ -398,11 +409,17 @@ impl LicenseGeneral for InventoryLicense {
     }
 
     fn is_personal(&self) -> bool {
-        self.license.personal_use
+        if self.license.personal_use.clone().is_some() {
+            return self.license.personal_use.clone().unwrap()
+        }
+        !self.license.commercial_use.clone().unwrap()
     }
 
     fn is_commercial(&self) -> bool {
-        !self.license.personal_use
+        if self.license.personal_use.clone().is_some() {
+            return !self.license.personal_use.clone().unwrap()
+        }
+        self.license.commercial_use.clone().unwrap()
     }
 
     fn license_id(&self) -> String {

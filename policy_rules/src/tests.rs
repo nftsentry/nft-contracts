@@ -1,6 +1,7 @@
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use near_sdk::AccountId;
+    use serde_json::json_expect_expr_comma;
     use crate::policy::{init_policies, Limitation, MaxCount};
     use crate::policy::{ConfigInterface, LEVEL_LICENSES};
     use crate::prices::Price;
@@ -21,7 +22,8 @@ mod tests {
             template: None,
             limited_display_sublicensee: false,
             perpetuity: true,
-            personal_use: personal,
+            personal_use: None,
+            commercial_use: Some(!personal),
             exclusivity: exclusive,
         }
     }
