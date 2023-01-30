@@ -40,6 +40,7 @@ mod tests {
             currency: None,
             active: None,
             sole_limit: None,
+            limited_edition: None,
         }
     }
 
@@ -570,6 +571,7 @@ mod tests {
                     currency: None,
                     active: None,
                     sole_limit: None,
+                    limited_edition: None,
                 },
                 AssetLicense{
                     objects: Some(vec!["ba1117f1-3951-46ed-836f-022c1b62d1f1".to_string()]),
@@ -582,6 +584,7 @@ mod tests {
                     currency: None,
                     active: None,
                     sole_limit: None,
+                    limited_edition: None,
                 },
             ]),
             license_token_count: 2,
@@ -643,6 +646,7 @@ mod tests {
                     currency: None,
                     active: None,
                     sole_limit: None,
+                    limited_edition: None,
                 },
                 AssetLicense{
                     objects: None,
@@ -655,6 +659,7 @@ mod tests {
                     currency: None,
                     active: None,
                     sole_limit: None,
+                    limited_edition: None,
                 },
             ]),
             license_token_count: 2,

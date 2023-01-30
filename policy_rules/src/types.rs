@@ -499,6 +499,7 @@ pub struct AssetLicense {
     pub price: Option<String>,
     pub currency: Option<String>,
     pub active: Option<bool>,
+    pub limited_edition: Option<bool>,
     pub sole_limit: Option<i32>,
     pub set_id: Option<String>,
     pub objects: Option<Vec<String>>,
