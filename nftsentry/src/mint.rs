@@ -232,9 +232,6 @@ impl Contract {
                 ))
             }
 
-
-            // let lic_token = inv_license.unwrap_unchecked().as_license_token(token_id);
-            // backward compatibility
             let mut lic_token = asset.issue_new_license(
                 inv_license.clone(), asset_license.clone(), token_id.clone()
             );

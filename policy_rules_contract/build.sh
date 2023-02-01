@@ -11,10 +11,10 @@ wasm_opt=$(which wasm-opt)
 
 if [ ! -z $wasm_opt ]; then
   echo "Optimize for size with wasm-opt..."
-  old_size=$(ls -l res/policy_rules.wasm | awk '{print $5}')
-  wasm-opt -Os -o res/os.wasm res/policy_rules.wasm
+  old_size=$(ls -l res/policy_rules_contract.wasm | awk '{print $5}')
+  wasm-opt -Os -o res/os.wasm res/policy_rules_contract.wasm
   chmod +x res/os.wasm
-  mv res/os.wasm res/policy_rules.wasm
-  new_size=$(ls -l res/policy_rules.wasm | awk '{print $5}')
+  mv res/os.wasm res/policy_rules_contract.wasm
+  new_size=$(ls -l res/policy_rules_contract.wasm | awk '{print $5}')
   echo "Optimized size $old_size -> $new_size"
 fi
