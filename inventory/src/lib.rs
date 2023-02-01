@@ -183,8 +183,7 @@ impl InventoryContract {
 
         for token_src in tokens {
             // -- migration block
-            let mut token = token_src.clone();
-            token.migrate_to_sets();
+            let token = token_src.clone();
             // -- end migration block
             let exists = self.tokens_by_id.contains_key(&token.token_id);
             if exists {

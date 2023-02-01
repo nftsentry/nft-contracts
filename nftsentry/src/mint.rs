@@ -1,5 +1,4 @@
 use near_sdk::{Gas, PromiseError};
-use policy_rules::policy::ConfigInterface;
 use policy_rules::prices::{Asset, get_near_price};
 use policy_rules::types::{AssetLicense, InventoryLicense, NFTMintResult};
 use policy_rules::utils::{balance_from_string, format_balance};
@@ -56,13 +55,11 @@ impl Contract {
         sku_id: Option<String>,
         receiver_id: AccountId,
         predecessor_id: AccountId,
-    ) -> NFTMintResult {
-        //measure the initial storage being used on the contract
-        let initial_storage_usage = env::storage_usage();
-
+    ) -> PromiseOrValue<NFTMintResult> {
         let result = self.ensure_nft_mint(
             metadata_res, asset_res, price_res, token_id.clone(),
-            license_id.clone(), set_id.clone(), sku_id, receiver_id.clone()
+            license_id.clone(), set_id.clone(), sku_id,
+            receiver_id.clone(), predecessor_id.clone(),
         );
 
         if result.is_err() {
@@ -71,36 +68,164 @@ impl Contract {
                 let msg = result.unwrap_err_unchecked();
                 env::log_str( &format!("Error: {}", msg));
                 // env::panic_str(result.unwrap_err_unchecked().as_str());
-                return NFTMintResult{
+                return PromiseOrValue::Value(NFTMintResult{
                     license_token: None,
                     error: msg,
-                }
+                })
             }
         }
-        let (lic_token, _inv_license,
-            asset_license, asset,
-            inventory_owner) = unsafe {result.unwrap_unchecked()};
 
+        PromiseOrValue::Promise(result.unwrap())
+    }
+
+    fn ensure_nft_mint(
+        &self,
+        metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
+        asset_res: Result<JsonAssetToken, PromiseError>,
+        price_res: Result<Option<Asset>, PromiseError>,
+        token_id: TokenId,
+        license_id: Option<String>,
+        _set_id: Option<String>,
+        sku_id: Option<String>,
+        receiver_id: AccountId,
+        predecessor_id: AccountId,
+        ) -> Result<Promise, String> {
+
+        // 1. Check callback results first.
+        if metadata_res.is_err() || asset_res.is_err() || price_res.is_err() {
+            return if metadata_res.is_err() {
+                Err("Failed call inventory_metadata".to_string())
+            } else if asset_res.is_err() {
+                Err("Failed call asset_token".to_string())
+            } else {
+                Err("Failed call priceoracle.get_asset".to_string())
+            }
+        }
+
+        unsafe {
+            let asset = asset_res.unwrap_unchecked();
+            let inv_metadata = metadata_res.unwrap_unchecked();
+
+            let near_price_data = price_res.unwrap_unchecked().unwrap();
+            let near_price = near_price_data.reports.last().unwrap().price.clone();
+            env::log_str(&format!("NEAR price: {} USD", near_price.string_price()));
+
+            let asset_licenses = asset.licenses.clone().unwrap_or_default();
+            let asset_license_opt = asset_licenses.iter().find(
+                |x| x.sku_id.clone().unwrap() == sku_id.clone().unwrap()
+            );
+
+            if asset_license_opt.is_none() {
+                return Err(format!("Asset license not found by sku_id {}", sku_id.unwrap_or(String::new())))
+            }
+            let mut asset_license = (*asset_license_opt.unwrap()).clone();
+
+            let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
+            let inv_license = full_inventory.inventory_licenses.clone().into_iter().find(
+                |x| license_id.is_some() && x.license_id == license_id.clone().unwrap()
+            );
+
+            // Re-calculate and re-assign a price
+            // let price_currency = asset_license.price.clone().unwrap();
+            let price_str = asset_license.get_near_cost(near_price.clone());
+            asset_license.price = Some(price_str.clone());
+
+            let deposit = env::attached_deposit();
+            let price = balance_from_string(price_str.clone());
+            if deposit < price {
+                return Err(format!(
+                    "Attached deposit of {} NEAR is less than license price of {} NEAR",
+                    format_balance(deposit),
+                    price_str,
+                ))
+            }
+
+            let mut lic_token = asset.issue_new_license(
+                inv_license.clone(), asset_license.clone(), token_id.clone()
+            );
+            lic_token.owner_id = receiver_id.clone();
+
+            let promise_new: Promise = policy_rules_contract::ext(self.policy_contract.clone())
+                .with_unused_gas_weight(3).check_new(
+                full_inventory.clone(),
+                lic_token.clone(),
+                asset.policy_rules.clone(),
+                asset.upgrade_rules.clone(),
+            );
+            let on_check_promise = promise_new.then(
+                Self::ext(env::current_account_id())
+                    .with_attached_deposit(env::attached_deposit())
+                    .with_unused_gas_weight(27)
+                    .on_check_new_receiver(
+                        lic_token.clone(), inv_license.clone(),
+                        asset_license.clone(), asset.clone(),
+                        inv_metadata.owner_id.clone(),
+                        predecessor_id.clone(),
+                    )
+            );
+            // let res = self.policies.clone_with_additional(
+            //     asset.policy_rules.clone().unwrap_or_default().clone()).check_new(
+            //         full_inventory.clone(),
+            //         lic_token.clone(),
+            // );
+            // if !res.result {
+            //     return Err(res.reason_not_available);
+            // }
+
+            Ok(on_check_promise)
+        }
+    }
+
+    #[private]
+    #[payable]
+    pub fn on_check_new_receiver(
+        &mut self,
+        #[callback_result] check_new_res: Result<IsAvailableResponse, PromiseError>,
+        lic_token: LicenseToken,
+        _inv_license: Option<InventoryLicense>,
+        asset_license: AssetLicense,
+        asset: JsonAssetToken,
+        inventory_owner: AccountId,
+        predecessor_id: AccountId,
+    ) -> NFTMintResult {
+        //measure the initial storage being used on the contract
+        let initial_storage_usage = env::storage_usage();
         // we add an optional parameter for perpetual royalties
         // create a royalty map to store in the token
         // let mut royalty = HashMap::new();
 
         // if perpetual royalties were passed into the function:
         // if let Some(perpetual_royalties) = perpetual_royalties {
-            //make sure that the length of the perpetual royalties is below 7 since we won't have enough GAS to pay out that many people
-            // assert!(perpetual_royalties.len() < 7, "Cannot add more than 6 perpetual royalty amounts");
+        //make sure that the length of the perpetual royalties is below 7 since we won't have enough GAS to pay out that many people
+        // assert!(perpetual_royalties.len() < 7, "Cannot add more than 6 perpetual royalty amounts");
 
-            //iterate through the perpetual royalties and insert the account and amount in the royalty map
-            // for (account, amount) in perpetual_royalties {
-            //     royalty.insert(account, amount);
-            // }
+        //iterate through the perpetual royalties and insert the account and amount in the royalty map
+        // for (account, amount) in perpetual_royalties {
+        //     royalty.insert(account, amount);
         // }
+        // }
+        if check_new_res.is_err() {
+            let _ = refund_deposit(0, Some(predecessor_id.clone()), None);
+            return NFTMintResult{
+                license_token: None,
+                error: "Failed call check_new()".to_string(),
+            }
+        } else {
+            let res = check_new_res.unwrap();
+            if !res.result {
+                let _ = refund_deposit(0, Some(predecessor_id.clone()), None);
+                return NFTMintResult{
+                    license_token: None,
+                    error: res.reason_not_available,
+                }
+            }
+        }
 
         //specify the token struct that contains the owner ID
         let token = Token {
-            token_id,
+            token_id: lic_token.token_id.clone(),
             //set the owner ID equal to the receiver ID passed into the function
-            owner_id: receiver_id,
+            owner_id: lic_token.owner_id.clone(),
             asset_id: asset.token_id.clone(),
             //we set the approved account IDs to the default value (an empty map)
             approved_account_ids: Default::default(),
@@ -164,89 +289,6 @@ impl Contract {
         NFTMintResult{
             license_token: Some(lic_token),
             error: String::new(),
-        }
-    }
-
-    fn ensure_nft_mint(
-        &self,
-        metadata_res: Result<ExtendedInventoryMetadata, PromiseError>,
-        asset_res: Result<JsonAssetToken, PromiseError>,
-        price_res: Result<Option<Asset>, PromiseError>,
-        token_id: TokenId,
-        license_id: Option<String>,
-        _set_id: Option<String>,
-        sku_id: Option<String>,
-        receiver_id: AccountId,
-        ) -> Result<(LicenseToken, Option<InventoryLicense>, AssetLicense, JsonAssetToken, AccountId), String> {
-
-        // 1. Check callback results first.
-        if metadata_res.is_err() || asset_res.is_err() || price_res.is_err() {
-            return if metadata_res.is_err() {
-                Err("Failed call inventory_metadata".to_string())
-            } else if asset_res.is_err() {
-                Err("Failed call asset_token".to_string())
-            } else {
-                Err("Failed call priceoracle.get_asset".to_string())
-            }
-        }
-
-        unsafe {
-            let asset = asset_res.unwrap_unchecked();
-            let inv_metadata = metadata_res.unwrap_unchecked();
-
-            let near_price_data = price_res.unwrap_unchecked().unwrap();
-            let near_price = near_price_data.reports.last().unwrap().price.clone();
-            env::log_str(&format!("NEAR price: {} USD", near_price.string_price()));
-
-            let asset_licenses = asset.licenses.clone().unwrap_or_default();
-            let asset_license_opt = asset_licenses.iter().find(
-                |x| x.sku_id.clone().unwrap() == sku_id.clone().unwrap()
-            );
-
-            if asset_license_opt.is_none() {
-                return Err(format!("Asset license not found by sku_id {}", sku_id.unwrap_or(String::new())))
-            }
-            let mut asset_license = (*asset_license_opt.unwrap()).clone();
-
-            let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
-            let inv_license = full_inventory.inventory_licenses.clone().into_iter().find(
-                |x| license_id.is_some() && x.license_id == license_id.clone().unwrap()
-            );
-
-            // if inv_license.is_none() {
-            //     return Err("Inventory license not found by id".to_string())
-            // }
-
-            // Re-calculate and re-assign a price
-            // let price_currency = asset_license.price.clone().unwrap();
-            let price_str = asset_license.get_near_cost(near_price.clone());
-            asset_license.price = Some(price_str.clone());
-
-            let deposit = env::attached_deposit();
-            let price = balance_from_string(price_str.clone());
-            if deposit < price {
-                return Err(format!(
-                    "Attached deposit of {} NEAR is less than license price of {} NEAR",
-                    format_balance(deposit),
-                    price_str,
-                ))
-            }
-
-            let mut lic_token = asset.issue_new_license(
-                inv_license.clone(), asset_license.clone(), token_id.clone()
-            );
-            lic_token.owner_id = receiver_id.clone();
-
-            let res = self.policies.clone_with_additional(
-                asset.policy_rules.clone().unwrap_or_default().clone()).check_new(
-                    full_inventory.clone(),
-                    lic_token.clone(),
-            );
-            if !res.result {
-                return Err(res.reason_not_available);
-            }
-
-            Ok((lic_token, inv_license.clone(), asset_license.clone(), asset, inv_metadata.owner_id.clone()))
         }
     }
 

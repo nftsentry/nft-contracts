@@ -3,14 +3,14 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{
-    env, near_bindgen, ext_contract, AccountId, Balance, CryptoHash, PanicOnDefault, Promise, PromiseOrValue,
-};
-use policy_rules::policy::{AllPolicies, init_policies};
+use near_sdk::{CryptoHash, PanicOnDefault, Promise, PromiseOrValue};
+use near_sdk::{env, near_bindgen, ext_contract, AccountId, Balance};
+pub use policy_rules::policy::{AllPolicies, init_policies, IsAvailableResponse, Limitation, Policy};
 pub use policy_rules::types::{NFTContractMetadata, Token, TokenLicense, TokenMetadata};
 pub use policy_rules::types::{LicenseToken, FilterOpt};
 pub use policy_rules::utils::*;
-use policy_rules::types::{ExtendedInventoryMetadata, InventoryContractMetadata, JsonAssetToken};
+pub use policy_rules::types::{InventoryLicense, JsonAssetToken, SKUAvailability};
+pub use policy_rules::types::{ExtendedInventoryMetadata, FullInventory, InventoryContractMetadata};
 
 use crate::internal::*;
 pub use crate::metadata::*;
@@ -55,6 +55,7 @@ pub struct Contract {
     //contract owner
     pub owner_id: AccountId,
     pub inventory_id: AccountId,
+    pub policy_contract: AccountId,
     pub benefit_config: Option<BenefitConfig>,
 
     //keeps track of all the token IDs for a given account
@@ -74,9 +75,6 @@ pub struct Contract {
 
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<NFTContractMetadata>,
-
-    pub policies: AllPolicies,
-    pub disable_events: bool,
 }
 
 #[ext_contract(inventory_contract)]
@@ -85,6 +83,24 @@ pub trait InventoryContract {
     fn on_nft_mint(&mut self, token_id: String, token_count: u64) -> Option<String>;
     fn asset_token(&self, token_id: String) -> Option<JsonAssetToken>;
     fn asset_tokens(&self, from_index: Option<U128>, limit: Option<u64>) -> Vec<JsonAssetToken>;
+}
+
+#[ext_contract(policy_rules_contract)]
+pub trait PolicyRulesContract {
+    fn check_transition(
+        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken, policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>
+    ) -> Result<IsAvailableResponse, String>;
+    fn check_new(
+        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse;
+    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse;
+    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse;
+    fn list_transitions(
+        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability>;
+    fn list_available(
+        &self, inventory: FullInventory, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability>;
 }
 
 /// Helper structure for keys of the persistent collections.
@@ -136,7 +152,6 @@ impl Contract {
     #[init]
     pub fn new(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata) -> Self {
         //create a variable of type Self with all the fields initialized.
-        let policies = init_policies();
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
@@ -157,8 +172,7 @@ impl Contract {
                 StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
             ),
-            disable_events: false,
-            policies,
+            policy_contract: AccountId::new_unchecked("policies.rocketscience.testnet".to_string()),
             benefit_config,
         };
 

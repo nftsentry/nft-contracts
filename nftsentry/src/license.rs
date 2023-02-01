@@ -185,18 +185,23 @@ impl Contract {
         let mut new_token: LicenseToken = asset.issue_new_license(new_license, new_asset_license, token_id.clone());
         new_token.owner_id = token.owner_id.clone();
 
-        let result = self.policies.clone_with_additional(
-            asset.policy_rules.clone().unwrap_or_default().clone()
-        ).check_transition(full_inventory, token, new_token.clone());
-        // Check result of transition attempt.
-        if result.is_err() {
-            env::panic_str(unsafe{result.unwrap_err_unchecked().as_str()})
-        } else {
-            let avail = result.unwrap();
-            if !avail.result {
-                env::panic_str(avail.reason_not_available.as_str())
-            }
-        }
+        // let promise_transition: Promise = policy_rules_contract::ext(self.policy_contract.clone())
+        //     .with_unused_gas_weight(3).check_transition(
+        //     full_inventory,
+        //     token,
+        //     new_token.clone(),
+        //     asset.policy_rules.clone(),
+        //     asset.upgrade_rules.clone(),
+        // );
+        // // Check result of transition attempt.
+        // if result.is_err() {
+        //     env::panic_str(unsafe{result.unwrap_err_unchecked().as_str()})
+        // } else {
+        //     let avail = result.unwrap();
+        //     if !avail.result {
+        //         env::panic_str(avail.reason_not_available.as_str())
+        //     }
+        // }
 
         Ok((new_token, must_attach))
     }

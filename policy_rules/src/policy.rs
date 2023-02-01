@@ -9,13 +9,21 @@ pub const LEVEL_INVENTORY: &str = "inventory";
 pub const LEVEL_LICENSES: &str = "licenses";
 
 pub trait ConfigInterface {
-    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: LicenseToken) -> Result<IsAvailableResponse, String>;
-    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> IsAvailableResponse;
+    fn check_transition(
+        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken, policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>
+    ) -> Result<IsAvailableResponse, String>;
+    fn check_new(
+        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse;
     fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse;
     fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse;
-    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<SKUAvailability>;
-    fn list_available(&self, inventory: FullInventory) -> Vec<SKUAvailability>;
-    fn clone_with_additional(&self, l: Vec<Limitation>) -> AllPolicies;
+    fn list_transitions(
+        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability>;
+    fn list_available(
+        &self, inventory: FullInventory, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability>;
+    // fn clone_with_additional(&self, l: Vec<Limitation>) -> AllPolicies;
 }
 
 pub fn init_policies() -> AllPolicies {
@@ -249,9 +257,13 @@ impl Limitation {
 }
 
 impl ConfigInterface for AllPolicies {
-    fn check_transition(&self, inventory: FullInventory, old: LicenseToken, new: LicenseToken) -> Result<IsAvailableResponse, String> {
+    fn check_transition(
+        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken,
+        policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> Result<IsAvailableResponse, String> {
         // Take into account asset licenses with sets
         // and old/new license_token set_id, compare them etc.
+        let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
         unsafe {
             // let old_asset_license = inventory.asset.clone().unwrap_or_default().licenses.unwrap_or_default()
             //     .iter().find(|x| x.license_id == old.license_id());
@@ -274,8 +286,8 @@ impl ConfigInterface for AllPolicies {
                 return Ok(IsAvailableResponse { result: false, reason_not_available: msg, additional_info: None });
             }
 
-            let policy_old = self.find_policy(&old.clone())?;
-            let policy_new = self.find_policy(&new.clone())?;
+            let policy_old = cloned.find_policy(&old.clone())?;
+            let policy_new = cloned.find_policy(&new.clone())?;
             let exists = policy_old.has_upgrade_to(policy_new.name.as_ref().unwrap_unchecked().clone());
             if !exists {
                 let msg = "No upgrade path to ".to_string() + &policy_new.name.as_ref().unwrap_unchecked().clone();
@@ -283,10 +295,10 @@ impl ConfigInterface for AllPolicies {
             } else {
                 // Check restrictions
                 // compute future state
-                let future_state = self.get_future_state_with_transition(inventory, old, new);
+                let future_state = cloned.get_future_state_with_transition(inventory, old, new);
 
                 let ctx = Context{full: future_state.clone()};
-                let res = self.check_future_state(
+                let res = cloned.check_future_state(
                     future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
                     FutureStateOpt { level: LEVEL_LICENSES.to_string(), ctx },
                 );
@@ -295,12 +307,15 @@ impl ConfigInterface for AllPolicies {
         }
     }
 
-    fn check_new(&self, inventory: FullInventory, new: LicenseToken) -> IsAvailableResponse {
+    fn check_new(
+        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse {
         // For asset_mint, nft_mint, update_licenses and
         // update inventory licenses (metadata).
-        let future_state = self.get_future_state_with_new(inventory.clone(), new.clone());
+        let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
+        let future_state = cloned.get_future_state_with_new(inventory.clone(), new.clone());
         let ctx = Context{full: future_state.clone()};
-        self.check_future_state(
+        cloned.check_future_state(
             future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
             FutureStateOpt { level: LEVEL_LICENSES.to_string(), ctx },
         )
@@ -322,7 +337,10 @@ impl ConfigInterface for AllPolicies {
         )
     }
 
-    fn list_transitions(&self, inventory: FullInventory, from: LicenseToken) -> Vec<SKUAvailability> {
+    fn list_transitions(
+        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability> {
+        let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
         let mut result: Vec<SKUAvailability> = Vec::new();
         for license in &inventory.inventory_licenses {
             let mut lic_token = license.as_license_token("token".to_string());
@@ -335,8 +353,8 @@ impl ConfigInterface for AllPolicies {
                 }
             }
 
-            let check_transition_res = self.check_transition(
-                inventory.clone(), from.clone(), lic_token
+            let check_transition_res = cloned.check_transition(
+                inventory.clone(), from.clone(), lic_token, None, None,
             );
 
             unsafe {
@@ -357,7 +375,10 @@ impl ConfigInterface for AllPolicies {
         result
     }
 
-    fn list_available(&self, inventory: FullInventory) -> Vec<SKUAvailability> {
+    fn list_available(
+        &self, inventory: FullInventory, policy_rules: Option<Vec<Limitation>>,
+        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability> {
+        let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
         // Make issued map by sku ID
         let mut issued_map: HashMap<String, i32> = HashMap::new();
         for lic in &inventory.issued_licenses {
@@ -380,7 +401,7 @@ impl ConfigInterface for AllPolicies {
                 inv_license = inventory_licenses.get(&asset_license.license_id.clone().unwrap_or_default()).cloned();
             }
             let token = inventory.asset.as_ref().unwrap().issue_new_license(inv_license, asset_license.clone(), "0".to_string());
-            let mut res = self.check_new(inventory.clone(), token);
+            let mut res = cloned.check_new(inventory.clone(), token, None, None);
 
             if res.additional_info.is_some() {
                 unsafe {
@@ -402,11 +423,6 @@ impl ConfigInterface for AllPolicies {
         available
     }
 
-    fn clone_with_additional(&self, mut l: Vec<Limitation>) -> Self {
-        let mut policies = self.clone();
-        policies.limitations.append(&mut l);
-        return policies;
-    }
 }
 
 impl AllPolicies {
@@ -425,6 +441,30 @@ impl AllPolicies {
                 Err("License policy not found for ".to_string() + &from.license_title())
             }
         }
+    }
+
+    pub fn clone_with_additional(&self, mut l: Vec<Limitation>) -> Self {
+        let mut policies = self.clone();
+        policies.limitations.append(&mut l);
+        return policies;
+    }
+    pub fn clone_with_policies(&self, p: Vec<Policy>) -> Self {
+        let mut policies = self.clone();
+        for policy in p {
+            policies.policies.insert(policy.name.clone().unwrap(), policy.clone());
+        }
+        return policies;
+    }
+
+    pub fn clone_with_optional(&self, l: Option<Vec<Limitation>>, p: Option<Vec<Policy>>) -> Self {
+        let mut cloned = self.clone();
+        if l.is_some() {
+            cloned = cloned.clone_with_additional(l.unwrap());
+        }
+        if p.is_some() {
+            cloned = cloned.clone_with_policies(p.unwrap());
+        }
+        cloned
     }
 
     // fn find_policy_set_id(&self, from: &dyn LicenseGeneral, opt: PolicyOpt) -> Result<Policy, String> {
