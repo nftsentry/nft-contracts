@@ -1,4 +1,4 @@
-use policy_rules::utils::assert_one_yocto;
+use common_types::utils::assert_one_yocto;
 use crate::*;
 
 #[near_bindgen]

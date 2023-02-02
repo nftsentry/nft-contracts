@@ -1,20 +1,20 @@
+use near_sdk::{AccountId, CryptoHash, env, ext_contract, Gas, near_bindgen, PanicOnDefault, Promise};
 // use std::collections::HashMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::serde::{Serialize, Deserialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base64VecU8, U128};
-use near_sdk::{env, near_bindgen, ext_contract, AccountId, CryptoHash, PanicOnDefault, Gas, Promise};
+use near_sdk::serde::{Deserialize, Serialize};
 
-pub use crate::metadata::*;
+use common_types::policy::IsAvailableResponseData;
+pub use common_types::types::{AssetToken, TokenMetadata};
+pub use common_types::types::{AssetLicense, FilterOpt, SKUAvailability};
+pub use common_types::types::{InventoryContractMetadata, InventoryLicense};
+pub use common_types::types::{JsonAssetToken, LicenseToken, TokenId};
+use common_types::utils::refund_storage;
+
 pub use crate::events::*;
+pub use crate::metadata::*;
 pub use crate::mint::*;
-pub use policy_rules::*;
-pub use policy_rules::types::{TokenMetadata, AssetToken};
-pub use policy_rules::types::{AssetLicense, SKUAvailability, FilterOpt};
-pub use policy_rules::types::{InventoryContractMetadata, InventoryLicense};
-pub use policy_rules::types::{LicenseToken, TokenId, JsonAssetToken};
-use policy_rules::policy::{AllPolicies, ConfigInterface, init_policies};
-use policy_rules::utils::{refund_storage};
 
 mod enumeration;
 mod internal;
@@ -35,6 +35,7 @@ pub const NFT_STANDARD_NAME: &str = "nep171";
 pub struct InventoryContract {
     //contract owner
     pub owner_id: AccountId,
+    pub policy_contract: AccountId,
 
     //keeps track of all the token IDs for a given account
     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<String>>,
@@ -50,9 +51,6 @@ pub struct InventoryContract {
 
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<InventoryContractMetadata>,
-
-    pub policies: AllPolicies,
-    pub disable_events: bool,
 }
 
 /// Helper structure for keys of the persistent collections.
@@ -77,6 +75,11 @@ pub trait LicenseContract {
     fn nft_token(&self, token_id: TokenId) -> Option<LicenseToken>;
 }
 
+#[ext_contract(policy_rules_contract)]
+pub trait PolicyRulesContract {
+    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponseData;
+}
+
 #[near_bindgen]
 impl InventoryContract {
     /*
@@ -85,10 +88,11 @@ impl InventoryContract {
         user doesn't have to manually type metadata.
     */
     #[init]
-    pub fn new_default_meta(owner_id: AccountId) -> Self {
+    pub fn new_default_meta(owner_id: AccountId, policy_contract: AccountId) -> Self {
         //calls the other function "new: with some default metadata and the owner_id passed in 
         Self::new(
             owner_id,
+            policy_contract,
             InventoryContractMetadata {
                 spec: "inventory-1.0.0".to_string(),
                 name: "NFTSentry InventoryContract 0.0.2".to_string(),
@@ -108,30 +112,41 @@ impl InventoryContract {
         the owner_id. 
     */
     #[init]
-    pub fn new(owner_id: AccountId, metadata: InventoryContractMetadata) -> Self {
+    pub fn new(owner_id: AccountId, policy_contract: AccountId, metadata: InventoryContractMetadata) -> Self {
         //create a variable of type Self with all the fields initialized.
-        let policies = init_policies();
-        let res = policies.check_inventory_state(metadata.licenses.clone());
-        if !res.result {
-            env::panic_str(res.reason_not_available.as_str())
-        }
+        // let res = policies.check_inventory_state(metadata.licenses.clone());
+        // if !res.result {
+        //     env::panic_str(res.reason_not_available.as_str())
+        // }
+        // let check_state = policy_rules_contract::ext(policy_contract.clone())
+        //     .with_unused_gas_weight(3).check_inventory_state(
+        //     metadata.licenses.clone(),
+        // );
+        // let on_check_promise = check_state.then(
+        //     Self::ext(env::current_account_id())
+        //         .with_attached_deposit(env::attached_deposit())
+        //         .with_unused_gas_weight(27)
+        //         .on_new(
+        //             owner_id,
+        //             policy_contract.clone(),
+        //             metadata,
+        //             env::predecessor_account_id(),
+        //         )
+        // );
+        // on_check_promise
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::AssetPerOwner.try_to_vec().unwrap()),
-
             tokens_by_id: LookupMap::new(StorageKey::AssetById.try_to_vec().unwrap()),
-            
             token_metadata_by_id: UnorderedMap::new(StorageKey::AssetMetadataById.try_to_vec().unwrap()),
             token_licenses_by_id: UnorderedMap::new(StorageKey::AssetLicensesById.try_to_vec().unwrap()),
-            
-            //set the owner_id field equal to the passed in owner_id. 
+            //set the owner_id field equal to the passed in owner_id.
             owner_id,
             metadata: LazyOption::new(
                 StorageKey::InventoryContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
             ),
-            disable_events: false,
-            policies,
+            policy_contract: policy_contract.clone(),
         };
 
         //return the Contract object
@@ -140,10 +155,12 @@ impl InventoryContract {
 
     #[init]
     #[payable]
-    pub fn restore(owner_id: AccountId, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Self {
+    pub fn restore(
+        owner_id: AccountId, policy_contract: AccountId,
+        metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) -> Self {
         // let initial_storage_usage = env::storage_usage();
         // Restore metadata
-        let mut this = Self::new(owner_id, metadata.clone());
+        let mut this = Self::new(owner_id, policy_contract.clone(), metadata.clone());
 
         let logs = this._restore_data(metadata, tokens);
 

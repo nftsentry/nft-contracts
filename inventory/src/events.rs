@@ -131,8 +131,6 @@ mod tests {
 #[near_bindgen]
 impl InventoryContract {
     pub(crate) fn log_event(&self, msg: &str) {
-        if !self.disable_events {
-            env::log_str(msg);
-        }
+        env::log_str(msg);
     }
 }

@@ -78,3 +78,7 @@ pub fn get_inventory_id(minter_id: String) -> String {
     let splitted: Vec<&str> = minter_id.split("_").collect();
     splitted[1..].join("_")
 }
+
+pub fn is_mainnet() -> bool {
+    env::current_account_id().to_string().ends_with("near")
+}

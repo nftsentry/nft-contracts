@@ -94,14 +94,6 @@ pub trait PolicyRulesContract {
     fn check_new(
         &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<LimitationData>>,
         upgrade_rules: Option<Vec<PolicyData>>) -> IsAvailableResponseData;
-    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponseData;
-    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponseData;
-    fn list_transitions(
-        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<LimitationData>>,
-        upgrade_rules: Option<Vec<PolicyData>>) -> Vec<SKUAvailability>;
-    fn list_available(
-        &self, inventory: FullInventory, policy_rules: Option<Vec<LimitationData>>,
-        upgrade_rules: Option<Vec<PolicyData>>) -> Vec<SKUAvailability>;
 }
 
 /// Helper structure for keys of the persistent collections.

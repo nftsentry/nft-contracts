@@ -1,4 +1,4 @@
-use policy_rules::policy::{Limitation, Policy};
+use common_types::policy::{LimitationData, PolicyData};
 use crate::*;
 
 #[near_bindgen]
@@ -11,8 +11,8 @@ impl InventoryContract {
         receiver_id: AccountId,
         minter_id: AccountId,
         licenses: Option<Vec<AssetLicense>>,
-        policy_rules: Option<Vec<Limitation>>,
-        upgrade_rules: Option<Vec<Policy>>,
+        policy_rules: Option<Vec<LimitationData>>,
+        upgrade_rules: Option<Vec<PolicyData>>,
     ) -> JsonAssetToken {
         let initial_storage_usage = env::storage_usage();
 
@@ -51,8 +51,8 @@ impl InventoryContract {
         receiver_id: AccountId,
         minter_id: AccountId,
         licenses: Option<Vec<AssetLicense>>,
-        policy_rules: Option<Vec<Limitation>>,
-        upgrade_rules: Option<Vec<Policy>>,
+        policy_rules: Option<Vec<LimitationData>>,
+        upgrade_rules: Option<Vec<PolicyData>>,
     ) -> EventLog {
         self.ensure_owner();
 
@@ -107,8 +107,8 @@ impl InventoryContract {
         token_id: String,
         metadata: TokenMetadata,
         licenses: Option<Vec<AssetLicense>>,
-        policy_rules: Option<Vec<Limitation>>,
-        upgrade_rules: Option<Vec<Policy>>,
+        policy_rules: Option<Vec<LimitationData>>,
+        upgrade_rules: Option<Vec<PolicyData>>,
     ) {
         let old_token = unsafe{self.tokens_by_id.get(&token_id).unwrap_unchecked()};
         let token = AssetToken {

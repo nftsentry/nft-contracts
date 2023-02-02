@@ -1,6 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, ext_contract, Timestamp, AccountId, Promise};
+use near_sdk::{ext_contract, Timestamp, AccountId, Promise};
+use crate::utils::is_mainnet;
 
 pub type DurationSec = u32;
 pub type AssetId = String;
@@ -79,7 +80,7 @@ pub trait PriceOracleContract {
 }
 
 pub fn oracle_account() -> AccountId {
-    return if env::current_account_id().to_string().ends_with("near") {
+    return if is_mainnet() {
         AccountId::new_unchecked("priceoracle.near".to_owned())
     } else {
         AccountId::new_unchecked("priceoracle.testnet".to_owned())
@@ -87,7 +88,7 @@ pub fn oracle_account() -> AccountId {
 }
 
 pub fn wrap_account() -> String {
-    return if env::current_account_id().to_string().ends_with("near") {
+    return if is_mainnet() {
         "wrap.near".to_owned()
     } else {
         "wrap.testnet".to_owned()
