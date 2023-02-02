@@ -1,6 +1,7 @@
 use std::fmt;
 
 use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::serde_json;
 use crate::*;
 
 /// Enum that represents the data type of the EventLog.

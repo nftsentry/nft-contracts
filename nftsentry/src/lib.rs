@@ -5,12 +5,12 @@ use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{CryptoHash, PanicOnDefault, Promise, PromiseOrValue};
 use near_sdk::{env, near_bindgen, ext_contract, AccountId, Balance};
-pub use policy_rules::policy::{AllPolicies, init_policies, IsAvailableResponse, Limitation, Policy};
-pub use policy_rules::types::{NFTContractMetadata, Token, TokenLicense, TokenMetadata};
-pub use policy_rules::types::{LicenseToken, FilterOpt};
-pub use policy_rules::utils::*;
-pub use policy_rules::types::{InventoryLicense, JsonAssetToken, SKUAvailability};
-pub use policy_rules::types::{ExtendedInventoryMetadata, FullInventory, InventoryContractMetadata};
+pub use common_types::policy::{AllPolicies, IsAvailableResponseData, LimitationData, PolicyData};
+pub use common_types::types::{NFTContractMetadata, Token, TokenLicense, TokenMetadata};
+pub use common_types::types::{LicenseToken, FilterOpt};
+pub use common_types::utils::*;
+pub use common_types::types::{InventoryLicense, JsonAssetToken, SKUAvailability};
+pub use common_types::types::{ExtendedInventoryMetadata, FullInventory, InventoryContractMetadata};
 
 use crate::internal::*;
 pub use crate::metadata::*;
@@ -88,19 +88,20 @@ pub trait InventoryContract {
 #[ext_contract(policy_rules_contract)]
 pub trait PolicyRulesContract {
     fn check_transition(
-        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken, policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>
-    ) -> Result<IsAvailableResponse, String>;
+        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken,
+        policy_rules: Option<Vec<LimitationData>>, upgrade_rules: Option<Vec<PolicyData>>
+    ) -> Result<IsAvailableResponseData, String>;
     fn check_new(
-        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<Limitation>>,
-        upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse;
-    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse;
-    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse;
+        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<LimitationData>>,
+        upgrade_rules: Option<Vec<PolicyData>>) -> IsAvailableResponseData;
+    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponseData;
+    fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponseData;
     fn list_transitions(
-        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<Limitation>>,
-        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability>;
+        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<LimitationData>>,
+        upgrade_rules: Option<Vec<PolicyData>>) -> Vec<SKUAvailability>;
     fn list_available(
-        &self, inventory: FullInventory, policy_rules: Option<Vec<Limitation>>,
-        upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability>;
+        &self, inventory: FullInventory, policy_rules: Option<Vec<LimitationData>>,
+        upgrade_rules: Option<Vec<PolicyData>>) -> Vec<SKUAvailability>;
 }
 
 /// Helper structure for keys of the persistent collections.

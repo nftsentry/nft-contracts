@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-
+use near_sdk::serde_json;
 use minijinja::value::Value;
 
 use crate::*;
-use crate::types::*;
+use common_types::types::*;
+use crate::types::SKUAvailability;
 
 pub const LEVEL_INVENTORY: &str = "inventory";
 pub const LEVEL_LICENSES: &str = "licenses";

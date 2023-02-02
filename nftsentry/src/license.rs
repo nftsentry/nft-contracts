@@ -1,10 +1,10 @@
 use crate::*;
 
 use near_sdk::{log, Gas, PromiseError};
-use policy_rules::policy::ConfigInterface;
-use policy_rules::prices::{Asset, get_near_price};
-use policy_rules::types::{FullInventory, LicenseGeneral, NFTUpdateLicenseResult};
-use policy_rules::utils::{balance_from_string, format_balance};
+use near_sdk::serde_json;
+use common_types::prices::{Asset, get_near_price};
+use common_types::types::{FullInventory, LicenseGeneral, NFTUpdateLicenseResult};
+use common_types::utils::{balance_from_string, format_balance};
 
 // const GAS_FOR_LICENSE_APPROVE: Gas = Gas(10_000_000_000_000);
 // const NO_DEPOSIT: Balance = 0;
@@ -62,74 +62,24 @@ impl Contract {
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         #[callback_result] price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
-        inventory_id: AccountId,
+        _inventory_id: AccountId,
         predecessor_id: AccountId,
         new_sku_id: String,
-    ) -> NFTUpdateLicenseResult {
-
-        let initial_storage_usage = env::storage_usage();
+    ) -> PromiseOrValue<NFTUpdateLicenseResult> {
         let result = self.ensure_update_license(
-            metadata_res, asset_res, price_res, token_id.clone(), new_sku_id
+            metadata_res, asset_res, price_res,
+            token_id.clone(), new_sku_id, predecessor_id.clone(),
         );
         if result.is_err() {
             let _ = refund_deposit(0, Some(predecessor_id), None);
             unsafe {
                 let msg = result.unwrap_err_unchecked();
                 env::log_str( &format!("Error: {}", msg));
-                return NFTUpdateLicenseResult{error: msg}
-            }
-        }
-        let (license, price_diff) = unsafe{result.unwrap_unchecked()};
-        //measure the initial storage being used on the contract
-        let token = unsafe{self.nft_token(token_id.clone()).unwrap_unchecked()};
-        let old_license = token.license.unwrap();
-
-        self.internal_replace_license(&predecessor_id, &token_id, license.license);
-
-        // Construct the mint log as per the events standard.
-        let nft_update_license_log: EventLog = EventLog {
-            // Standard name ("nep171").
-            standard: NFT_LICENSE_STANDARD_NAME.to_string(),
-            // Version of the standard ("nft-1.0.0").
-            version: NFT_LICENSE_SPEC.to_string(),
-            // The data related with the event stored in a vector.
-            event: EventLogVariant::NftUpdateLicense(vec![NftUpdateLicenseLog {
-                owner_id: token.owner_id.to_string(),
-                // Owner of the token.
-                token_ids: vec![token_id.to_string()],
-                // An optional memo to include.
-                memo: None,
-            }]),
-        };
-
-        //calculate the required storage which was the used - initial
-        let storage_usage = env::storage_usage();
-        if storage_usage > initial_storage_usage {
-            let result = refund_deposit(
-                storage_usage - initial_storage_usage,
-                Some(predecessor_id.clone()),
-                Some(price_diff)
-            );
-            if result.is_err() {
-                // Refund failed due to storage costs.
-                // Rollback all changes!
-                self.internal_replace_license(&token.owner_id, &token.token_id, Some(old_license));
-                // Refund any deposit
-                let _ = refund_deposit(0, Some(predecessor_id), None);
-
-                let msg = result.unwrap_err();
-                env::log_str( &format!("Error: {}", msg));
-                return NFTUpdateLicenseResult{error: msg}
+                return PromiseOrValue::Value(NFTUpdateLicenseResult{error: msg})
             }
         }
 
-        self.process_fees(price_diff, inventory_id);
-
-        // Log the serialized json.
-        self.log_event(&nft_update_license_log.to_string());
-
-        return NFTUpdateLicenseResult{error: String::new()}
-
+        PromiseOrValue::Promise(result.unwrap())
     }
 
     fn ensure_update_license(
@@ -139,7 +89,8 @@ impl Contract {
         price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
         new_sku_id: String,
-    ) -> Result<(LicenseToken, Balance), String> {
+        predecessor_id: AccountId,
+    ) -> Result<Promise, String> {
         // 1. Check callback results first.
         if metadata_res.is_err() || asset_res.is_err() {
             return if metadata_res.is_err() {
@@ -185,25 +136,109 @@ impl Contract {
         let mut new_token: LicenseToken = asset.issue_new_license(new_license, new_asset_license, token_id.clone());
         new_token.owner_id = token.owner_id.clone();
 
-        // let promise_transition: Promise = policy_rules_contract::ext(self.policy_contract.clone())
-        //     .with_unused_gas_weight(3).check_transition(
-        //     full_inventory,
-        //     token,
-        //     new_token.clone(),
-        //     asset.policy_rules.clone(),
-        //     asset.upgrade_rules.clone(),
-        // );
-        // // Check result of transition attempt.
-        // if result.is_err() {
-        //     env::panic_str(unsafe{result.unwrap_err_unchecked().as_str()})
-        // } else {
-        //     let avail = result.unwrap();
-        //     if !avail.result {
-        //         env::panic_str(avail.reason_not_available.as_str())
-        //     }
-        // }
+        let promise_transition: Promise = policy_rules_contract::ext(self.policy_contract.clone())
+            .with_unused_gas_weight(3).check_transition(
+            full_inventory,
+            token,
+            new_token.clone(),
+            asset.policy_rules.clone(),
+            asset.upgrade_rules.clone(),
+        );
+        let on_transition = promise_transition.then(
+            Self::ext(env::current_account_id())
+                .with_attached_deposit(env::attached_deposit())
+                .with_unused_gas_weight(27)
+                .on_check_transition_receiver(
+                    new_token.clone(),
+                    must_attach.clone(),
+                    predecessor_id.clone(),
+                )
+        );
 
-        Ok((new_token, must_attach))
+        Ok(on_transition)
+    }
+
+    #[private]
+    #[payable]
+    pub fn on_check_transition_receiver(
+        &mut self,
+        #[callback_result] check_transition_res: Result<Result<IsAvailableResponseData, String>, PromiseError>,
+        lic_token: LicenseToken,
+        price_diff: Balance,
+        predecessor_id: AccountId,
+    ) -> NFTUpdateLicenseResult {
+        let initial_storage_usage = env::storage_usage();
+        // // Check result of transition attempt.
+        if check_transition_res.is_err() {
+            let _ = refund_deposit(0, Some(predecessor_id.clone()), None);
+            return NFTUpdateLicenseResult{
+                error: "Failed call check_transition()".to_string(),
+            }
+        } else {
+            let result = check_transition_res.unwrap();
+            if result.is_err() {
+                let _ = refund_deposit(0, Some(predecessor_id.clone()), None);
+                let msg = result.err().unwrap();
+                return NFTUpdateLicenseResult{ error: msg}
+            } else {
+                let avail = result.unwrap();
+                if !avail.result {
+                    let _ = refund_deposit(0, Some(predecessor_id.clone()), None);
+                    return NFTUpdateLicenseResult{ error: avail.reason_not_available}
+                }
+            }
+        }
+
+        //measure the initial storage being used on the contract
+        let inventory_id = lic_token.metadata.from.as_ref().unwrap().inventory_id.clone();
+        let token = unsafe{self.nft_token(lic_token.token_id.clone()).unwrap_unchecked()};
+        let old_license = token.license.unwrap();
+
+        self.internal_replace_license(&predecessor_id, &lic_token.token_id, lic_token.license);
+
+        // Construct the mint log as per the events standard.
+        let nft_update_license_log: EventLog = EventLog {
+            // Standard name ("nep171").
+            standard: NFT_LICENSE_STANDARD_NAME.to_string(),
+            // Version of the standard ("nft-1.0.0").
+            version: NFT_LICENSE_SPEC.to_string(),
+            // The data related with the event stored in a vector.
+            event: EventLogVariant::NftUpdateLicense(vec![NftUpdateLicenseLog {
+                owner_id: token.owner_id.to_string(),
+                // Owner of the token.
+                token_ids: vec![lic_token.token_id.clone()],
+                // An optional memo to include.
+                memo: None,
+            }]),
+        };
+
+        //calculate the required storage which was the used - initial
+        let storage_usage = env::storage_usage();
+        if storage_usage > initial_storage_usage {
+            let result = refund_deposit(
+                storage_usage - initial_storage_usage,
+                Some(predecessor_id.clone()),
+                Some(price_diff)
+            );
+            if result.is_err() {
+                // Refund failed due to storage costs.
+                // Rollback all changes!
+                self.internal_replace_license(&token.owner_id, &token.token_id, Some(old_license));
+                // Refund any deposit
+                let _ = refund_deposit(0, Some(predecessor_id), None);
+
+                let msg = result.unwrap_err();
+                env::log_str( &format!("Error: {}", msg));
+                return NFTUpdateLicenseResult{error: msg}
+            }
+        }
+
+        self.process_fees(price_diff, AccountId::new_unchecked(inventory_id));
+
+        // Log the serialized json.
+        self.log_event(&nft_update_license_log.to_string());
+
+        return NFTUpdateLicenseResult{error: String::new()}
     }
 
     pub fn get_full_inventory(&self, asset: JsonAssetToken, metadata: InventoryContractMetadata) -> FullInventory {

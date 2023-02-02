@@ -1,12 +1,12 @@
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use near_sdk::AccountId;
-    use serde_json::json_expect_expr_comma;
+    use near_sdk::serde_json;
     use crate::policy::{init_policies, Limitation, MaxCount};
     use crate::policy::{ConfigInterface, LEVEL_LICENSES};
-    use crate::prices::Price;
-    use crate::utils::{balance_from_string, format_balance, get_inventory_id};
-    use crate::types::{AssetLicense, FullInventory, InventoryLicense, JsonAssetToken, LicenseData, ObjectData, ObjectItem, TokenMetadata};
+    use common_types::prices::Price;
+    use common_types::utils::{balance_from_string, format_balance, get_inventory_id};
+    use common_types::types::{AssetLicense, FullInventory, InventoryLicense, JsonAssetToken, LicenseData, ObjectData, ObjectItem, TokenMetadata};
 
     #[test]
     fn test_init_policies() {
@@ -143,7 +143,7 @@ mod tests {
         };
 
         let res = policies.check_transition(
-            inventory, old_token, new_lic_token
+            inventory, old_token, new_lic_token, None, None
         );
         // assert_eq!(res.clone().err(), None);
         // let avail = res.unwrap();
@@ -226,7 +226,7 @@ mod tests {
         };
 
         let available = policies.list_transitions(
-            inventory, personal_exclusive_token
+            inventory, personal_exclusive_token, None, None
         );
         let count = available.iter().filter(|x| x.available).count();
         assert_eq!(available.len(), 3);
@@ -288,25 +288,25 @@ mod tests {
             asset: Some(asset_token.clone()),
         };
 
-        let mut res = policies.check_new(inventory.clone(), exclusive_same);
+        let mut res = policies.check_new(inventory.clone(), exclusive_same, None, None);
         assert_eq!(res.result, false);
         assert_eq!(res.reason_not_available.contains("Count of exclusive cannot be greater than 1"), true);
 
-        res = policies.check_new(inventory.clone(), exclusive_same_object);
+        res = policies.check_new(inventory.clone(), exclusive_same_object, None, None);
         assert_eq!(res.result, false);
         assert_eq!(res.reason_not_available.contains("Count of exclusive for object object2 cannot be greater than 1"), true);
 
-        res = policies.check_new(inventory.clone(), exclusive_different_object);
+        res = policies.check_new(inventory.clone(), exclusive_different_object, None, None);
         assert_eq!(res.result, true);
 
-        res = policies.check_new(inventory.clone(), personal_same_object);
+        res = policies.check_new(inventory.clone(), personal_same_object, None, None);
         assert_eq!(res.result, false);
         assert_eq!(res.reason_not_available.contains("Count of exclusive for object object2 cannot be greater than 1"), true);
 
-        res = policies.check_new(inventory.clone(), personal_different_object);
+        res = policies.check_new(inventory.clone(), personal_different_object, None, None);
         assert_eq!(res.result, true);
 
-        let available = policies.list_available(inventory.clone());
+        let available = policies.list_available(inventory.clone(), None, None);
 
         assert_eq!(5, available.len());
         assert_eq!(false, available[0].available);
@@ -419,7 +419,7 @@ mod tests {
         }];
 
         let res = policies.clone_with_additional(new_limits.clone()).check_new(
-            inventory, personal_token.clone()
+            inventory, personal_token.clone(), None, None
         );
         assert_eq!(res.result, false);
         assert_eq!(res.reason_not_available.contains("Cannot set more 3count: max count 3"), true);
@@ -431,16 +431,16 @@ mod tests {
             asset: Some(asset_token.clone()),
         };
 
-        let res = policies.clone_with_additional(new_limits.clone()).check_new(
-            inventory2.clone(), personal_token.clone()
+        let res = policies.check_new(
+            inventory2.clone(), personal_token.clone(), Some(new_limits.clone()), None
         );
         assert_eq!(res.result, true);
         let add_info = res.additional_info.unwrap();
         let limit_info = add_info.get("3count").expect("3count must be filled");
         assert_eq!(limit_info.remains == 0, true);
 
-        let res = policies.clone_with_additional(new_limits.clone()).list_available(
-            inventory2
+        let res = policies.list_available(
+            inventory2, Some(new_limits.clone()), None,
         );
         let count3pers = res[0].additional_info.as_ref().unwrap().get("3count").unwrap();
         let count3comm = res[1].additional_info.as_ref().unwrap().get("3count").unwrap();
@@ -533,7 +533,7 @@ mod tests {
 
     #[test]
     fn test_migrate_to_sku() {
-        let mut json_asset = JsonAssetToken{
+        let json_asset = JsonAssetToken{
             metadata: TokenMetadata{
                 title: None,
                 description: None,
@@ -594,8 +594,6 @@ mod tests {
             policy_rules: None,
             upgrade_rules: None,
         };
-
-        json_asset.migrate_to_sets();
 
         assert_eq!(json_asset.licenses.clone().unwrap()[0].sku_id.clone().unwrap(), "sku1");
         assert_eq!(json_asset.licenses.clone().unwrap()[0].objects.clone().unwrap().len(), 1);

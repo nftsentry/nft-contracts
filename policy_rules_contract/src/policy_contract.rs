@@ -1,7 +1,8 @@
 use near_sdk::{near_bindgen};
 use crate::*;
 use policy_rules::policy::{ConfigInterface, IsAvailableResponse, Limitation, Policy};
-use policy_rules::types::{FullInventory, InventoryLicense, SKUAvailability, LicenseToken};
+use common_types::types::{FullInventory, InventoryLicense, LicenseToken};
+use policy_rules::types::{SKUAvailability};
 
 #[near_bindgen]
 impl ConfigInterface for Contract {

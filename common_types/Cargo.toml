@@ -1,5 +1,5 @@
 [package]
-name = "policy_rules_types"
+name = "common_types"
 version = "0.1.0"
 edition = "2021"
 authors = ["NFTSentry Inc <info@nftsentry.co>"]
@@ -11,7 +11,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 near-sdk = "4.0.0"
-serde_json = "1.0.81"
 
 [profile.release]
 codegen-units = 1

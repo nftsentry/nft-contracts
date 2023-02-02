@@ -1,6 +1,7 @@
 use near_sdk::env;
+use near_sdk::serde_json;
 use crate::*;
-use crate::policy::{Limitation, LimitsInfo, Policy};
+use crate::policy::{LimitationData, LimitsInfoData, PolicyData};
 use crate::prices::Price;
 use crate::utils::{get_inventory_id};
 
@@ -575,8 +576,8 @@ pub struct AssetToken {
     //minter of the token
     pub minter_id: AccountId,
     pub license_token_count: u64,
-    pub policy_rules: Option<Vec<Limitation>>,
-    pub upgrade_rules: Option<Vec<Policy>>,
+    pub policy_rules: Option<Vec<LimitationData>>,
+    pub upgrade_rules: Option<Vec<PolicyData>>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -593,8 +594,8 @@ pub struct JsonAssetToken {
     pub metadata: TokenMetadata,
     // license metadata
     pub licenses: Option<Vec<AssetLicense>>,
-    pub policy_rules: Option<Vec<Limitation>>,
-    pub upgrade_rules: Option<Vec<Policy>>,
+    pub policy_rules: Option<Vec<LimitationData>>,
+    pub upgrade_rules: Option<Vec<PolicyData>>,
     // pub available_licenses: Option<Vec<InventoryLicenseAvailability>>
 }
 
@@ -702,7 +703,7 @@ pub struct SKUAvailability {
     pub available:            bool,
     pub upgrade_price: Option<String>,
     pub reason_not_available: Option<String>,
-    pub additional_info: Option<HashMap<String, LimitsInfo>>,
+    pub additional_info: Option<HashMap<String, LimitsInfoData>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

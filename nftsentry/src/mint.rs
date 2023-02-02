@@ -1,7 +1,7 @@
 use near_sdk::{Gas, PromiseError};
-use policy_rules::prices::{Asset, get_near_price};
-use policy_rules::types::{AssetLicense, InventoryLicense, NFTMintResult};
-use policy_rules::utils::{balance_from_string, format_balance};
+use common_types::prices::{Asset, get_near_price};
+use common_types::types::{AssetLicense, InventoryLicense, NFTMintResult};
+use common_types::utils::{balance_from_string, format_balance};
 use crate::*;
 
 #[near_bindgen]
@@ -180,7 +180,7 @@ impl Contract {
     #[payable]
     pub fn on_check_new_receiver(
         &mut self,
-        #[callback_result] check_new_res: Result<IsAvailableResponse, PromiseError>,
+        #[callback_result] check_new_res: Result<IsAvailableResponseData, PromiseError>,
         lic_token: LicenseToken,
         _inv_license: Option<InventoryLicense>,
         asset_license: AssetLicense,
