@@ -295,7 +295,12 @@ impl LicenseGeneral for LicenseToken {
             if lic.metadata.personal_use.clone().is_some() {
                 return lic.metadata.personal_use.clone().unwrap()
             }
-            !lic.metadata.commercial_use.clone().unwrap()
+            if lic.metadata.commercial_use.clone().is_some() {
+                !lic.metadata.commercial_use.clone().unwrap()
+            } else {
+                // Imply personal_use == false
+                return false
+            }
         }
     }
 
@@ -308,7 +313,12 @@ impl LicenseGeneral for LicenseToken {
             if lic.metadata.personal_use.clone().is_some() {
                 return !lic.metadata.personal_use.clone().unwrap()
             }
-            lic.metadata.commercial_use.clone().unwrap()
+            if lic.metadata.commercial_use.clone().is_some() {
+                lic.metadata.commercial_use.clone().unwrap()
+            } else {
+                // Imply personal_use == false
+                return true
+            }
         }
     }
 
