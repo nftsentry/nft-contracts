@@ -5,6 +5,7 @@ use common_types::types::{AssetLicense};
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct SKUAvailability {
+    #[serde(flatten)]
     pub asset_license:    AssetLicense,
     pub available:            bool,
     pub upgrade_price: Option<String>,
