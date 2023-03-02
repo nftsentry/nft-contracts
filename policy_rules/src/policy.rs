@@ -318,10 +318,46 @@ impl ConfigInterface for AllPolicies {
         let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
         let future_state = cloned.get_future_state_with_new(inventory.clone(), new.clone());
         let ctx = Context{full: future_state.clone()};
-        cloned.check_future_state(
+        let mut available = cloned.check_future_state(
             future_state.issued_licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
             FutureStateOpt { level: LEVEL_LICENSES.to_string(), ctx },
-        )
+        );
+
+        // Filter exclusive and others not related
+        if available.additional_info.is_none() {
+            return available
+        }
+        let mut additional_info = available.additional_info.unwrap();
+        let is_exclusive = new.is_exclusive();
+        let mut min_key_by_type: HashMap<String, (i32, String)> = HashMap::new();
+        for (k, v) in additional_info.clone() {
+            if v.type_ == "exclusive".to_string() && !is_exclusive {
+                additional_info.remove(&k);
+            }
+            if v.type_ != "exclusive".to_string() && is_exclusive {
+                additional_info.remove(&k);
+            }
+
+            if min_key_by_type.contains_key(&v.type_.clone()) {
+                let (current, _) = min_key_by_type.get(&v.type_.clone()).unwrap();
+                if v.remains.clone() < current.clone() {
+                    min_key_by_type.insert(
+                        v.type_.clone(),
+                        (v.remains.clone(), k)
+                    );
+                }
+            } else {
+                min_key_by_type.insert(
+                    v.type_.clone(),
+                    (v.remains.clone(), k),
+                );
+            }
+        }
+        let keys: Vec<&String> = min_key_by_type.iter().map(|(_, (_, key))| key).collect();
+        available.additional_info = Some(
+            additional_info.into_iter().filter(|(x, _)| keys.contains(&x)).collect()
+        );
+        available
     }
 
     fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse {

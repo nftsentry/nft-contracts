@@ -192,7 +192,7 @@ mod tests_list_available {
             l_args.inventory.clone(), None, None
         );
 
-        // println!("{}", serde_json::to_string_pretty(&availability).unwrap());
+        // println!("{}", serde_json::to_string_pretty(&availability[1]).unwrap());
         assert_eq!(false, availability[2].available)
     }
 }
