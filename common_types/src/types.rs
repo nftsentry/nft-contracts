@@ -66,10 +66,16 @@ pub struct TokenMetadata {
 
 impl TokenMetadata {
     pub fn get_objects(&self) -> ObjectData {
-         let object_data: ObjectData = serde_json::from_str(
-             &self.object.clone().unwrap_or("{}".to_string())
-         ).expect("Failed parse object data");
-         return object_data
+        if self.object.is_none() {
+            return ObjectData{sets: None, items: Some(Vec::new())}
+        }
+        if self.object.clone().unwrap().is_empty() {
+            return ObjectData{sets: None, items: Some(Vec::new())}
+        }
+        let object_data: ObjectData = serde_json::from_str(
+            &self.object.clone().unwrap_or("{}".to_string())
+        ).expect("Failed parse object data");
+        return object_data
     }
 }
 

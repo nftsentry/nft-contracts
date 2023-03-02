@@ -142,7 +142,7 @@ mod tests {
             asset: Some(asset_token),
         };
 
-        let res = policies.check_transition(
+        let _res = policies.check_transition(
             inventory, old_token, new_lic_token, None, None
         );
         // assert_eq!(res.clone().err(), None);
@@ -240,13 +240,13 @@ mod tests {
         let personal = InventoryLicense{
             title: "lic1".to_string(),
             price: Some("1".to_string()),
-            license_id: "lic_id".to_string(),
+            license_id: "personal".to_string(),
             license: license_data(true, false)
         };
         let personal_exclusive = InventoryLicense{
             title: "lic3".to_string(),
             price: Some("1".to_string()),
-            license_id: "lic_id3".to_string(),
+            license_id: "exclusive".to_string(),
             license: license_data(true, true)
         };
         let mut asset_token = sample_asset_token();
@@ -271,16 +271,16 @@ mod tests {
             Some(personal_exclusive.clone()), lics[0].clone(), "2".to_string()
         );
         let exclusive_same_object = asset_token.issue_new_license(
-            Some(personal_exclusive.clone()), lics[4].clone(), "2".to_string()
+            Some(personal_exclusive.clone()), lics[4].clone(), "3".to_string()
         );
         let exclusive_different_object = asset_token.issue_new_license(
-            Some(personal_exclusive.clone()), lics[3].clone(), "2".to_string()
+            Some(personal_exclusive.clone()), lics[3].clone(), "4".to_string()
         );
         let personal_same_object = asset_token.issue_new_license(
-            Some(personal.clone()), lics[1].clone(), "2".to_string()
+            Some(personal.clone()), lics[1].clone(), "5".to_string()
         );
         let personal_different_object = asset_token.issue_new_license(
-            Some(personal.clone()), lics[2].clone(), "2".to_string()
+            Some(personal.clone()), lics[2].clone(), "6".to_string()
         );
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), personal_exclusive.clone()],
@@ -303,7 +303,7 @@ mod tests {
         assert_eq!(res.result, false);
         assert_eq!(res.reason_not_available.contains("Count of exclusive for object object2 cannot be greater than 1"), true);
 
-        res = policies.check_new(inventory.clone(), personal_different_object, None, None);
+        res = policies.check_new(inventory.clone(), personal_different_object.clone(), None, None);
         assert_eq!(res.result, true);
 
         let available = policies.list_available(inventory.clone(), None, None);
@@ -313,6 +313,23 @@ mod tests {
         assert_eq!(false, available[1].available);
         assert_eq!(true, available[2].available);
         assert_eq!(true, available[3].available);
+        assert_eq!(false, available[4].available);
+
+        let inventory2 = FullInventory{
+            inventory_licenses: vec![personal.clone(), personal_exclusive.clone()],
+            issued_licenses:    vec![personal_different_object.clone()],
+            asset: Some(asset_token.clone()),
+        };
+
+        let available = policies.list_available(
+            inventory2.clone(), None, None
+        );
+
+        assert_eq!(5, available.len());
+        assert_eq!(true, available[0].available);
+        assert_eq!(true, available[1].available);
+        assert_eq!(true, available[2].available);
+        assert_eq!(false, available[3].available);
         assert_eq!(false, available[4].available);
     }
 

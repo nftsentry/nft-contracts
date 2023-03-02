@@ -159,10 +159,12 @@ impl LimitCheck for Exclusive {
 
         let mut exclusive_by_set: HashMap<String, i32> = HashMap::new();
         let mut exclusive_by_objects: HashMap<String, i32> = HashMap::new();
-        let mut exclusives: HashMap<String, bool> = HashMap::new();
+        let mut exclusives_by_token_id: HashMap<String, bool> = HashMap::new();
 
+        // Go over minted exclusive SKUs:
+        // Search for exclusive object duplicates
         for lic in matched {
-            exclusives.insert(lic.token_id(), true);
+            exclusives_by_token_id.insert(lic.token_id(), true);
 
             let by_set_exists = exclusive_by_set.contains_key(&lic.object_hash());
             if by_set_exists {
@@ -186,7 +188,7 @@ impl LimitCheck for Exclusive {
 
         let mut remain_to_check: Vec<LicenseToken> = Vec::new();
         for lic in ctx.full.issued_licenses {
-            if !exclusives.contains_key(&lic.token_id()) {
+            if !exclusives_by_token_id.contains_key(&lic.token_id()) {
                 remain_to_check.push(lic.clone())
             }
         }
@@ -390,18 +392,24 @@ impl ConfigInterface for AllPolicies {
             }
         }
 
+        // Build inventory license map by license_id
         let mut inventory_licenses: HashMap<String, InventoryLicense> = HashMap::new();
         for lic in &inventory.inventory_licenses {
             inventory_licenses.insert(lic.license_id(), lic.clone());
         }
 
         let mut available: Vec<SKUAvailability> = Vec::new();
+
         for asset_license in &inventory.asset.clone().expect("Expect asset in inventory").licenses.unwrap_or_default() {
+            // Optional inventory license
             let mut inv_license: Option<InventoryLicense> = None;
             if !asset_license.license_id.clone().unwrap_or_default().is_empty() {
                 inv_license = inventory_licenses.get(&asset_license.license_id.clone().unwrap_or_default()).cloned();
             }
+
+            // pretend like we "mint" a new token
             let token = inventory.asset.as_ref().unwrap().issue_new_license(inv_license, asset_license.clone(), "0".to_string());
+            // check this new token if it is available to mint
             let mut res = cloned.check_new(inventory.clone(), token, None, None);
 
             if res.additional_info.is_some() {
