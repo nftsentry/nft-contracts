@@ -58,8 +58,8 @@ impl Contract {
         opts: MintOpt,
     ) -> Promise {
         let sender = env::predecessor_account_id();
-        if sender != self.owner_id && sender != env::current_account_id() {
-            env::panic_str("Only the owner can call this method")
+        if sender != self.owner_id && sender != env::current_account_id() && sender != self.inventory_id {
+            env::panic_str("Only the owner or inventory can call this method")
         }
 
         if self.tokens_by_id.get(&token_id).is_some() {

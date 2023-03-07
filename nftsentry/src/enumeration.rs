@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use crate::*;
 
 #[near_bindgen]
@@ -49,6 +50,22 @@ impl Contract {
             //if there isn't a set of tokens for the passed in account ID, we'll return 0
             U128(0)
         }
+    }
+
+    pub fn nft_token_id_max(&self) -> String {
+        let mut max: i64 = 0;
+        for key in self.token_metadata_by_id.keys() {
+            let current = i64::from_str(&key);
+            if current.is_err() {
+                continue
+            } else {
+                let res = current.unwrap();
+                if res > max {
+                    max = res.clone()
+                }
+            }
+        }
+        max.to_string()
     }
 
     //Query for all the tokens for an owner
