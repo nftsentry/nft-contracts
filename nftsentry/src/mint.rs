@@ -4,6 +4,12 @@ use common_types::types::{AssetLicense, InventoryLicense, NFTMintResult};
 use common_types::utils::{balance_from_string, format_balance};
 use crate::*;
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct MintOpt {
+    pub is_gift: bool,
+}
+
 #[near_bindgen]
 impl Contract {
     #[payable]
@@ -11,8 +17,6 @@ impl Contract {
         &mut self,
         token_id: TokenId,
         asset_id: String,
-        license_id: Option<String>,
-        set_id: Option<String>,
         sku_id: Option<String>,
         receiver_id: AccountId,
     ) -> Promise {
@@ -32,12 +36,55 @@ impl Contract {
         // Then schedule call to self.callback
 
         let predecessor_id = env::predecessor_account_id();
+        // Important: pass is_gift: false to make sure that price checks and charging work
+        let opt = MintOpt{is_gift: false};
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
                 .with_unused_gas_weight(27)
                 .on_nft_mint(
-                    token_id, license_id, set_id, sku_id, receiver_id, predecessor_id
+                    token_id, sku_id, receiver_id, predecessor_id, opt,
+                )
+        )
+    }
+
+    #[payable]
+    pub fn nft_mint_owner(
+        &mut self,
+        token_id: TokenId,
+        asset_id: String,
+        sku_id: Option<String>,
+        receiver_id: AccountId,
+        opts: MintOpt,
+    ) -> Promise {
+        let sender = env::predecessor_account_id();
+        if sender != self.owner_id && sender != env::current_account_id() {
+            env::panic_str("Only the owner can call this method")
+        }
+
+        if self.tokens_by_id.get(&token_id).is_some() {
+            env::panic_str("Token already exists")
+        }
+
+        // Schedule calls to metadata and asset token
+        let promise_meta: Promise = inventory_contract::ext(self.inventory_id.clone())
+            .with_unused_gas_weight(3).inventory_metadata();
+        let promise_asset: Promise = inventory_contract::ext(self.inventory_id.clone())
+            .with_unused_gas_weight(3).asset_token(asset_id.clone());
+        let promise_price = get_near_price(3);
+        let promise_inventory = promise_meta
+            .and(promise_asset)
+            .and(promise_price);
+        // Then schedule call to self.callback
+
+        let predecessor_id = env::predecessor_account_id();
+        // Important: pass is_gift: false to make sure that price checks and charging work
+        return promise_inventory.then(
+            Self::ext(env::current_account_id())
+                .with_attached_deposit(env::attached_deposit())
+                .with_unused_gas_weight(27)
+                .on_nft_mint(
+                    token_id, sku_id, receiver_id, predecessor_id, opts,
                 )
         )
     }
@@ -50,16 +97,14 @@ impl Contract {
         #[callback_result] asset_res: Result<JsonAssetToken, PromiseError>,
         #[callback_result] price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
-        license_id: Option<String>,
-        set_id: Option<String>,
         sku_id: Option<String>,
         receiver_id: AccountId,
         predecessor_id: AccountId,
+        opts: MintOpt,
     ) -> PromiseOrValue<NFTMintResult> {
         let result = self.ensure_nft_mint(
-            metadata_res, asset_res, price_res, token_id.clone(),
-            license_id.clone(), set_id.clone(), sku_id,
-            receiver_id.clone(), predecessor_id.clone(),
+            metadata_res, asset_res, price_res, token_id.clone(), sku_id,
+            receiver_id.clone(), predecessor_id.clone(), opts,
         );
 
         if result.is_err() {
@@ -84,11 +129,10 @@ impl Contract {
         asset_res: Result<JsonAssetToken, PromiseError>,
         price_res: Result<Option<Asset>, PromiseError>,
         token_id: TokenId,
-        license_id: Option<String>,
-        _set_id: Option<String>,
         sku_id: Option<String>,
         receiver_id: AccountId,
         predecessor_id: AccountId,
+        opts: MintOpt,
         ) -> Result<Promise, String> {
 
         // 1. Check callback results first.
@@ -122,7 +166,7 @@ impl Contract {
 
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
             let inv_license = full_inventory.inventory_licenses.clone().into_iter().find(
-                |x| license_id.is_some() && x.license_id == license_id.clone().unwrap()
+                |x| asset_license.license_id.is_some() && x.license_id == asset_license.license_id.clone().unwrap()
             );
 
             // Re-calculate and re-assign a price
@@ -132,9 +176,9 @@ impl Contract {
 
             let deposit = env::attached_deposit();
             let price = balance_from_string(price_str.clone());
-            if deposit < price {
+            if deposit < price && !opts.is_gift {
                 return Err(format!(
-                    "Attached deposit of {} NEAR is less than license price of {} NEAR",
+                    "Attached deposit of {} NEAR is less than SKU price of {} NEAR",
                     format_balance(deposit),
                     price_str,
                 ))
@@ -161,6 +205,7 @@ impl Contract {
                         asset_license.clone(), asset.clone(),
                         inv_metadata.owner_id.clone(),
                         predecessor_id.clone(),
+                        opts,
                     )
             );
             // let res = self.policies.clone_with_additional(
@@ -187,8 +232,9 @@ impl Contract {
         asset: JsonAssetToken,
         inventory_owner: AccountId,
         predecessor_id: AccountId,
+        opts: MintOpt,
     ) -> NFTMintResult {
-        //measure the initial storage being used on the contract
+        // measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
         // we add an optional parameter for perpetual royalties
         // create a royalty map to store in the token
@@ -246,13 +292,17 @@ impl Contract {
         }
         // ----- Token mint end -----
 
+        // If token is a gift -> no charged prices
+        let charged_price = if opts.is_gift {
+            None
+        } else {
+            Some(balance_from_string(asset_license.price.clone().unwrap()))
+        };
         // refund any excess storage if the user attached too much.
         let result = refund_storage(
             initial_storage_usage,
             Some(predecessor_id.clone()),
-            Some(balance_from_string(
-                asset_license.price.clone().unwrap()
-            )),
+            charged_price,
         );
         if result.is_err() {
             // Refund failed due to storage costs.
@@ -277,11 +327,14 @@ impl Contract {
         inventory_contract::ext(self.inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
             asset.token_id.clone(), license_sold
         );
-        self.process_fees(
-            balance_from_string(
-                asset_license.price.clone().unwrap()
-            ), inventory_owner
-        );
+        // Process fees only if it is not a gift
+        if !opts.is_gift {
+            self.process_fees(
+                balance_from_string(
+                    asset_license.price.clone().unwrap()
+                ), inventory_owner
+            );
+        }
 
         // Log the serialized json.
         self.log_event(&mint_result.unwrap().to_string());

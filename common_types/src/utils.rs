@@ -11,14 +11,14 @@ pub fn refund_storage(initial_storage: u64, predecessor_id: Option<AccountId>, c
     return refund_deposit(storage_usage_diff, predecessor_id, charged_price)
 }
 
-//refund the initial deposit based on the amount of storage that was used up
+// refund the initial deposit based on the amount of storage that was used up
 pub fn refund_deposit(storage_used: u64, predecessor_id: Option<AccountId>, charged_price: Option<Balance>) -> Result<(), String> {
-    //get how much it would cost to store the information
+    // get how much it would cost to store the information
     let required_cost = env::storage_byte_cost() * Balance::from(storage_used);
-    //get the attached deposit
+    // get the attached deposit
     let attached_deposit = env::attached_deposit();
 
-    //make sure that the attached deposit is greater than or equal to the required cost
+    // make sure that the attached deposit is greater than or equal to the required cost
     if required_cost > attached_deposit - charged_price.unwrap_or(0) {
         let msg = &format!(
             "Must attach {} NEAR to cover storage",
