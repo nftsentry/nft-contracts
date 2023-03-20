@@ -10,7 +10,7 @@ pub use common_types::types::{AssetToken, TokenMetadata};
 pub use common_types::types::{AssetLicense, FilterOpt, SKUAvailability};
 pub use common_types::types::{InventoryContractMetadata, InventoryLicense};
 pub use common_types::types::{JsonAssetToken, LicenseToken, TokenId};
-use common_types::utils::refund_storage;
+use common_types::utils::{refund_deposit, refund_storage};
 
 pub use crate::events::*;
 pub use crate::metadata::*;
@@ -178,14 +178,14 @@ impl InventoryContract {
     }
 
     #[payable]
-    pub fn set_state(&mut self, metadata: InventoryContractMetadata, tokens: Vec<JsonAssetToken>) {
+    pub fn set_state(&mut self, metadata: InventoryContractMetadata,
+                     tokens: Vec<JsonAssetToken>, predecessor_id: Option<AccountId>) {
         self.ensure_owner();
 
         let initial_storage_usage = env::storage_usage();
         // Restore metadata & data
         let logs = self._restore_data(metadata, tokens);
-
-        let _ = refund_storage(initial_storage_usage, None, None);
+        let _ = refund_storage(initial_storage_usage, predecessor_id, None);
 
         for log in logs {
             self.log_event(&log.to_string())
