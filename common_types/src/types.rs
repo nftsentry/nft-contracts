@@ -193,6 +193,7 @@ pub struct SourceLicenseMeta {
     pub asset_id: String,
     pub set_id: String,
     pub sku_id: Option<String>,
+    pub issuer_id: Option<String>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -487,6 +488,7 @@ impl InventoryLicense {
                     inventory_id: "inv".to_string(),
                     set_id: "set_id".to_string(),
                     sku_id: Some("sku_id".to_string()),
+                    issuer_id: None,
                 }
             }),
             approved_account_ids: Default::default(),
@@ -647,6 +649,7 @@ impl JsonAssetToken {
             sku_id: sku_info.sku_id.clone(),
             set_id: String::new(),
             asset_id: self.token_id.clone(),
+            issuer_id: Some(self.minter_id.clone().to_string()),
         };
         metadata.from = Some(from);
 
