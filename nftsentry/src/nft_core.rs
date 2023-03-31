@@ -102,7 +102,8 @@ impl NonFungibleTokenCore for Contract {
         );
     }
 
-    //implementation of the transfer call method. This will transfer the NFT and call a method on the reciver_id contract
+    // Implementation of the transfer call method.
+    // This will transfer the NFT and call a method on the receiver_id contract
     #[payable]
     fn nft_transfer_call(
         &mut self,
@@ -160,8 +161,8 @@ impl NonFungibleTokenCore for Contract {
             token_id.clone(),
             msg,
         )
-        //we then resolve the promise and call nft_resolve_transfer on our own contract
-        .then(ext_self::ext(sender_id.clone())
+        // We then resolve the promise and call nft_resolve_transfer on our own contract
+        .then(ext_self::ext(env::current_account_id())
         .nft_resolve_transfer(
             authorized_id, // we introduce an authorized ID so that we can log the transfer
             previous_token.owner_id,
@@ -238,7 +239,7 @@ impl NonFungibleTokenResolver for Contract {
             if token.owner_id != receiver_id {
                 //we refund the owner for releasing the storage used up by the approved account IDs
                 refund_approved_account_ids(owner_id, &approved_account_ids);
-                // The token is not owner by the receiver anymore. Can't return it.
+                // The token is not owned by the receiver anymore. Can't return it.
                 return true;
             }
             token
