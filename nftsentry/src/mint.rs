@@ -1,6 +1,6 @@
 use near_sdk::{Gas, PromiseError};
 use common_types::prices::{Asset, get_near_price};
-use common_types::types::{AssetLicense, InventoryLicense, NFTMintResult};
+use common_types::types::{NFTMintResult};
 use common_types::utils::{balance_from_string, format_balance};
 use crate::*;
 
@@ -172,7 +172,7 @@ impl Contract {
             // Re-calculate and re-assign a price
             // let price_currency = asset_license.price.clone().unwrap();
             let price_str = asset_license.get_near_cost(near_price.clone());
-            asset_license.price = Some(price_str.clone());
+            asset_license.price = price_str.clone();
 
             let deposit = env::attached_deposit();
             let price = balance_from_string(price_str.clone());
@@ -190,7 +190,7 @@ impl Contract {
             lic_token.owner_id = receiver_id.clone();
 
             let promise_new: Promise = policy_rules_contract::ext(self.policy_contract.clone())
-                .with_unused_gas_weight(3).check_new(
+                .with_unused_gas_weight(7).check_new(
                 full_inventory.clone(),
                 lic_token.clone(),
                 asset.policy_rules.clone(),
@@ -201,22 +201,13 @@ impl Contract {
                     .with_attached_deposit(env::attached_deposit())
                     .with_unused_gas_weight(27)
                     .on_check_new_receiver(
-                        lic_token.clone(), inv_license.clone(),
-                        asset_license.clone(), asset.clone(),
+                        lic_token.clone(),
+                        asset_license.price.clone(), asset.token_id.clone(),
                         inv_metadata.owner_id.clone(),
                         predecessor_id.clone(),
                         opts,
                     )
             );
-            // let res = self.policies.clone_with_additional(
-            //     asset.policy_rules.clone().unwrap_or_default().clone()).check_new(
-            //         full_inventory.clone(),
-            //         lic_token.clone(),
-            // );
-            // if !res.result {
-            //     return Err(res.reason_not_available);
-            // }
-
             Ok(on_check_promise)
         }
     }
@@ -227,9 +218,8 @@ impl Contract {
         &mut self,
         #[callback_result] check_new_res: Result<IsAvailableResponseData, PromiseError>,
         lic_token: LicenseToken,
-        _inv_license: Option<InventoryLicense>,
-        asset_license: AssetLicense,
-        asset: JsonAssetToken,
+        asset_license_price: String,
+        asset_id: String,
         inventory_owner: AccountId,
         predecessor_id: AccountId,
         opts: MintOpt,
@@ -272,7 +262,7 @@ impl Contract {
             token_id: lic_token.token_id.clone(),
             //set the owner ID equal to the receiver ID passed into the function
             owner_id: lic_token.owner_id.clone(),
-            asset_id: asset.token_id.clone(),
+            asset_id: asset_id.clone(),
             //we set the approved account IDs to the default value (an empty map)
             approved_account_ids: Default::default(),
             //the next approval ID is set to 0
@@ -296,7 +286,7 @@ impl Contract {
         let charged_price = if opts.is_gift {
             None
         } else {
-            Some(balance_from_string(asset_license.price.clone().unwrap()))
+            Some(balance_from_string(asset_license_price.clone()))
         };
         // refund any excess storage if the user attached too much.
         let result = refund_storage(
@@ -322,16 +312,16 @@ impl Contract {
         let license_sold = self.nft_tokens(
             None,
             Some(MAX_LIMIT),
-            Some(FilterOpt{asset_id: Some(asset.token_id.clone()), account_id: None})
+            Some(FilterOpt{asset_id: Some(asset_id.clone()), account_id: None})
         ).len() as u64;
         inventory_contract::ext(self.inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
-            asset.token_id.clone(), license_sold
+            asset_id.clone(), license_sold
         );
         // Process fees only if it is not a gift
         if !opts.is_gift {
             self.process_fees(
                 balance_from_string(
-                    asset_license.price.clone().unwrap()
+                    asset_license_price.clone()
                 ), inventory_owner
             );
         }

@@ -515,7 +515,7 @@ pub struct AssetLicense {
     pub sku_id: Option<String>,
     pub license_id: Option<String>,
     pub title: String,
-    pub price: Option<String>,
+    pub price: String,
     pub currency: Option<String>,
     pub active: Option<bool>,
     pub limited_edition: Option<bool>,
@@ -536,11 +536,11 @@ impl AssetLicense {
 
         if currency != NEAR_CURRENCY.to_string() {
             // near cost = usd_price / near_price
-            let near_cost: f64 = self.price.clone().unwrap().parse::<f64>().unwrap() / near_usd_price.float();
+            let near_cost: f64 = self.price.clone().parse::<f64>().unwrap() / near_usd_price.float();
             return format!("{:.6}", near_cost);
         }
 
-        return self.price.clone().unwrap()
+        return self.price.clone()
     }
 
     pub fn get_params(&self) -> AssetLicenseParams {

@@ -389,6 +389,7 @@ impl ConfigInterface for AllPolicies {
                     set_id: from.set_id(),
                     sku_id: Some(from.sku_id()),
                     inventory_id: "".to_owned(),
+                    issuer_id: None,
                 }
             }
 

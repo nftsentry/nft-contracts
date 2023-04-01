@@ -10,7 +10,7 @@ pub use common_types::types::{AssetToken, TokenMetadata};
 pub use common_types::types::{AssetLicense, FilterOpt, SKUAvailability};
 pub use common_types::types::{InventoryContractMetadata, InventoryLicense};
 pub use common_types::types::{JsonAssetToken, LicenseToken, TokenId};
-use common_types::utils::{refund_deposit, refund_storage};
+use common_types::utils::{refund_storage};
 
 pub use crate::events::*;
 pub use crate::metadata::*;
