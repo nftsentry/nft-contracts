@@ -267,6 +267,7 @@ impl Contract {
             approved_account_ids: Default::default(),
             //the next approval ID is set to 0
             next_approval_id: 0,
+            license: lic_token.license.clone(),
             //the map of perpetual royalties for the token (The owner will get 100% - total perpetual royalties)
             // royalty: royalty.clone(),
         };
@@ -299,7 +300,7 @@ impl Contract {
             // Rollback all changes!
             self.internal_remove_token_from_owner(&token.owner_id, &token.token_id);
             self.tokens_by_id.remove(&token.token_id);
-            self.token_license_by_id.remove(&token.token_id);
+            // self.token_license_by_id.remove(&token.token_id);
             self.token_metadata_by_id.remove(&token.token_id);
             // Refund any deposit
             let _ = refund_deposit(0, Some(predecessor_id), None);
@@ -362,6 +363,7 @@ impl Contract {
             owner_id: lic_token.owner_id.clone(),
             approved_account_ids: lic_token.approved_account_ids.clone(),
             next_approval_id: 0,
+            license: lic_token.license,
             // royalty: lic_token.royalty.clone(),
         };
         let exists = self.tokens_by_id.insert(&lic_token.token_id, &token);
@@ -372,9 +374,9 @@ impl Contract {
         }
         self.token_metadata_by_id.insert(&lic_token.token_id, &lic_token.metadata);
         //insert the token ID and license
-        if lic_token.license.is_some() {
-            self.token_license_by_id.insert(&lic_token.token_id, lic_token.license.as_ref().unwrap());
-        }
+        // if lic_token.license.is_some() {
+        //     self.token_license_by_id.insert(&lic_token.token_id, lic_token.license.as_ref().unwrap());
+        // }
 
         //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
 

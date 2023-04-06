@@ -179,7 +179,7 @@ impl NonFungibleTokenCore for Contract {
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             //we'll get the metadata for that token
             let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
-            let license = self.token_license_by_id.get(&token_id);
+            // let license = self.token_license_by_id.get(&token_id);
         //    let proposed_license = self.token_proposed_license_by_id.get(&token_id).unwrap();
             //we return the JsonToken (wrapped by Some since we return an option)
             Some(LicenseToken {
@@ -187,10 +187,8 @@ impl NonFungibleTokenCore for Contract {
                 owner_id: token.owner_id,
                 asset_id: token.asset_id,
                 metadata,
-                license,
-            //    proposed_license,     TODO: show proposed license. If proposed license
+                license: token.license,
                 approved_account_ids: token.approved_account_ids,
-                // royalty: token.royalty,
             })
         } else { //if there wasn't a token ID in the tokens_by_id collection, we return None
             None

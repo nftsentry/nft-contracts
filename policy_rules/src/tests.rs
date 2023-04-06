@@ -35,7 +35,7 @@ mod tests {
             params: None,
             set_id: None,
             license_id: Some(license_id.to_string()),
-            price: None,
+            price: "1".to_string(),
             title: String::new(),
             currency: None,
             active: None,
@@ -85,15 +85,15 @@ mod tests {
                     {\"id\": \"set2\", \"objects\": [\"2\",\"3\"]}
                   ]
                 }".to_string()),
-                media_hash: None,
-                copies: None,
+                // media_hash: None,
+                // copies: None,
                 issued_at: None,
                 expires_at: None,
                 starts_at: None,
                 updated_at: None,
                 extra: None,
-                reference: None,
-                reference_hash: None,
+                // reference: None,
+                // reference_hash: None,
                 from: None,
                 sku_data: None,
             },
@@ -134,8 +134,16 @@ mod tests {
             asset_license("sku1", "lic_id", &["lic1"]),
             asset_license("sku2", "lic_id2", &["lic2"]),
         ]);
-        let new_lic_token = new_l.as_license_token("token".to_string());
-        let old_token = old_l.as_license_token("1".to_string());
+        let new_lic_token = asset_token.issue_new_license(
+            Some(new_l.clone()),
+            asset_token.licenses.as_ref().unwrap()[1].clone(),
+            "token".to_string()
+        );
+        let old_token = asset_token.issue_new_license(
+            Some(old_l.clone()),
+            asset_token.licenses.as_ref().unwrap()[0].clone(),
+            "token".to_string()
+        );
         let inventory = FullInventory{
             inventory_licenses: vec![old_l.clone(), new_l.clone()],
             issued_licenses:    vec![old_token.clone()],
@@ -199,6 +207,7 @@ mod tests {
     #[test]
     fn test_list_transitions_has_exclusive() {
         let policies = init_policies();
+        let mut asset = sample_asset_token();
 
         let personal = InventoryLicense{
             title: "lic1".to_string(),
@@ -218,11 +227,22 @@ mod tests {
             license_id: "lic_id3".to_string(),
             license: license_data(true, true)
         };
-        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string());
+
+        asset.licenses = Some(vec![
+            asset_license("sku1", "lic_id", &["title1"]),
+            asset_license("sku2", "lic_id2", &["title1"]),
+            asset_license("sku3", "lic_id3", &["title1"]),
+        ]);
+
+        let personal_exclusive_token = asset.issue_new_license(
+            Some(personal_exclusive.clone()),
+            asset.licenses.as_ref().unwrap()[2].clone(),
+            "1".to_string(),
+        );
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
-            asset: None,
+            asset: Some(asset),
         };
 
         let available = policies.list_transitions(
@@ -529,16 +549,16 @@ mod tests {
         let mut al = asset_license("sku", "license", &["title"]);
 
         al.currency = Some("USD".to_string());
-        al.price = Some("0.1".to_string());
+        al.price = "0.1".to_string();
         let cost1 = al.get_near_cost(near_price.clone());
 
-        al.price = Some("1".to_string());
+        al.price = "1".to_string();
         let cost2 = al.get_near_cost(near_price.clone());
 
-        al.price = Some("5".to_string());
+        al.price = "5".to_string();
         let cost3 = al.get_near_cost(near_price.clone());
 
-        al.price = Some("10".to_string());
+        al.price = "10".to_string();
         let cost4 = al.get_near_cost(near_price.clone());
 
         // println!("{} {} {} {}", cost1, cost2, cost3, cost4);
@@ -564,15 +584,15 @@ mod tests {
                     {\"id\":\"set_id1\",\"objects\":[\"ba1117f1-3951-46ed-836f-022c1b62d1f1\"]}
                   ]
                 }".to_string()),
-                media_hash: None,
-                copies: None,
+                // media_hash: None,
+                // copies: None,
                 issued_at: None,
                 expires_at: None,
                 starts_at: None,
                 updated_at: None,
                 extra: None,
-                reference: None,
-                reference_hash: None,
+                // reference: None,
+                // reference_hash: None,
                 from: None,
                 sku_data: None,
             },
@@ -582,7 +602,7 @@ mod tests {
                     set_id: None,
                     sku_id: Some("sku1".to_string()),
                     license_id: Some("some_id".to_string()),
-                    price: Some("2".to_string()),
+                    price: "2".to_string(),
                     title: "personal".to_string(),
                     params: None,
                     currency: None,
@@ -595,7 +615,7 @@ mod tests {
                     set_id: None,
                     sku_id: Some("sku2".to_string()),
                     license_id: Some("some_id2".to_string()),
-                    price: Some("5".to_string()),
+                    price: "5".to_string(),
                     title: "commercial".to_string(),
                     params: None,
                     currency: None,
@@ -637,15 +657,15 @@ mod tests {
                     {\"id\": \"set2\", \"objects\": [\"4\",\"3\",\"2\"]}
                   ]
                 }".to_string()),
-                media_hash: None,
-                copies: None,
+                // media_hash: None,
+                // copies: None,
                 issued_at: None,
                 expires_at: None,
                 starts_at: None,
                 updated_at: None,
                 extra: None,
-                reference: None,
-                reference_hash: None,
+                // reference: None,
+                // reference_hash: None,
                 from: None,
                 sku_data: None,
             },
@@ -655,7 +675,7 @@ mod tests {
                     sku_id: Some("sku1".to_string()),
                     set_id: Some("set1".to_string()),
                     license_id: Some("id1".to_string()),
-                    price: None,
+                    price: "1".to_string(),
                     title: "id1 title".to_string(),
                     params: None,
                     currency: None,
@@ -670,7 +690,7 @@ mod tests {
                     set_id: Some("set2".to_string()),
                     license_id: Some("id2".to_string()),
                     title: "id2 title".to_string(),
-                    price: None,
+                    price: "1".to_string(),
                     currency: None,
                     active: None,
                     sole_limit: None,

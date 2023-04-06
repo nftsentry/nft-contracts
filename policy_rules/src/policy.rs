@@ -383,15 +383,13 @@ impl ConfigInterface for AllPolicies {
         let mut result: Vec<SKUAvailability> = Vec::new();
         for license in &inventory.inventory_licenses {
             let mut lic_token = license.as_license_token("token".to_string());
-            if lic_token.license.is_some() {
-                lic_token.license.as_mut().unwrap().from = SourceLicenseMeta{
-                    asset_id: from.asset_id.clone(),
-                    set_id: from.set_id(),
-                    sku_id: Some(from.sku_id()),
-                    inventory_id: "".to_owned(),
-                    issuer_id: None,
-                }
-            }
+            lic_token.metadata.from = Some(SourceLicenseMeta{
+                asset_id: from.asset_id.clone(),
+                set_id: from.set_id(),
+                sku_id: Some(from.sku_id()),
+                inventory_id: "".to_owned(),
+                issuer_id: None,
+            });
 
             let check_transition_res = cloned.check_transition(
                 inventory.clone(), from.clone(), lic_token, None, None,
@@ -547,16 +545,15 @@ impl AllPolicies {
                     token.license.as_mut().unwrap_unchecked().metadata = new.license.clone().unwrap_unchecked().metadata;
                     token.license.as_mut().unwrap_unchecked().title = Some(new.license_title());
                     token.license.as_mut().unwrap_unchecked().id = lic_id.clone();
-                    token.license.as_mut().unwrap_unchecked().from.inventory_id = inv_id.clone();
-                    token.license.as_mut().unwrap_unchecked().from.asset_id = asset_id.clone();
-                    token.license.as_mut().unwrap_unchecked().from.sku_id = Some(new.sku_id());
-                    token.license.as_mut().unwrap_unchecked().from.set_id = new.set_id();
-                } else {
-                    token.metadata.from.as_mut().unwrap_unchecked().inventory_id = inv_id.clone();
-                    token.metadata.from.as_mut().unwrap_unchecked().asset_id = asset_id.clone();
-                    token.metadata.from.as_mut().unwrap_unchecked().set_id = new.set_id();
-                    token.metadata.from.as_mut().unwrap_unchecked().sku_id = Some(new.sku_id());
+                    // token.license.as_mut().unwrap_unchecked().from.inventory_id = inv_id.clone();
+                    // token.license.as_mut().unwrap_unchecked().from.asset_id = asset_id.clone();
+                    // token.license.as_mut().unwrap_unchecked().from.sku_id = Some(new.sku_id());
+                    // token.license.as_mut().unwrap_unchecked().from.set_id = new.set_id();
                 }
+                token.metadata.from.as_mut().unwrap_unchecked().inventory_id = inv_id.clone();
+                token.metadata.from.as_mut().unwrap_unchecked().asset_id = asset_id.clone();
+                token.metadata.from.as_mut().unwrap_unchecked().set_id = new.set_id();
+                token.metadata.from.as_mut().unwrap_unchecked().sku_id = Some(new.sku_id());
             }
         }
         // future_state.issued_licenses.push(new);

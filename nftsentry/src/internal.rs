@@ -154,6 +154,7 @@ impl Contract {
             //reset the approval account IDs
             approved_account_ids: Default::default(),
             next_approval_id: token.next_approval_id,
+            license: token.license.clone(),
             //we copy over the royalties from the previous token
             // royalty: token.royalty.clone(),
         };
