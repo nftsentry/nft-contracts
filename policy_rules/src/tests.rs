@@ -33,7 +33,6 @@ mod tests {
             sku_id: Some(sku_id.to_string()),
             objects: Some(objects.iter().map(|x| x.to_string()).collect()),
             params: None,
-            set_id: None,
             license_id: Some(license_id.to_string()),
             price: "1".to_string(),
             title: String::new(),
@@ -599,7 +598,6 @@ mod tests {
             licenses: Some(vec![
                 AssetLicense{
                     objects: Some(vec!["ba1117f1-3951-46ed-836f-022c1b62d1f1".to_string()]),
-                    set_id: None,
                     sku_id: Some("sku1".to_string()),
                     license_id: Some("some_id".to_string()),
                     price: "2".to_string(),
@@ -612,7 +610,6 @@ mod tests {
                 },
                 AssetLicense{
                     objects: Some(vec!["ba1117f1-3951-46ed-836f-022c1b62d1f1".to_string()]),
-                    set_id: None,
                     sku_id: Some("sku2".to_string()),
                     license_id: Some("some_id2".to_string()),
                     price: "5".to_string(),
@@ -673,7 +670,6 @@ mod tests {
                 AssetLicense{
                     objects: Some(vec!["1".to_string(), "2".to_string()]),
                     sku_id: Some("sku1".to_string()),
-                    set_id: Some("set1".to_string()),
                     license_id: Some("id1".to_string()),
                     price: "1".to_string(),
                     title: "id1 title".to_string(),
@@ -687,7 +683,6 @@ mod tests {
                     objects: None,
                     sku_id: Some("sku2".to_string()),
                     params: None,
-                    set_id: Some("set2".to_string()),
                     license_id: Some("id2".to_string()),
                     title: "id2 title".to_string(),
                     price: "1".to_string(),

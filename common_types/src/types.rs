@@ -18,7 +18,6 @@ pub trait LicenseGeneral {
     fn is_commercial(&self) -> bool;
     fn license_id(&self) -> String;
     fn license_title(&self) -> String;
-    fn set_id(&self) -> String;
     fn sku_id(&self) -> String;
     fn token_id(&self) -> String;
     fn objects(&self) -> Vec<String>;
@@ -98,20 +97,20 @@ pub struct ObjectSet {
 }
 
 impl ObjectData {
-    pub fn filter_by_set_id(&self, set_id: String) -> ObjectData {
-        if self.sets.is_none() {
-            return ObjectData::default()
-        }
-        unsafe {
-            let object_set = self.sets.clone().unwrap_unchecked().into_iter().find(|x| x.id == set_id);
-            if object_set.is_none() {
-                env::log_str(&("Set not found: ".to_string() + &set_id));
-                return ObjectData::default()
-            }
-            let objects = object_set.clone().unwrap_unchecked().objects.unwrap_unchecked();
-            return self.filter_by_objects(objects, object_set);
-        }
-    }
+    // pub fn filter_by_set_id(&self, set_id: String) -> ObjectData {
+    //     if self.sets.is_none() {
+    //         return ObjectData::default()
+    //     }
+    //     unsafe {
+    //         let object_set = self.sets.clone().unwrap_unchecked().into_iter().find(|x| x.id == set_id);
+    //         if object_set.is_none() {
+    //             env::log_str(&("Set not found: ".to_string() + &set_id));
+    //             return ObjectData::default()
+    //         }
+    //         let objects = object_set.clone().unwrap_unchecked().objects.unwrap_unchecked();
+    //         return self.filter_by_objects(objects, object_set);
+    //     }
+    // }
 
     pub fn filter_by_objects(&self, objects: Vec<String>, _set: Option<ObjectSet>) -> ObjectData {
         if self.items.is_none() {
@@ -191,7 +190,6 @@ pub struct TokenLicense {
 pub struct SourceLicenseMeta {
     pub inventory_id: String,
     pub asset_id: String,
-    pub set_id: String,
     pub sku_id: Option<String>,
     pub issuer_id: Option<String>,
 }
@@ -349,16 +347,6 @@ impl LicenseGeneral for LicenseToken {
         }
     }
 
-    fn set_id(&self) -> String {
-        unsafe {
-            // if self.metadata.from.is_none() {
-            //     self.license.as_ref().unwrap_unchecked().from.set_id.clone()
-            // } else {
-            self.metadata.from.as_ref().unwrap_unchecked().set_id.clone()
-            // }
-        }
-    }
-
     fn sku_id(&self) -> String {
         unsafe {
             // if self.metadata.from.is_none() {
@@ -450,9 +438,6 @@ impl LicenseGeneral for InventoryLicense {
         self.title.clone()
     }
 
-    fn set_id(&self) -> String {
-        String::new()
-    }
     fn sku_id(&self) -> String {
         String::new()
     }
@@ -520,7 +505,6 @@ pub struct AssetLicense {
     pub active: Option<bool>,
     pub limited_edition: Option<bool>,
     pub sole_limit: Option<i32>,
-    pub set_id: Option<String>,
     pub objects: Option<Vec<String>>,
     pub params: Option<String> // Json-serialized AssetLicenseParams
 }
@@ -647,7 +631,6 @@ impl JsonAssetToken {
         let from = SourceLicenseMeta{
             inventory_id: get_inventory_id(self.minter_id.clone().to_string()),
             sku_id: sku_info.sku_id.clone(),
-            set_id: String::new(),
             asset_id: self.token_id.clone(),
             issuer_id: Some(self.minter_id.clone().to_string()),
         };

@@ -271,7 +271,7 @@ impl ConfigInterface for AllPolicies {
             // let old_asset_license = inventory.asset.clone().unwrap_or_default().licenses.unwrap_or_default()
             //     .iter().find(|x| x.license_id == old.license_id());
 
-            if old.set_id() == new.set_id() {
+            if old.sku_id() == new.sku_id() {
                 // Try to find asset_license with set_id == new.set_id
                 let new_asset_licenses = inventory.asset.clone().unwrap_or_default().licenses.unwrap_or_default();
                 let new_asset_license = new_asset_licenses.iter().find(
@@ -385,7 +385,6 @@ impl ConfigInterface for AllPolicies {
             let mut lic_token = license.as_license_token("token".to_string());
             lic_token.metadata.from = Some(SourceLicenseMeta{
                 asset_id: from.asset_id.clone(),
-                set_id: from.set_id(),
                 sku_id: Some(from.sku_id()),
                 inventory_id: "".to_owned(),
                 issuer_id: None,
@@ -552,7 +551,6 @@ impl AllPolicies {
                 }
                 token.metadata.from.as_mut().unwrap_unchecked().inventory_id = inv_id.clone();
                 token.metadata.from.as_mut().unwrap_unchecked().asset_id = asset_id.clone();
-                token.metadata.from.as_mut().unwrap_unchecked().set_id = new.set_id();
                 token.metadata.from.as_mut().unwrap_unchecked().sku_id = Some(new.sku_id());
             }
         }
