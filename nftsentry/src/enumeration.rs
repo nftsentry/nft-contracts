@@ -6,7 +6,7 @@ impl Contract {
     //Query for the total supply of NFTs on the contract
     pub fn nft_total_supply(&self) -> U128 {
         //return the length of the token metadata by ID
-        U128(self.token_metadata_by_id.len() as u128)
+        U128(self.tokens_by_id.len() as u128)
     }
 
     pub fn benefit_config(&self) -> Option<BenefitConfig> {
@@ -22,7 +22,7 @@ impl Contract {
         let is_filter = filter_opt.as_ref().is_some();
         let is_asset_filter = is_filter && filter_opt.as_ref().unwrap().asset_id.is_some();
         let is_owner_filter = is_filter && filter_opt.as_ref().unwrap().account_id.is_some();
-        self.token_metadata_by_id.keys()
+        self.tokens_by_id.keys()
             //we'll map the token IDs which are strings into Json Tokens
             .map(|token_id| self.nft_token(token_id.clone()).unwrap())
             .filter(|x| !is_asset_filter || *filter_opt.as_ref().unwrap().asset_id.as_ref().unwrap() == x.asset_id)
@@ -54,7 +54,7 @@ impl Contract {
 
     pub fn nft_token_id_max(&self) -> String {
         let mut max: i64 = 0;
-        for key in self.token_metadata_by_id.keys() {
+        for key in self.tokens_by_id.keys() {
             let current = i64::from_str(&key);
             if current.is_err() {
                 continue

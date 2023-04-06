@@ -202,6 +202,7 @@ pub struct Token {
     pub owner_id: AccountId,
     pub asset_id: AssetId,
     pub license: Option<TokenLicense>,
+    pub metadata: TokenMetadata,
     //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
     pub approved_account_ids: HashMap<AccountId, u64>,
     //the next approval ID to give out.
