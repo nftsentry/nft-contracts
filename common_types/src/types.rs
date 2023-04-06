@@ -578,6 +578,7 @@ pub struct AssetToken {
     //minter of the token
     pub minter_id: AccountId,
     pub license_token_count: u64,
+    pub licenses: Option<Vec<AssetLicense>>,
     pub policy_rules: Option<Vec<LimitationData>>,
     pub upgrade_rules: Option<Vec<PolicyData>>,
 }

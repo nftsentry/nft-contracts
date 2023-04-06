@@ -17,13 +17,12 @@ impl InventoryContract {
         let token = token_opt.unwrap();
         // we'll get the metadata for that token
         let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
-        let licenses = self.token_licenses_by_id.get(&token_id);
         // we return the JsonAssetToken (wrapped by Some since we return an option)
         let asset = JsonAssetToken {
             token_id,
             owner_id: token.owner_id,
             metadata,
-            licenses,
+            licenses: token.licenses,
             minter_id: token.minter_id,
             license_token_count: token.license_token_count,
             policy_rules: token.policy_rules,
@@ -34,7 +33,7 @@ impl InventoryContract {
 
     //get the information for a specific token ID
     pub fn asset_token(&self, token_id: String) -> Option<JsonAssetToken> {
-        self._asset_token(token_id.clone())
+        self._asset_token(token_id)
     }
     
     //Query for nft tokens on the contract regardless of the owner using pagination

@@ -35,7 +35,7 @@ impl InventoryContract {
         JsonAssetToken {
             token_id: token_id.clone(),
             owner_id: receiver_id,
-            minter_id: minter_id,
+            minter_id,
             metadata,
             licenses: licenses.clone(),
             license_token_count: 0,
@@ -63,6 +63,7 @@ impl InventoryContract {
             license_token_count: 0,
             policy_rules: policy_rules.clone(),
             upgrade_rules: upgrade_rules.clone(),
+            licenses,
         };
 
         //insert the token ID and token struct and make sure that the token doesn't exist
@@ -74,10 +75,10 @@ impl InventoryContract {
         //insert the token ID and metadata
         self.token_metadata_by_id.insert(&token.token_id, &metadata);
         // Insert the token ID and list of available licenses
-        if licenses.is_some() {
+        // if licenses.is_some() {
             //insert the token ID and license
-            self.token_licenses_by_id.insert(&token.token_id, unsafe{licenses.as_ref().unwrap_unchecked()});
-        }
+            // self.token_licenses_by_id.insert(&token.token_id, unsafe{licenses.as_ref().unwrap_unchecked()});
+        // }
 
         //call the internal method for adding the token to the owner
         self.internal_add_token_to_owner(&token.owner_id, &token.token_id);
@@ -118,10 +119,11 @@ impl InventoryContract {
             license_token_count: old_token.license_token_count,
             policy_rules: policy_rules.clone(),
             upgrade_rules: upgrade_rules.clone(),
+            licenses,
         };
 
         self.tokens_by_id.insert(&token_id, &token);
-        self.token_licenses_by_id.insert(&token_id, unsafe{licenses.as_ref().unwrap_unchecked()});
+        // self.token_licenses_by_id.insert(&token_id, unsafe{licenses.as_ref().unwrap_unchecked()});
         self.token_metadata_by_id.insert(&token_id, &metadata);
     }
 

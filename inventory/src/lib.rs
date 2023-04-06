@@ -46,9 +46,6 @@ pub struct InventoryContract {
     //keeps track of the token metadata for a given token ID
     pub token_metadata_by_id: UnorderedMap<String, TokenMetadata>,
 
-    //keeps track of the asset minter for a given token ID
-    pub token_licenses_by_id: UnorderedMap<String, Vec<AssetLicense>>,
-
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<InventoryContractMetadata>,
 }
@@ -139,7 +136,6 @@ impl InventoryContract {
             tokens_per_owner: LookupMap::new(StorageKey::AssetPerOwner.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::AssetById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(StorageKey::AssetMetadataById.try_to_vec().unwrap()),
-            token_licenses_by_id: UnorderedMap::new(StorageKey::AssetLicensesById.try_to_vec().unwrap()),
             //set the owner_id field equal to the passed in owner_id.
             owner_id,
             metadata: LazyOption::new(

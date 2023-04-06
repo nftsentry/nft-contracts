@@ -13,14 +13,14 @@ impl InventoryContract {
 
         self.ensure_owner();
 
-        let _old_licenses = self.token_licenses_by_id.get(&token_id);
-        self.token_licenses_by_id.remove(&token_id);
+        let mut asset = self.tokens_by_id.get(&token_id).expect("No such token");
 
-        self.token_licenses_by_id.insert(&token_id, &licenses);
+        asset.licenses = Some(licenses);
+        self.tokens_by_id.insert(&token_id, &asset);
 
         let _ = refund_storage(initial_storage_usage, None, None);
 
-        licenses
+        asset.licenses.unwrap().clone()
     }
 
     #[payable]
@@ -37,7 +37,6 @@ impl InventoryContract {
 
         self.token_metadata_by_id.remove(&token_id);
         self.tokens_by_id.remove(&token_id);
-        self.token_licenses_by_id.remove(&token_id);
 
         // let current_storage_usage = env::storage_usage();
         // TODO: need refund?
