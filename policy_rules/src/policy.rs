@@ -11,15 +11,15 @@ pub const LEVEL_LICENSES: &str = "licenses";
 
 pub trait ConfigInterface {
     fn check_transition(
-        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken, policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>
+        &self, inventory: FullInventory, old: ShrinkedLicenseToken, new: ShrinkedLicenseToken, policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>
     ) -> Result<IsAvailableResponse, String>;
     fn check_new(
-        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        &self, inventory: FullInventory, new: ShrinkedLicenseToken, policy_rules: Option<Vec<Limitation>>,
         upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse;
-    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse;
+    fn check_state(&self, licenses: Vec<ShrinkedLicenseToken>) -> IsAvailableResponse;
     fn check_inventory_state(&self, licenses: Vec<InventoryLicense>) -> IsAvailableResponse;
     fn list_transitions(
-        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        &self, inventory: FullInventory, from: ShrinkedLicenseToken, policy_rules: Option<Vec<Limitation>>,
         upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability>;
     fn list_available(
         &self, inventory: FullInventory, policy_rules: Option<Vec<Limitation>>,
@@ -186,7 +186,7 @@ impl LimitCheck for Exclusive {
             }
         }
 
-        let mut remain_to_check: Vec<LicenseToken> = Vec::new();
+        let mut remain_to_check: Vec<ShrinkedLicenseToken> = Vec::new();
         for lic in ctx.full.issued_licenses {
             if !exclusives_by_token_id.contains_key(&lic.token_id()) {
                 remain_to_check.push(lic.clone())
@@ -261,7 +261,7 @@ impl Limitation {
 
 impl ConfigInterface for AllPolicies {
     fn check_transition(
-        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken,
+        &self, inventory: FullInventory, old: ShrinkedLicenseToken, new: ShrinkedLicenseToken,
         policy_rules: Option<Vec<Limitation>>,
         upgrade_rules: Option<Vec<Policy>>) -> Result<IsAvailableResponse, String> {
         // Take into account asset licenses with sets
@@ -311,7 +311,7 @@ impl ConfigInterface for AllPolicies {
     }
 
     fn check_new(
-        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        &self, inventory: FullInventory, new: ShrinkedLicenseToken, policy_rules: Option<Vec<Limitation>>,
         upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse {
         // For asset_mint, nft_mint, update_licenses and
         // update inventory licenses (metadata).
@@ -360,7 +360,7 @@ impl ConfigInterface for AllPolicies {
         available
     }
 
-    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse {
+    fn check_state(&self, licenses: Vec<ShrinkedLicenseToken>) -> IsAvailableResponse {
         let ctx = Context{full: FullInventory{issued_licenses: licenses.clone(), inventory_licenses: Vec::new(), asset: None}};
         self.check_future_state(
             licenses.iter().map(|x| x as &dyn LicenseGeneral).collect(),
@@ -377,7 +377,7 @@ impl ConfigInterface for AllPolicies {
     }
 
     fn list_transitions(
-        &self, inventory: FullInventory, from: LicenseToken, policy_rules: Option<Vec<Limitation>>,
+        &self, inventory: FullInventory, from: ShrinkedLicenseToken, policy_rules: Option<Vec<Limitation>>,
         upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability> {
         let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
         let mut result: Vec<SKUAvailability> = Vec::new();
@@ -389,9 +389,10 @@ impl ConfigInterface for AllPolicies {
                 inventory_id: "".to_owned(),
                 issuer_id: None,
             });
+            let new_lic_token = lic_token.shrink();
 
             let check_transition_res = cloned.check_transition(
-                inventory.clone(), from.clone(), lic_token, None, None,
+                inventory.clone(), from.clone(), new_lic_token, None, None,
             );
 
             unsafe {
@@ -442,7 +443,7 @@ impl ConfigInterface for AllPolicies {
             }
 
             // pretend like we "mint" a new token
-            let token = inventory.asset.as_ref().unwrap().issue_new_license(inv_license, asset_license.clone(), "0".to_string());
+            let token = inventory.asset.as_ref().unwrap().issue_new_license(inv_license, asset_license.clone(), "0".to_string()).shrink();
             // check this new token if it is available to mint
             let mut res = cloned.check_new(inventory.clone(), token, None, None);
 
@@ -535,14 +536,14 @@ impl AllPolicies {
     //     }
     // }
 
-    pub unsafe fn get_future_state_with_transition(&self, inventory: FullInventory, old: LicenseToken, new: LicenseToken) -> FullInventory {
+    pub unsafe fn get_future_state_with_transition(&self, inventory: FullInventory, old: ShrinkedLicenseToken, new: ShrinkedLicenseToken) -> FullInventory {
         let mut future_state = inventory.clone();
         for token in future_state.issued_licenses.iter_mut() {
             if token.token_id == old.token_id {
                 let (inv_id, asset_id, lic_id, _sku) = token.inventory_asset_license_sku();
                 if token.license.is_some() {
                     token.license.as_mut().unwrap_unchecked().metadata = new.license.clone().unwrap_unchecked().metadata;
-                    token.license.as_mut().unwrap_unchecked().title = Some(new.license_title());
+                    // token.license.as_mut().unwrap_unchecked().title = Some(new.license_title());
                     token.license.as_mut().unwrap_unchecked().id = lic_id.clone();
                     // token.license.as_mut().unwrap_unchecked().from.inventory_id = inv_id.clone();
                     // token.license.as_mut().unwrap_unchecked().from.asset_id = asset_id.clone();
@@ -558,7 +559,7 @@ impl AllPolicies {
         future_state
     }
 
-    pub fn get_future_state_with_new(&self, inventory: FullInventory, new: LicenseToken) -> FullInventory {
+    pub fn get_future_state_with_new(&self, inventory: FullInventory, new: ShrinkedLicenseToken) -> FullInventory {
         let mut future_state = inventory.clone();
         future_state.issued_licenses.push(new);
         future_state

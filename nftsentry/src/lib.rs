@@ -11,6 +11,7 @@ pub use common_types::types::{LicenseToken, FilterOpt};
 pub use common_types::utils::*;
 pub use common_types::types::{InventoryLicense, JsonAssetToken, SKUAvailability};
 pub use common_types::types::{ExtendedInventoryMetadata, FullInventory, InventoryContractMetadata};
+use common_types::types::ShrinkedLicenseToken;
 
 use crate::internal::*;
 pub use crate::metadata::*;
@@ -60,6 +61,7 @@ pub struct Contract {
 
     //keeps track of all the token IDs for a given account
     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    pub tokens_per_asset: LookupMap<String, UnorderedSet<TokenId>>,
 
     //keeps track of the token struct for a given token ID
     pub tokens_by_id: UnorderedMap<TokenId, Token>,
@@ -88,11 +90,11 @@ pub trait InventoryContract {
 #[ext_contract(policy_rules_contract)]
 pub trait PolicyRulesContract {
     fn check_transition(
-        &self, inventory: FullInventory, old: LicenseToken, new: LicenseToken,
+        &self, inventory: FullInventory, old: ShrinkedLicenseToken, new: ShrinkedLicenseToken,
         policy_rules: Option<Vec<LimitationData>>, upgrade_rules: Option<Vec<PolicyData>>
     ) -> Result<IsAvailableResponseData, String>;
     fn check_new(
-        &self, inventory: FullInventory, new: LicenseToken, policy_rules: Option<Vec<LimitationData>>,
+        &self, inventory: FullInventory, new: ShrinkedLicenseToken, policy_rules: Option<Vec<LimitationData>>,
         upgrade_rules: Option<Vec<PolicyData>>) -> IsAvailableResponseData;
 }
 
@@ -100,6 +102,8 @@ pub trait PolicyRulesContract {
 #[derive(BorshSerialize)]
 pub enum StorageKey {
     TokensPerOwner,
+    TokensPerAsset,
+    TokensPerAssetInner { asset_hash: CryptoHash },
     TokenPerOwnerInner { account_id_hash: CryptoHash },
     TokensById,
     TokenMetadataById,
@@ -148,6 +152,7 @@ impl Contract {
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
+            tokens_per_asset: LookupMap::new(StorageKey::TokensPerAsset.try_to_vec().unwrap()),
             tokens_by_id: UnorderedMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             // token_metadata_by_id: UnorderedMap::new(
             //     StorageKey::TokenMetadataById.try_to_vec().unwrap(),
@@ -180,7 +185,7 @@ impl Contract {
         // Restore metadata
         let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata.clone());
 
-        let logs = this._restore_data(metadata, tokens);
+        let _logs = this._restore_data(metadata, tokens);
 
         //calculate the required storage which was the used - initial
         // let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
@@ -188,9 +193,10 @@ impl Contract {
         //refund any excess storage if the user attached too much. Panic if they didn't attach enough to cover the required.
         // let _ = refund_deposit(required_storage_in_bytes, None, None);
 
-        for log in logs {
-            this.log_event(&log.to_string())
-        }
+        // Do not log mints
+        // for log in logs {
+        //     this.log_event(&log.to_string())
+        // }
 
         this
     }

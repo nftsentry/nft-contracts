@@ -37,11 +37,11 @@ pub(crate) fn refund_approved_account_ids(
 }
 
 // used to generate a unique prefix in our storage collections (this is to avoid data collisions)
-pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
+pub(crate) fn hash_id(s: &String) -> CryptoHash {
     //get the default hash
     let mut hash = CryptoHash::default();
     //we hash the account ID and return it
-    hash.copy_from_slice(&env::sha256(account_id.as_bytes()));
+    hash.copy_from_slice(&env::sha256(s.as_bytes()));
     hash
 }
 
@@ -58,7 +58,7 @@ impl Contract {
             UnorderedSet::new(
                 StorageKey::TokenPerOwnerInner {
                     //we get a new unique prefix for the collection
-                    account_id_hash: hash_account_id(&account_id),
+                    account_id_hash: hash_id(&account_id.to_string()),
                 }
                 .try_to_vec()
                 .unwrap(),
@@ -70,6 +70,38 @@ impl Contract {
 
         //we insert that set for the given account ID. 
         self.tokens_per_owner.insert(account_id, &tokens_set);
+    }
+
+    pub(crate) fn internal_add_token_to_asset(
+        &mut self,
+        asset_id: &String,
+        token_id: &TokenId,
+    ) {
+        let mut tokens_vec = self.tokens_per_asset.get(asset_id).unwrap_or_else(|| {
+            UnorderedSet::new(StorageKey::TokensPerAssetInner{
+                asset_hash: hash_id(asset_id)
+            }.try_to_vec().unwrap())
+        });
+        tokens_vec.insert(token_id);
+        self.tokens_per_asset.insert(asset_id, &tokens_vec);
+    }
+
+    pub(crate) fn internal_remove_token_from_asset(
+        &mut self,
+        asset_id: &String,
+        token_id: &TokenId,
+    ) {
+        let mut tokens_set = self
+            .tokens_per_asset
+            .get(asset_id)
+            .expect("Token should belong to the asset");
+
+        tokens_set.remove(token_id);
+        if tokens_set.is_empty() {
+            self.tokens_per_asset.remove(asset_id);
+        } else {
+            self.tokens_per_asset.insert(asset_id, &tokens_set);
+        }
     }
 
     //remove a token from an owner (internal method and can't be called directly via CLI).

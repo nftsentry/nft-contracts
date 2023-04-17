@@ -151,12 +151,11 @@ impl Contract {
             let inv_metadata = metadata_res.unwrap_unchecked();
 
             let near_price_data = price_res.unwrap_unchecked().unwrap();
-            let near_price = near_price_data.reports.last().unwrap().price.clone();
+            let near_price = &near_price_data.reports.last().unwrap().price;
             env::log_str(&format!("NEAR price: {} USD", near_price.string_price()));
 
-            let asset_licenses = asset.licenses.clone().unwrap_or_default();
-            let asset_license_opt = asset_licenses.iter().find(
-                |x| x.sku_id.clone().unwrap() == sku_id.clone().unwrap()
+            let asset_license_opt = asset.licenses.as_ref().unwrap().iter().find(
+                |x| x.sku_id == sku_id
             );
 
             if asset_license_opt.is_none() {
@@ -165,13 +164,13 @@ impl Contract {
             let mut asset_license = (*asset_license_opt.unwrap()).clone();
 
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
-            let inv_license = full_inventory.inventory_licenses.clone().into_iter().find(
-                |x| asset_license.license_id.is_some() && x.license_id == asset_license.license_id.clone().unwrap()
-            );
+            let inv_license = inv_metadata.metadata.licenses.iter().find(
+                |x| asset_license.license_id.is_some() && Some(&x.license_id) == asset_license.license_id.as_ref()
+            ).cloned();
 
             // Re-calculate and re-assign a price
             // let price_currency = asset_license.price.clone().unwrap();
-            let price_str = asset_license.get_near_cost(near_price.clone());
+            let price_str = asset_license.get_near_cost(near_price);
             asset_license.price = price_str.clone();
 
             let deposit = env::attached_deposit();
@@ -184,27 +183,25 @@ impl Contract {
                 ))
             }
 
-            let mut lic_token = asset.issue_new_license(
-                inv_license.clone(), asset_license.clone(), token_id.clone()
-            );
-            lic_token.owner_id = receiver_id.clone();
+            let mut lic_token = asset.issue_new_license(inv_license, asset_license, token_id);
+            lic_token.owner_id = receiver_id;
 
             let promise_new: Promise = policy_rules_contract::ext(self.policy_contract.clone())
                 .with_unused_gas_weight(7).check_new(
-                full_inventory.clone(),
-                lic_token.clone(),
-                asset.policy_rules.clone(),
-                asset.upgrade_rules.clone(),
+                full_inventory,
+                lic_token.shrink(),
+                asset.policy_rules,
+                asset.upgrade_rules,
             );
             let on_check_promise = promise_new.then(
                 Self::ext(env::current_account_id())
-                    .with_attached_deposit(env::attached_deposit())
+                    .with_attached_deposit(deposit)
                     .with_unused_gas_weight(27)
                     .on_check_new_receiver(
-                        lic_token.clone(),
-                        asset_license.price.clone(), asset.token_id.clone(),
-                        inv_metadata.owner_id.clone(),
-                        predecessor_id.clone(),
+                        lic_token,
+                        price, asset.token_id,
+                        inv_metadata.owner_id,
+                        predecessor_id,
                         opts,
                     )
             );
@@ -218,7 +215,7 @@ impl Contract {
         &mut self,
         #[callback_result] check_new_res: Result<IsAvailableResponseData, PromiseError>,
         lic_token: LicenseToken,
-        asset_license_price: String,
+        asset_license_price: Balance,
         asset_id: String,
         inventory_owner: AccountId,
         predecessor_id: AccountId,
@@ -288,7 +285,7 @@ impl Contract {
         let charged_price = if opts.is_gift {
             None
         } else {
-            Some(balance_from_string(asset_license_price.clone()))
+            Some(asset_license_price.clone())
         };
         // refund any excess storage if the user attached too much.
         let result = refund_storage(
@@ -300,6 +297,7 @@ impl Contract {
             // Refund failed due to storage costs.
             // Rollback all changes!
             self.internal_remove_token_from_owner(&token.owner_id, &token.token_id);
+            self.internal_remove_token_from_asset(&token.asset_id, &token.token_id);
             self.tokens_by_id.remove(&token.token_id);
             // self.token_license_by_id.remove(&token.token_id);
             // self.token_metadata_by_id.remove(&token.token_id);
@@ -311,21 +309,13 @@ impl Contract {
             return NFTMintResult{license_token:None, error:msg}
         }
 
-        let license_sold = self.nft_tokens(
-            None,
-            Some(MAX_LIMIT),
-            Some(FilterOpt{asset_id: Some(asset_id.clone()), account_id: None})
-        ).len() as u64;
+        let license_sold = self.nft_token_supply_for_asset(asset_id.clone());
         inventory_contract::ext(self.inventory_id.clone()).with_static_gas(Gas::ONE_TERA * 3).on_nft_mint(
-            asset_id.clone(), license_sold
+            asset_id, license_sold
         );
         // Process fees only if it is not a gift
         if !opts.is_gift {
-            self.process_fees(
-                balance_from_string(
-                    asset_license_price.clone()
-                ), inventory_owner
-            );
+            self.process_fees(asset_license_price.clone(), inventory_owner);
         }
 
         // Log the serialized json.
@@ -383,6 +373,7 @@ impl Contract {
         //self.token_proposed_license_by_id.insert(&token_id, &proposed_license);
 
         self.internal_add_token_to_owner(&lic_token.owner_id, &lic_token.token_id);
+        self.internal_add_token_to_asset(&lic_token.asset_id, &lic_token.token_id);
 
         // Construct the mint log as per the events standard.
         let nft_mint_log: EventLog = EventLog {

@@ -102,44 +102,45 @@ impl Contract {
         }
         let token = self.nft_token(token_id.clone()).unwrap();
         let asset = unsafe{asset_res.unwrap_unchecked()};
-        let new_asset_license = asset.licenses.clone().unwrap().into_iter().find(
-            |x| x.sku_id.clone().unwrap() == new_sku_id).expect("Asset license not found");
-        let old_asset_license = asset.licenses.as_ref().unwrap().into_iter().find(
-            |x| x.sku_id.clone().unwrap() == token.sku_id()).expect("Asset license not found");
+        let new_asset_license = asset.licenses.as_ref().unwrap().iter().find(
+            |x| x.sku_id.as_ref() == Some(&new_sku_id)).expect("Asset license not found");
+        let old_asset_license = asset.licenses.as_ref().unwrap().iter().find(
+            |x| x.sku_id.as_ref() == Some(&token.sku_id())).expect("Asset license not found");
         let metadata = unsafe{metadata_res.unwrap_unchecked()};
 
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
-        let full_inventory = self.get_full_inventory(asset.clone(), metadata.clone());
-        let new_license = metadata.licenses.into_iter().find(
-            |x| new_asset_license.license_id.is_some() && x.license_id == new_asset_license.license_id.clone().unwrap());
+        let new_license = metadata.licenses.iter().find(
+            |x| new_asset_license.license_id.as_ref() == Some(&x.license_id)).cloned();
+        let full_inventory = self.get_full_inventory(asset.clone(), metadata);
 
         let near_price_data = price_res.unwrap().unwrap();
-        let near_price = near_price_data.reports.last().unwrap().price.clone();
+        let near_price = &near_price_data.reports.last().unwrap().price;
         env::log_str(&format!("NEAR price: {} USD", near_price.string_price()));
 
         // Check for valid deposit
         let must_attach = balance_from_string(
-            new_asset_license.get_near_cost(near_price.clone())
+            new_asset_license.get_near_cost(near_price)
         ) - balance_from_string(
             old_asset_license.get_near_cost(near_price)
         );
-        if env::attached_deposit() < must_attach {
+        let deposit = env::attached_deposit();
+        if deposit < must_attach {
             return Err(format!(
                 "Attached deposit of {} NEAR is less than license price difference of {} NEAR",
-                format_balance(env::attached_deposit()),
+                format_balance(deposit),
                 format_balance(must_attach),
             ))
         }
 
-        let mut new_token: LicenseToken = asset.issue_new_license(new_license, new_asset_license, token_id.clone());
+        let mut new_token: LicenseToken = asset.issue_new_license(new_license, new_asset_license.to_owned(), token_id.clone());
         new_token.owner_id = token.owner_id.clone();
 
         let promise_transition: Promise = policy_rules_contract::ext(self.policy_contract.clone())
             .with_unused_gas_weight(3).check_transition(
             full_inventory,
-            token,
-            new_token.clone(),
+            token.shrink(),
+            new_token.shrink(),
             asset.policy_rules.clone(),
             asset.upgrade_rules.clone(),
         );
@@ -243,15 +244,13 @@ impl Contract {
     pub fn get_full_inventory(&self, asset: JsonAssetToken, metadata: InventoryContractMetadata) -> FullInventory {
         // Build full inventory for those.
         // First, populate licenses with actual prices from asset
-        let tokens = self.nft_tokens(
-            None,
-            Some(MAX_LIMIT),
-            Some(FilterOpt{asset_id: Some(asset.token_id.clone()), account_id: None})
+        let tokens = self.shrinked_nft_tokens_for_asset(
+            asset.token_id.clone(),
         );
         let full_inventory = FullInventory{
-            inventory_licenses: metadata.licenses.clone(),
+            inventory_licenses: metadata.licenses,
             issued_licenses: tokens,
-            asset: Some(asset.clone()),
+            asset: Some(asset),
         };
         full_inventory
     }

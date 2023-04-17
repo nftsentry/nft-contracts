@@ -3,7 +3,7 @@ use near_sdk::serde_json;
 use crate::*;
 use crate::policy::{LimitationData, LimitsInfoData, PolicyData};
 use crate::prices::Price;
-use crate::utils::{get_inventory_id};
+use crate::utils::{get_inventory_id, get_objects};
 
 pub type TokenId = String;
 pub type AssetId = String;
@@ -44,12 +44,28 @@ pub struct TokenExtra {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct ShrinkedTokenMetadata {
+    pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
+    pub object: Option<String>, // Object data string
+    pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
+    pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
+    pub from: Option<SourceLicenseMeta>,
+}
+
+impl ShrinkedTokenMetadata {
+    pub fn get_objects(&self) -> ObjectData {
+        return get_objects(self.object.as_ref())
+    }
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct TokenMetadata {
     pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
     pub description: Option<String>, // free-form description
     pub media: Option<String>, // URL to associated media, preferably to decentralized, content-addressed storage
     pub previews: Option<String>, // URL/JSON with URLs to image previews
-    pub object: Option<String>, // URL to an object
+    pub object: Option<String>, // Object data string
     // pub media_hash: Option<Base64VecU8>, // Base64-encoded sha256 hash of content referenced by the `media` field. Required if `media` is included.
     // pub copies: Option<u64>, // number of copies of this set of metadata in existence when token was minted.
     pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
@@ -65,16 +81,17 @@ pub struct TokenMetadata {
 
 impl TokenMetadata {
     pub fn get_objects(&self) -> ObjectData {
-        if self.object.is_none() {
-            return ObjectData{sets: None, items: Some(Vec::new())}
+        return get_objects(self.object.as_ref())
+    }
+
+    pub fn shrink(&self) -> ShrinkedTokenMetadata {
+        ShrinkedTokenMetadata{
+            object: self.object.clone(),
+            expires_at: self.expires_at.clone(),
+            issued_at: self.issued_at.clone(),
+            from: self.from.clone(),
+            title: self.title.clone(),
         }
-        if self.object.clone().unwrap().is_empty() {
-            return ObjectData{sets: None, items: Some(Vec::new())}
-        }
-        let object_data: ObjectData = serde_json::from_str(
-            &self.object.clone().unwrap_or("{}".to_string())
-        ).expect("Failed parse object data");
-        return object_data
     }
 }
 
@@ -112,28 +129,18 @@ impl ObjectData {
     //     }
     // }
 
-    pub fn filter_by_objects(&self, objects: Vec<String>, _set: Option<ObjectSet>) -> ObjectData {
+    pub fn filter_by_objects(&self, objects: Vec<String>) -> ObjectData {
         if self.items.is_none() {
             return ObjectData{items: None, sets: None}
         }
-        let filtered: Vec<ObjectItem> = self.items.clone().unwrap_or_default().into_iter().filter(|x| objects.contains(&x.id)).collect();
-        // let ids: Vec<String> = filtered.iter().map(|x| x.id.clone()).collect();
-
-        // let new_set = if set.is_none() {
-        //     ObjectSet{
-        //         icon: None,
-        //         objects: Some(ids.clone()),
-        //         id: ids[0].clone() + &"_set".to_string(),
-        //         title: None,
-        //         description: None,
-        //         active: Some(true),
-        //     }
-        // } else {
-        //     unsafe { set.unwrap_unchecked().clone() }
-        // };
+        let mut filtered: Vec<ObjectItem> = Vec::new();
+        for i in self.items.as_ref().unwrap_or(&Vec::default()) {
+            if objects.contains(&i.id) {
+                filtered.push(i.clone())
+            }
+        }
         let new_obj_data: ObjectData = ObjectData{
             items: Some(filtered),
-            // sets: Some(vec![new_set]),
             sets: None,
         };
 
@@ -156,6 +163,16 @@ pub struct ObjectItem {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct ShrinkedLicenseData {
+    pub exclusivity: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub personal_use: Option<bool>,
+    pub commercial_use: Option<bool>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct LicenseData {
     pub perpetuity: bool,
     pub exclusivity: bool,
@@ -166,6 +183,16 @@ pub struct LicenseData {
     pub limited_display_sublicensee: bool,
     pub template: Option<String>,
     pub pdf_url: Option<String>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ShrinkedTokenLicense {
+    pub id: String,
+    pub metadata: ShrinkedLicenseData,
+    // pub from: SourceLicenseMeta,
+    pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
+    pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
 }
 
 
@@ -183,6 +210,21 @@ pub struct TokenLicense {
     pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
     pub starts_at: Option<u64>, // When token starts being valid, Unix epoch in milliseconds
     pub updated_at: Option<u64>, // When token was last updated, Unix epoch in milliseconds
+}
+
+impl TokenLicense {
+    pub fn shrink(&self) -> ShrinkedTokenLicense {
+        return ShrinkedTokenLicense{
+            expires_at: self.expires_at.clone(),
+            id: self.id.clone(),
+            issued_at: self.issued_at.clone(),
+            metadata: ShrinkedLicenseData{
+                commercial_use: self.metadata.commercial_use.clone(),
+                personal_use: self.metadata.personal_use.clone(),
+                exclusivity: self.metadata.exclusivity.clone(),
+            }
+        }
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -217,6 +259,45 @@ pub struct Token {
 pub struct FilterOpt {
     pub account_id: Option<AccountId>,
     pub asset_id: Option<AssetId>,
+}
+
+//The Json token is what will be returned from view calls.
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ShrinkedLicenseToken {
+    //token ID
+    pub token_id: TokenId,
+    //asset id of the token
+    pub asset_id: AssetId,
+    //token metadata
+    pub metadata: ShrinkedTokenMetadata,
+    // license metadata
+    pub license: Option<ShrinkedTokenLicense>,
+}
+
+impl ShrinkedLicenseToken {
+    pub fn inventory_asset_license_sku(&self) -> (String, String, String, String) {
+        if self.license.is_none() && self.metadata.from.is_none() {
+            return (String::new(), String::new(), String::new(), String::new())
+        }
+        unsafe {
+            let inv_id: String;
+            let asset_id: String;
+            // if self.metadata.from.is_none() {
+            //     inv_id = self.license.as_ref().unwrap_unchecked().from.inventory_id.clone();
+            //     asset_id = self.license.as_ref().unwrap_unchecked().from.asset_id.clone();
+            // } else {
+            inv_id = self.metadata.from.clone().unwrap_unchecked().inventory_id.clone();
+            asset_id = self.metadata.from.clone().unwrap_unchecked().asset_id.clone();
+            // }
+            return (
+                inv_id,
+                asset_id,
+                self.license_id(),
+                self.sku_id(),
+            )
+        }
+    }
 }
 
 //The Json token is what will be returned from view calls.
@@ -265,20 +346,12 @@ impl LicenseToken {
         }
     }
 
-    pub fn as_inventory_license(&self, price: Option<String>) -> Option<InventoryLicense> {
-        if self.license.is_none() {
-            return None
-        }
-        unsafe {
-            let license_data = &self.license.as_ref().unwrap_unchecked().metadata;
-            let (_, _, lic_id, _) = self.inventory_asset_license_sku();
-            let res = InventoryLicense {
-                license_id: lic_id,
-                title: self.license.as_ref().unwrap_unchecked().title.as_ref().unwrap().to_string(),
-                license: license_data.clone(),
-                price: price.clone(),
-            };
-            Some(res)
+    pub fn shrink(&self) -> ShrinkedLicenseToken {
+        return ShrinkedLicenseToken{
+            asset_id: self.asset_id.clone(),
+            token_id: self.token_id.clone(),
+            license: if self.license.is_some() { Some(self.license.as_ref().unwrap().shrink()) } else {None},
+            metadata: self.metadata.shrink()
         }
     }
 }
@@ -346,6 +419,92 @@ impl LicenseGeneral for LicenseToken {
                 return self.metadata.title.clone().unwrap_or(String::new())
             }
         }
+    }
+
+    fn sku_id(&self) -> String {
+        unsafe {
+            // if self.metadata.from.is_none() {
+            //     self.license.as_ref().unwrap_unchecked().from.sku_id.clone().unwrap_or(String::new())
+            // } else {
+            self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
+            // }
+        }
+    }
+
+    fn token_id(&self) -> String {
+        self.token_id.clone()
+    }
+
+    fn objects(&self) -> Vec<String> {
+        let obj_data = self.metadata.get_objects();
+        let ids = obj_data.items.unwrap_or(Vec::new()).iter().map(|x| x.id.clone()).collect();
+        return ids
+    }
+
+    fn object_hash(&self) -> String {
+        let mut objects = self.objects();
+        objects.sort();
+        return objects.join(",")
+    }
+}
+
+impl LicenseGeneral for ShrinkedLicenseToken {
+    fn is_exclusive(&self) -> bool {
+        if self.license.is_none() {
+            return false
+        }
+        unsafe {
+            self.license.as_ref().unwrap_unchecked().metadata.exclusivity
+        }
+    }
+
+    fn is_personal(&self) -> bool {
+        if self.license.is_none() {
+            return true
+        }
+        unsafe {
+            let lic = self.license.as_ref().unwrap_unchecked();
+            if lic.metadata.personal_use.clone().is_some() {
+                return lic.metadata.personal_use.clone().unwrap()
+            }
+            if lic.metadata.commercial_use.clone().is_some() {
+                !lic.metadata.commercial_use.clone().unwrap()
+            } else {
+                // Imply personal_use == false
+                return false
+            }
+        }
+    }
+
+    fn is_commercial(&self) -> bool {
+        if self.license.is_none() {
+            return false
+        }
+        unsafe {
+            let lic = self.license.as_ref().unwrap_unchecked();
+            if lic.metadata.personal_use.clone().is_some() {
+                return !lic.metadata.personal_use.clone().unwrap()
+            }
+            if lic.metadata.commercial_use.clone().is_some() {
+                lic.metadata.commercial_use.clone().unwrap()
+            } else {
+                // Imply personal_use == false
+                return true
+            }
+        }
+    }
+
+    fn license_id(&self) -> String {
+        if self.license.is_none() {
+            return String::new()
+        }
+        unsafe {
+            self.license.as_ref().unwrap_unchecked().id.clone()
+        }
+    }
+
+    fn license_title(&self) -> String {
+        return String::new()
     }
 
     fn sku_id(&self) -> String {
@@ -513,10 +672,10 @@ pub struct AssetLicense {
 pub const NEAR_CURRENCY: &str = "NEAR";
 
 impl AssetLicense {
-    pub fn get_near_cost(&self, near_usd_price: Price) -> String {
+    pub fn get_near_cost(&self, near_usd_price: &Price) -> String {
         let mut currency = NEAR_CURRENCY.to_string();
-        if let Some(new_currency) = self.currency.clone() {
-            currency = new_currency;
+        if let Some(new_currency) = &self.currency {
+            currency = new_currency.to_string();
         }
 
         if currency != NEAR_CURRENCY.to_string() {
@@ -634,7 +793,7 @@ impl JsonAssetToken {
             inventory_id: get_inventory_id(self.minter_id.clone().to_string()),
             sku_id: sku_info.sku_id.clone(),
             asset_id: self.token_id.clone(),
-            issuer_id: Some(self.minter_id.clone().to_string()),
+            issuer_id: Some(self.minter_id.to_string()),
         };
         metadata.from = Some(from);
 
@@ -651,17 +810,17 @@ impl JsonAssetToken {
             }
         }
 
-        let sku_id = sku_info.sku_id.clone().unwrap();
+        let sku_id = sku_info.sku_id.unwrap();
         unsafe {
             if self.metadata.object.as_ref().unwrap_unchecked().is_empty() {
                 return metadata
             }
             let obj_data = self.metadata.get_objects();
             let obj_ids = self.licenses.as_ref().unwrap().iter().find(
-                |&x| x.sku_id.clone().unwrap_or(String::new()) == sku_id.clone()
+                |&x| x.sku_id.as_ref().unwrap_or(&String::default()) == &sku_id
             ).expect("Not found by sku_id").objects.clone().unwrap();
             // let new_obj_data = obj_data.filter_by_set_id(set_id);
-            let new_obj_data = obj_data.filter_by_objects(obj_ids, None);
+            let new_obj_data = obj_data.filter_by_objects(obj_ids);
             metadata.object = Some(serde_json::to_string(&new_obj_data).expect("Failed to serialize"));
             return metadata
         }
@@ -714,6 +873,6 @@ pub struct SKUAvailability {
 #[serde(crate = "near_sdk::serde")]
 pub struct FullInventory {
     pub inventory_licenses: Vec<InventoryLicense>,
-    pub issued_licenses:    Vec<LicenseToken>,
+    pub issued_licenses:    Vec<ShrinkedLicenseToken>,
     pub asset: Option<JsonAssetToken>,
 }

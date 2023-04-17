@@ -1,4 +1,6 @@
 use near_sdk::{Balance, AccountId, env, Promise};
+use near_sdk::serde_json;
+use crate::types::ObjectData;
 
 pub fn refund_storage(initial_storage: u64, predecessor_id: Option<AccountId>, charged_price: Option<Balance>) -> Result<(), String> {
     let new_storage_usage = env::storage_usage();
@@ -77,6 +79,19 @@ pub fn format_balance(b: near_sdk::Balance) -> String {
 pub fn get_inventory_id(minter_id: String) -> String {
     let splitted: Vec<&str> = minter_id.split("_").collect();
     splitted[1..].join("_")
+}
+
+pub fn get_objects(object: Option<&String>) -> ObjectData {
+    if object.is_none() {
+        return ObjectData{sets: None, items: Some(Vec::new())}
+    }
+    if object.clone().unwrap().is_empty() {
+        return ObjectData{sets: None, items: Some(Vec::new())}
+    }
+    let object_data: ObjectData = serde_json::from_str(
+        &object.clone().unwrap_or(&"{}".to_string())
+    ).expect("Failed parse object data");
+    return object_data
 }
 
 pub fn is_mainnet() -> bool {

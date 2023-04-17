@@ -35,6 +35,42 @@ impl Contract {
             .collect()
     }
 
+    pub fn shrinked_nft_tokens_for_asset(&self, asset_id: String) -> Vec<ShrinkedLicenseToken> {
+        let mut result: Vec<ShrinkedLicenseToken> = Vec::new();
+        let tokens_opt = self.tokens_per_asset.get(&asset_id);
+        if tokens_opt.is_none() {
+            return Vec::new()
+        }
+        let tokens = tokens_opt.unwrap();
+        for key in tokens.iter() {
+            result.push(self.shrinked_nft_token(key))
+        }
+        result
+    }
+
+    pub fn nft_token_supply_for_asset(&self, asset_id: String) -> u64 {
+        let tokens_for_asset = self.tokens_per_asset.get(&asset_id);
+
+        //if there is some set of tokens, we'll return the length as a U128
+        if let Some(tokens_for_asset) = tokens_for_asset {
+            tokens_for_asset.len() as u64
+        } else {
+            //if there isn't a set of tokens for the passed in account ID, we'll return 0
+            0
+        }
+    }
+
+    fn shrinked_nft_token(&self, token_id: TokenId) -> ShrinkedLicenseToken {
+        //if there is some token ID in the tokens_by_id collection
+        let token = self.tokens_by_id.get(&token_id).unwrap();
+        ShrinkedLicenseToken {
+            token_id,
+            asset_id: token.asset_id,
+            metadata: token.metadata.shrink(),
+            license: if token.license.is_some() { Some(token.license.as_ref().unwrap().shrink()) } else {None},
+        }
+    }
+
     //get the total supply of NFTs for a given owner
     pub fn nft_supply_for_owner(
         &self,

@@ -1,25 +1,25 @@
 use near_sdk::{near_bindgen};
 use crate::*;
 use policy_rules::policy::{ConfigInterface, IsAvailableResponse, Limitation, Policy};
-use common_types::types::{FullInventory, InventoryLicense, LicenseToken};
+use common_types::types::{FullInventory, InventoryLicense, ShrinkedLicenseToken};
 use policy_rules::types::{SKUAvailability};
 
 #[near_bindgen]
 impl ConfigInterface for Contract {
     #[handle_result]
     fn check_transition(
-        &self, inventory: FullInventory, old: LicenseToken,
-        new: LicenseToken, policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>) -> Result<IsAvailableResponse, String> {
+        &self, inventory: FullInventory, old: ShrinkedLicenseToken,
+        new: ShrinkedLicenseToken, policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>) -> Result<IsAvailableResponse, String> {
         self.policies.check_transition(inventory, old, new, policy_rules, upgrade_rules)
     }
 
     fn check_new(
-        &self, inventory: FullInventory, new: LicenseToken,
+        &self, inventory: FullInventory, new: ShrinkedLicenseToken,
         policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse {
         self.policies.check_new(inventory, new, policy_rules, upgrade_rules)
     }
 
-    fn check_state(&self, licenses: Vec<LicenseToken>) -> IsAvailableResponse {
+    fn check_state(&self, licenses: Vec<ShrinkedLicenseToken>) -> IsAvailableResponse {
         self.policies.check_state(licenses)
     }
 
@@ -28,7 +28,7 @@ impl ConfigInterface for Contract {
     }
 
     fn list_transitions(
-        &self, inventory: FullInventory, from: LicenseToken,
+        &self, inventory: FullInventory, from: ShrinkedLicenseToken,
         policy_rules: Option<Vec<Limitation>>, upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability> {
         self.policies.list_transitions(inventory, from, policy_rules, upgrade_rules)
     }

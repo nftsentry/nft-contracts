@@ -137,12 +137,12 @@ mod tests {
             Some(new_l.clone()),
             asset_token.licenses.as_ref().unwrap()[1].clone(),
             "token".to_string()
-        );
+        ).shrink();
         let old_token = asset_token.issue_new_license(
             Some(old_l.clone()),
             asset_token.licenses.as_ref().unwrap()[0].clone(),
             "token".to_string()
-        );
+        ).shrink();
         let inventory = FullInventory{
             inventory_licenses: vec![old_l.clone(), new_l.clone()],
             issued_licenses:    vec![old_token.clone()],
@@ -237,7 +237,7 @@ mod tests {
             Some(personal_exclusive.clone()),
             asset.licenses.as_ref().unwrap()[2].clone(),
             "1".to_string(),
-        );
+        ).shrink();
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
@@ -284,23 +284,23 @@ mod tests {
         let lics = asset_token.licenses.clone().unwrap();
         let exclusive_token = asset_token.issue_new_license(
             Some(personal_exclusive.clone()), lics[0].clone(), "1".to_string()
-        );
+        ).shrink();
 
         let exclusive_same = asset_token.issue_new_license(
             Some(personal_exclusive.clone()), lics[0].clone(), "2".to_string()
-        );
+        ).shrink();
         let exclusive_same_object = asset_token.issue_new_license(
             Some(personal_exclusive.clone()), lics[4].clone(), "3".to_string()
-        );
+        ).shrink();
         let exclusive_different_object = asset_token.issue_new_license(
             Some(personal_exclusive.clone()), lics[3].clone(), "4".to_string()
-        );
+        ).shrink();
         let personal_same_object = asset_token.issue_new_license(
             Some(personal.clone()), lics[1].clone(), "5".to_string()
-        );
+        ).shrink();
         let personal_different_object = asset_token.issue_new_license(
             Some(personal.clone()), lics[2].clone(), "6".to_string()
-        );
+        ).shrink();
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![exclusive_token.clone()],
@@ -374,7 +374,7 @@ mod tests {
             license_id: "lic_id3".to_string(),
             license: license_data(true, true)
         };
-        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string());
+        let personal_exclusive_token = personal_exclusive.as_license_token("1".to_string()).shrink();
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_exclusive_token.clone()],
@@ -433,13 +433,13 @@ mod tests {
         let lics = asset_token.licenses.clone().unwrap();
         let personal_token = asset_token.issue_new_license(
             Some(personal.clone()), lics[0].clone(), "1".to_string()
-        );
+        ).shrink();
         let personal_token2 = asset_token.issue_new_license(
             Some(personal.clone()), lics[0].clone(), "2".to_string()
-        );
+        ).shrink();
         let personal_token3 = asset_token.issue_new_license(
             Some(personal.clone()), lics[0].clone(), "3".to_string()
-        );
+        ).shrink();
         let inventory = FullInventory{
             inventory_licenses: vec![personal.clone(), commercial.clone(), personal_exclusive.clone()],
             issued_licenses:    vec![personal_token.clone(), personal_token2.clone(), personal_token3.clone()],
