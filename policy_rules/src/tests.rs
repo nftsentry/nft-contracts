@@ -20,11 +20,14 @@ mod tests {
         LicenseData{
             pdf_url: None,
             template: None,
-            limited_display_sublicensee: false,
-            perpetuity: true,
             personal_use: None,
             commercial_use: Some(!personal),
+            display_sublicensee: None,
+            hate_speech_termination: None,
+            creative_commons: None,
             exclusivity: exclusive,
+            moral_use_restrictions: None,
+            version: None,
         }
     }
 
@@ -549,16 +552,16 @@ mod tests {
 
         al.currency = Some("USD".to_string());
         al.price = "0.1".to_string();
-        let cost1 = al.get_near_cost(near_price.clone());
+        let cost1 = al.get_near_cost(&near_price);
 
         al.price = "1".to_string();
-        let cost2 = al.get_near_cost(near_price.clone());
+        let cost2 = al.get_near_cost(&near_price);
 
         al.price = "5".to_string();
-        let cost3 = al.get_near_cost(near_price.clone());
+        let cost3 = al.get_near_cost(&near_price);
 
         al.price = "10".to_string();
-        let cost4 = al.get_near_cost(near_price.clone());
+        let cost4 = al.get_near_cost(&near_price);
 
         // println!("{} {} {} {}", cost1, cost2, cost3, cost4);
         assert_eq!(cost1, "0.073844".to_string());

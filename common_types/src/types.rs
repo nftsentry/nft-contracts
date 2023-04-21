@@ -174,15 +174,18 @@ pub struct ShrinkedLicenseData {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LicenseData {
-    pub perpetuity: bool,
     pub exclusivity: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub personal_use: Option<bool>,
     pub commercial_use: Option<bool>,
-    pub limited_display_sublicensee: bool,
+    pub display_sublicensee: Option<bool>,
+    pub hate_speech_termination: Option<bool>,
+    pub creative_commons: Option<bool>,
+    pub moral_use_restrictions: Option<bool>,
     pub template: Option<String>,
     pub pdf_url: Option<String>,
+    pub version: Option<String>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
