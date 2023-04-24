@@ -25,7 +25,7 @@ mod tests {
             display_sublicensee: None,
             hate_speech_termination: None,
             creative_commons: None,
-            exclusivity: exclusive,
+            exclusivity: Some(exclusive),
             moral_use_restrictions: None,
             version: None,
         }

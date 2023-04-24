@@ -174,7 +174,7 @@ pub struct ShrinkedLicenseData {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LicenseData {
-    pub exclusivity: bool,
+    pub exclusivity: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub personal_use: Option<bool>,
@@ -224,7 +224,7 @@ impl TokenLicense {
             metadata: ShrinkedLicenseData{
                 commercial_use: self.metadata.commercial_use.clone(),
                 personal_use: self.metadata.personal_use.clone(),
-                exclusivity: self.metadata.exclusivity.clone(),
+                exclusivity: self.metadata.exclusivity.clone().unwrap_or(false),
             }
         }
     }
@@ -365,7 +365,7 @@ impl LicenseGeneral for LicenseToken {
             return false
         }
         unsafe {
-            self.license.as_ref().unwrap_unchecked().metadata.exclusivity
+            self.license.as_ref().unwrap_unchecked().metadata.exclusivity.unwrap_or(false)
         }
     }
 
@@ -575,7 +575,7 @@ pub struct InventoryLicense {
 
 impl LicenseGeneral for InventoryLicense {
     fn is_exclusive(&self) -> bool {
-        self.license.exclusivity
+        self.license.exclusivity.unwrap_or(false)
     }
 
     fn is_personal(&self) -> bool {
