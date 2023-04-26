@@ -38,7 +38,7 @@ mod tests {
             params: None,
             license_id: Some(license_id.to_string()),
             price: "1".to_string(),
-            title: String::new(),
+            title: sku_id.to_string(),
             currency: None,
             active: None,
             sole_limit: None,
@@ -454,6 +454,7 @@ mod tests {
             max_count: Some(MaxCount{count: 3}),
             template: "true".to_string(),
             name: "3count".to_string(),
+            scope: "general".to_string(),
             level: LEVEL_LICENSES.to_string(),
         }];
 
@@ -488,6 +489,105 @@ mod tests {
         assert_eq!(count3pers.issued == 2, true);
         assert_eq!(count3comm.remains == 1, true);
         assert_eq!(count3comm.issued == 0, true);
+    }
+
+    #[test]
+    fn test_available_check_new_sole_limit() {
+        let policies = init_policies();
+
+        let personal = InventoryLicense{
+            title: "lic1".to_string(),
+            price: Some("1".to_string()),
+            license_id: "personal".to_string(),
+            license: license_data(true, false)
+        };
+        let commercial = InventoryLicense{
+            title: "lic2".to_string(),
+            price: Some("1".to_string()),
+            license_id: "commercial".to_string(),
+            license: license_data(false, false)
+        };
+        let mut asset_token = sample_asset_token();
+        asset_token.metadata.object = Some(to_string(object_data(vec![
+            object_item("object1"),
+        ])));
+        asset_token.licenses = Some(vec![
+            asset_license("sku1", "personal", &["object1"]),
+            asset_license("sku2", "commercial", &["object1"]),
+        ]);
+        asset_token.licenses.as_mut().unwrap()[0].sole_limit = Some(2);
+        asset_token.licenses.as_mut().unwrap()[1].sole_limit = Some(3);
+
+        let lics = asset_token.licenses.clone().unwrap();
+        let personal_token = asset_token.issue_new_license(
+            Some(personal.clone()), lics[0].clone(), "1".to_string()
+        ).shrink();
+        let personal_token2 = asset_token.issue_new_license(
+            Some(personal.clone()), lics[0].clone(), "2".to_string()
+        ).shrink();
+        let personal_token3 = asset_token.issue_new_license(
+            Some(personal.clone()), lics[0].clone(), "3".to_string()
+        ).shrink();
+        let commercial_token = asset_token.issue_new_license(
+            Some(commercial.clone()), lics[1].clone(), "4".to_string()
+        ).shrink();
+
+        let inventory = FullInventory{
+            inventory_licenses: vec![personal.clone(), commercial.clone()],
+            issued_licenses:    vec![personal_token.clone()],
+            asset: Some(asset_token.clone()),
+        };
+
+        let res = policies.check_new(
+            inventory, personal_token2.clone(), None, None
+        );
+        assert_eq!(res.result, true);
+        let add_info = res.additional_info.unwrap();
+        let limit_info = add_info.get("sku1").expect("sku1 must be filled");
+        assert_eq!(limit_info.remains == 0, true);
+
+        let inventory2 = FullInventory{
+            inventory_licenses: vec![personal.clone(), commercial.clone()],
+            issued_licenses:    vec![personal_token.clone(), personal_token2.clone()],
+            asset: Some(asset_token.clone()),
+        };
+
+        let res = policies.check_new(
+            inventory2.clone(), personal_token3.clone(), None, None
+        );
+        assert_eq!(res.result, false);
+        assert_eq!(res.reason_not_available.contains("Cannot set more sku1: max count 2"), true);
+
+        let res = policies.list_available(
+            inventory2, None, None,
+        );
+        let limit_sku2 = res[1].additional_info.as_ref().unwrap().get("sku2").unwrap();
+
+        assert_eq!(res[0].available, false);
+        assert_eq!(limit_sku2.remains == 3, true);
+        assert_eq!(limit_sku2.issued == 0, true);
+
+        let inventory3 = FullInventory{
+            inventory_licenses: vec![personal.clone(), commercial.clone()],
+            issued_licenses:    vec![personal_token.clone(), commercial_token.clone()],
+            asset: Some(asset_token.clone()),
+        };
+
+        let res = policies.check_new(
+            inventory3.clone(), personal_token3.clone(), None, None
+        );
+        assert_eq!(res.result, true);
+
+        let res = policies.list_available(
+            inventory3, None, None,
+        );
+        let limit_sku1 = res[0].additional_info.as_ref().unwrap().get("sku1").unwrap();
+        let limit_sku2 = res[1].additional_info.as_ref().unwrap().get("sku2").unwrap();
+
+        assert_eq!(limit_sku1.remains == 1, true);
+        assert_eq!(limit_sku1.issued == 1, true);
+        assert_eq!(limit_sku2.remains == 2, true);
+        assert_eq!(limit_sku2.issued == 1, true);
     }
 
     #[test]

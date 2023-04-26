@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::string::ToString;
 use near_sdk::serde_json;
-use minijinja::value::Value;
+use minijinja::value::{Value};
 
 use crate::*;
 use common_types::types::*;
@@ -8,6 +9,7 @@ use crate::types::SKUAvailability;
 
 pub const LEVEL_INVENTORY: &str = "inventory";
 pub const LEVEL_LICENSES: &str = "licenses";
+pub const DEFAULT_TEMPLATE: &str = "true";
 
 pub trait ConfigInterface {
     fn check_transition(
@@ -69,6 +71,7 @@ pub struct IsAvailableResponse {
 pub struct LimitsInfo {
     #[serde(rename = "type")]
     pub type_: String,
+    pub scope: String,
     pub remains: i32,
     pub total: i32,
     pub issued: i32,
@@ -115,6 +118,7 @@ pub struct FutureStateOpt {
 #[serde(crate = "near_sdk::serde")]
 pub struct Limitation {
     pub name: String,
+    pub scope: String,
     pub level: String,
     pub template: String,
     pub max_count: Option<MaxCount>,
@@ -142,6 +146,7 @@ impl LimitCheck for MaxCount {
                 total:   self.count,
                 issued:  matched.len() as i32,
                 type_:    "max_count".to_string(),
+                scope:   l.scope.clone(),
             };
             let infos: HashMap<String, LimitsInfo> = vec![("check".to_string(), info)].into_iter().collect();
             IsAvailableResponse{result: true, reason_not_available: "".to_string(), additional_info: Some(infos)}
@@ -212,7 +217,8 @@ impl LimitCheck for Exclusive {
             remains: 1 - count_excl as i32,
             total:   1,
             issued:  count_excl as i32,
-            type_:    "exclusive".to_string(),
+            type_:   "exclusive".to_string(),
+            scope:   l.scope.clone(),
         };
         let infos: HashMap<String, LimitsInfo> = vec![("check".to_string(), info)].into_iter().collect();
         IsAvailableResponse{result: true, reason_not_available: "".to_string(), additional_info: Some(infos)}
@@ -315,7 +321,11 @@ impl ConfigInterface for AllPolicies {
         upgrade_rules: Option<Vec<Policy>>) -> IsAvailableResponse {
         // For asset_mint, nft_mint, update_licenses and
         // update inventory licenses (metadata).
-        let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
+        let all_limits = self.get_all_limit_rules_from_asset(
+            inventory.asset.as_ref().unwrap(), policy_rules,
+        );
+
+        let cloned = self.clone_with_optional(Some(all_limits), upgrade_rules);
         let future_state = cloned.get_future_state_with_new(inventory.clone(), new.clone());
         let ctx = Context{full: future_state.clone()};
         let mut available = cloned.check_future_state(
@@ -329,6 +339,7 @@ impl ConfigInterface for AllPolicies {
         }
         let mut additional_info = available.additional_info.unwrap();
         let is_exclusive = new.is_exclusive();
+        let new_sku_id = new.sku_id();
         let mut min_key_by_type: HashMap<String, (i32, String)> = HashMap::new();
         for (k, v) in additional_info.clone() {
             if v.type_ == "exclusive".to_string() && !is_exclusive {
@@ -336,6 +347,11 @@ impl ConfigInterface for AllPolicies {
             }
             if v.type_ != "exclusive".to_string() && is_exclusive {
                 additional_info.remove(&k);
+            }
+
+            if &v.scope == "sku" && k != new_sku_id {
+                additional_info.remove(&k);
+                continue
             }
 
             if min_key_by_type.contains_key(&v.type_.clone()) {
@@ -416,7 +432,12 @@ impl ConfigInterface for AllPolicies {
     fn list_available(
         &self, inventory: FullInventory, policy_rules: Option<Vec<Limitation>>,
         upgrade_rules: Option<Vec<Policy>>) -> Vec<SKUAvailability> {
-        let cloned = self.clone_with_optional(policy_rules, upgrade_rules);
+
+        let all_limits = self.get_all_limit_rules_from_asset(
+            inventory.asset.as_ref().unwrap(), policy_rules,
+        );
+
+        let cloned = self.clone_with_optional(Some(all_limits), upgrade_rules);
         // Make issued map by sku ID
         let mut issued_map: HashMap<String, i32> = HashMap::new();
         for lic in &inventory.issued_licenses {
@@ -485,6 +506,16 @@ impl AllPolicies {
                 Err("License policy not found for ".to_string() + &from.license_title())
             }
         }
+    }
+
+    fn get_all_limit_rules_from_asset(&self, asset: &JsonAssetToken, limit_rules: Option<Vec<Limitation>>) -> Vec<Limitation> {
+        let mut all = limit_rules.unwrap_or(Vec::new());
+        for sku in asset.licenses.as_ref().unwrap_or(&Vec::new()) {
+            if sku.sole_limit.is_some() {
+                all.push(max_count_from_sku(sku))
+            }
+        }
+        return all
     }
 
     pub fn clone_with_additional(&self, mut l: Vec<Limitation>) -> Self {
@@ -613,6 +644,20 @@ impl AllPolicies {
     }
 }
 
+pub fn max_count_from_sku(sku: &AssetLicense) -> Limitation {
+    let limit = Limitation{
+        level: LEVEL_LICENSES.to_string(),
+        name:  sku.title.clone(),
+        scope: "sku".to_string(),
+        exclusive: None,
+        max_count: Some(MaxCount{
+            count: sku.sole_limit.unwrap(),
+        }),
+        template: format!("sku_id == '{}'", &sku.sku_id.as_ref().expect("Sku ID null")),
+    };
+    limit
+}
+
 pub fn exec_template(template_str: &String, object: &dyn LicenseGeneral) -> Value {
     let env = minijinja::Environment::new();
     // env.add_template("tpl", &template_str).expect("Failed to add template");
@@ -624,10 +669,14 @@ pub fn exec_template(template_str: &String, object: &dyn LicenseGeneral) -> Valu
         //     is_commercial => object.is_commercial(),
         //     is_exclusive => object.is_exclusive(),
         // );
-        let mut context: HashMap<&str, bool> = HashMap::new();
-        context.insert("is_personal", object.is_personal());
-        context.insert("is_commercial", object.is_commercial());
-        context.insert("is_exclusive", object.is_exclusive());
+        let mut context = BTreeMap::default();
+        context.insert("is_personal", Value::from_serializable(&object.is_personal()));
+        context.insert("is_commercial", Value::from_serializable(&object.is_commercial()));
+        context.insert("is_exclusive", Value::from_serializable(&object.is_exclusive()));
+        context.insert("sku_id", Value::from_serializable(&object.sku_id()));
+        context.insert("token_id", Value::from_serializable(&object.token_id()));
+        context.insert("license_id", Value::from_serializable(&object.license_id()));
+        context.insert("license_title", Value::from_serializable(&object.license_title()));
 
         let result = expr.eval(context).unwrap_unchecked();
         result
