@@ -454,6 +454,7 @@ mod tests {
             max_count: Some(MaxCount{count: 3}),
             template: "true".to_string(),
             name: "3count".to_string(),
+            display_name: Some("3count".to_string()),
             scope: "general".to_string(),
             level: LEVEL_LICENSES.to_string(),
         }];

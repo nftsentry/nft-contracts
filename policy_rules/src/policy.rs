@@ -72,6 +72,7 @@ pub struct LimitsInfo {
     #[serde(rename = "type")]
     pub type_: String,
     pub scope: String,
+    pub name: String,
     pub remains: i32,
     pub total: i32,
     pub issued: i32,
@@ -118,6 +119,7 @@ pub struct FutureStateOpt {
 #[serde(crate = "near_sdk::serde")]
 pub struct Limitation {
     pub name: String,
+    pub display_name: Option<String>,
     pub scope: String,
     pub level: String,
     pub template: String,
@@ -134,10 +136,11 @@ pub struct MaxCount {
 
 impl LimitCheck for MaxCount {
     fn check(&self, matched: Vec<&dyn LicenseGeneral>, l: &Limitation, _: Context) -> IsAvailableResponse {
+        let name = if l.display_name.is_none() { l.name.clone() } else { l.display_name.as_ref().unwrap().clone() };
         if matched.len() > self.count as usize {
             let msg = format!(
                 "Cannot set more {}: max count {}",
-                l.name, self.count,
+                name.clone(), self.count,
             );
             IsAvailableResponse{result: false, reason_not_available: msg, additional_info: None}
         } else {
@@ -147,6 +150,7 @@ impl LimitCheck for MaxCount {
                 issued:  matched.len() as i32,
                 type_:    "max_count".to_string(),
                 scope:   l.scope.clone(),
+                name,
             };
             let infos: HashMap<String, LimitsInfo> = vec![("check".to_string(), info)].into_iter().collect();
             IsAvailableResponse{result: true, reason_not_available: "".to_string(), additional_info: Some(infos)}
@@ -219,6 +223,7 @@ impl LimitCheck for Exclusive {
             issued:  count_excl as i32,
             type_:   "exclusive".to_string(),
             scope:   l.scope.clone(),
+            name: if l.display_name.is_none() { l.name.clone() } else { l.display_name.as_ref().unwrap().clone() }
         };
         let infos: HashMap<String, LimitsInfo> = vec![("check".to_string(), info)].into_iter().collect();
         IsAvailableResponse{result: true, reason_not_available: "".to_string(), additional_info: Some(infos)}
@@ -647,7 +652,8 @@ impl AllPolicies {
 pub fn max_count_from_sku(sku: &AssetLicense) -> Limitation {
     let limit = Limitation{
         level: LEVEL_LICENSES.to_string(),
-        name:  sku.title.clone(),
+        name:  sku.sku_id.clone().unwrap_or_default(),
+        display_name:  Some(sku.title.clone()),
         scope: "sku".to_string(),
         exclusive: None,
         max_count: Some(MaxCount{
