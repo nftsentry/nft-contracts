@@ -207,7 +207,8 @@ impl Contract {
 
         self.metadata.replace(&metadata);
 
-        for token in tokens {
+        for mut token in tokens {
+            token.migrate_metadata_from();
             let mint_res = self.internal_mint(token);
             if mint_res.is_err() {
                 unsafe {

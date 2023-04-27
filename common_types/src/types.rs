@@ -193,7 +193,7 @@ pub struct LicenseData {
 pub struct ShrinkedTokenLicense {
     pub id: String,
     pub metadata: ShrinkedLicenseData,
-    // pub from: SourceLicenseMeta,
+    pub from: Option<SourceLicenseMeta>,
     pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
     pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
 }
@@ -208,7 +208,7 @@ pub struct TokenLicense {
     // pub issuer_id: Option<AccountId>, // AccountId of the license issuer
     pub uri: Option<String>, // URL to associated pdf, preferably to decentralized, content-addressed storage
     pub metadata: LicenseData,
-    // pub from: SourceLicenseMeta,
+    pub from: Option<SourceLicenseMeta>,
     pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
     pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
     pub starts_at: Option<u64>, // When token starts being valid, Unix epoch in milliseconds
@@ -221,6 +221,7 @@ impl TokenLicense {
             expires_at: self.expires_at.clone(),
             id: self.id.clone(),
             issued_at: self.issued_at.clone(),
+            from: self.from.clone(),
             metadata: ShrinkedLicenseData{
                 commercial_use: self.metadata.commercial_use.clone(),
                 personal_use: self.metadata.personal_use.clone(),
@@ -349,6 +350,12 @@ impl LicenseToken {
         }
     }
 
+    pub fn migrate_metadata_from(&mut self) {
+        if self.license.is_some() {
+            self.metadata.from = self.license.as_ref().unwrap().from.clone();
+        }
+    }
+
     pub fn shrink(&self) -> ShrinkedLicenseToken {
         return ShrinkedLicenseToken{
             asset_id: self.asset_id.clone(),
@@ -426,11 +433,11 @@ impl LicenseGeneral for LicenseToken {
 
     fn sku_id(&self) -> String {
         unsafe {
-            // if self.metadata.from.is_none() {
-            //     self.license.as_ref().unwrap_unchecked().from.sku_id.clone().unwrap_or(String::new())
-            // } else {
-            self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
-            // }
+            if self.metadata.from.is_none() {
+                self.license.as_ref().unwrap_unchecked().from.as_ref().unwrap().sku_id.clone().unwrap_or(String::new())
+            } else {
+                self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
+            }
         }
     }
 
@@ -512,11 +519,11 @@ impl LicenseGeneral for ShrinkedLicenseToken {
 
     fn sku_id(&self) -> String {
         unsafe {
-            // if self.metadata.from.is_none() {
-            //     self.license.as_ref().unwrap_unchecked().from.sku_id.clone().unwrap_or(String::new())
-            // } else {
-            self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
-            // }
+            if self.metadata.from.is_none() {
+                self.license.as_ref().unwrap_unchecked().from.as_ref().unwrap().sku_id.clone().unwrap_or(String::new())
+            } else {
+                self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
+            }
         }
     }
 
@@ -631,13 +638,7 @@ impl InventoryLicense {
                 starts_at: None,
                 updated_at: None,
                 uri: None,
-                // from: SourceLicenseMeta{
-                //     asset_id: "asset".to_string(),
-                //     inventory_id: "inv".to_string(),
-                //     set_id: "set_id".to_string(),
-                //     sku_id: Some("sku_id".to_string()),
-                //     issuer_id: None,
-                // }
+                from: None,
             }),
             approved_account_ids: Default::default(),
             // royalty: Default::default(),
@@ -836,7 +837,7 @@ impl JsonAssetToken {
         if let Some(inv_license) = inv_license {
             license = Some(TokenLicense{
                 id: inv_license.license_id,
-                // from: metadata.from.clone().unwrap(),
+                from: None,
                 metadata: inv_license.license.clone(),
                 title: Some(inv_license.title),
                 description: None,
