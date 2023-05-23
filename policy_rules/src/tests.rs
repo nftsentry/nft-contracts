@@ -65,7 +65,7 @@ mod tests {
     fn object_data(items: Vec<ObjectItem>) -> ObjectData {
         ObjectData{
             items: Some(items),
-            sets: None,
+            // sets: None,
         }
     }
 

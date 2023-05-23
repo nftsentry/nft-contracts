@@ -99,7 +99,7 @@ impl TokenMetadata {
 #[serde(crate = "near_sdk::serde")]
 pub struct ObjectData {
     pub items: Option<Vec<ObjectItem>>,
-    pub sets: Option<Vec<ObjectSet>>,
+    // pub sets: Option<Vec<ObjectSet>>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
@@ -131,7 +131,7 @@ impl ObjectData {
 
     pub fn filter_by_objects(&self, objects: Vec<String>) -> ObjectData {
         if self.items.is_none() {
-            return ObjectData{items: None, sets: None}
+            return ObjectData{items: None}
         }
         let mut filtered: Vec<ObjectItem> = Vec::new();
         for i in self.items.as_ref().unwrap_or(&Vec::default()) {
@@ -141,7 +141,7 @@ impl ObjectData {
         }
         let new_obj_data: ObjectData = ObjectData{
             items: Some(filtered),
-            sets: None,
+            // sets: None,
         };
 
         new_obj_data

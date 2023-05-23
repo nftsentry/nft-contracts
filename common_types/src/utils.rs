@@ -83,10 +83,10 @@ pub fn get_inventory_id(minter_id: String) -> String {
 
 pub fn get_objects(object: Option<&String>) -> ObjectData {
     if object.is_none() {
-        return ObjectData{sets: None, items: Some(Vec::new())}
+        return ObjectData{items: Some(Vec::new())}
     }
     if object.clone().unwrap().is_empty() {
-        return ObjectData{sets: None, items: Some(Vec::new())}
+        return ObjectData{items: Some(Vec::new())}
     }
     let object_data: ObjectData = serde_json::from_str(
         &object.clone().unwrap_or(&"{}".to_string())
