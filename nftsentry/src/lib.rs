@@ -138,6 +138,7 @@ impl Contract {
                 reference: None,
                 reference_hash: None,
             },
+            None,
         )
     }
 
@@ -147,7 +148,8 @@ impl Contract {
         the owner_id. 
     */
     #[init]
-    pub fn new(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata) -> Self {
+    pub fn new(owner_id: AccountId, inventory_id: AccountId,
+               benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, policy_contract: Option<AccountId>) -> Self {
         //create a variable of type Self with all the fields initialized.
         let this = Self {
             //Storage keys are simply the prefixes used for the collections. This helps avoid data collision
@@ -170,7 +172,7 @@ impl Contract {
                 StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
             ),
-            policy_contract: AccountId::new_unchecked("policies.rocketscience.testnet".to_string()),
+            policy_contract: policy_contract.unwrap_or(AccountId::new_unchecked("policies.rocketscience.testnet".to_string())),
             benefit_config,
         };
 
@@ -180,10 +182,12 @@ impl Contract {
 
     #[init]
     #[payable]
-    pub fn restore(owner_id: AccountId, inventory_id: AccountId, benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Self {
+    pub fn restore(owner_id: AccountId, inventory_id: AccountId,
+                   benefit_config: Option<BenefitConfig>, metadata: NFTContractMetadata,
+                   tokens: Vec<LicenseToken>, policy_contract: Option<AccountId>) -> Self {
         // let initial_storage_usage = env::storage_usage();
         // Restore metadata
-        let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata.clone());
+        let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata.clone(), policy_contract);
 
         let _logs = this._restore_data(metadata, tokens);
 
