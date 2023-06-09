@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use near_sdk::{Gas, PromiseError};
 use common_types::prices::{Asset, get_near_price};
 use common_types::types::{NFTMintResult};
@@ -15,13 +16,14 @@ impl Contract {
     #[payable]
     pub fn nft_mint(
         &mut self,
-        token_id: TokenId,
+        mut token_id: TokenId,
         asset_id: String,
         sku_id: Option<String>,
         receiver_id: AccountId,
     ) -> Promise {
         if self.tokens_by_id.get(&token_id).is_some() {
-            env::panic_str("Token already exists")
+            let max_token = self.nft_token_id_max();
+            token_id = (i64::from_str(&max_token).unwrap() + 1).to_string();
         }
 
         // Schedule calls to metadata and asset token
@@ -51,7 +53,7 @@ impl Contract {
     #[payable]
     pub fn nft_mint_owner(
         &mut self,
-        token_id: TokenId,
+        mut token_id: TokenId,
         asset_id: String,
         sku_id: Option<String>,
         receiver_id: AccountId,
@@ -63,7 +65,8 @@ impl Contract {
         }
 
         if self.tokens_by_id.get(&token_id).is_some() {
-            env::panic_str("Token already exists")
+            let max_token = self.nft_token_id_max();
+            token_id = (i64::from_str(&max_token).unwrap() + 1).to_string();
         }
 
         // Schedule calls to metadata and asset token
