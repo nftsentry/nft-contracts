@@ -28,9 +28,9 @@ impl Contract {
 
         // Schedule calls to metadata and asset token
         let promise_meta: Promise = inventory_contract::ext(self.inventory_id.clone())
-            .with_unused_gas_weight(3).inventory_metadata();
+            .with_unused_gas_weight(1).inventory_metadata();
         let promise_asset: Promise = inventory_contract::ext(self.inventory_id.clone())
-            .with_unused_gas_weight(3).asset_token(asset_id.clone());
+            .with_unused_gas_weight(1).asset_token(asset_id.clone());
         let promise_price = get_near_price(3);
         let promise_inventory = promise_meta
             .and(promise_asset)
@@ -43,7 +43,7 @@ impl Contract {
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
-                .with_unused_gas_weight(27)
+                .with_unused_gas_weight(28)
                 .on_nft_mint(
                     token_id, sku_id, receiver_id, predecessor_id, opt,
                 )
@@ -190,7 +190,7 @@ impl Contract {
             lic_token.owner_id = receiver_id;
 
             let promise_new: Promise = policy_rules_contract::ext(self.policy_contract.clone())
-                .with_unused_gas_weight(7).check_new(
+                .with_unused_gas_weight(38).check_new(
                 full_inventory,
                 lic_token.shrink(),
                 asset.policy_rules,
@@ -199,7 +199,7 @@ impl Contract {
             let on_check_promise = promise_new.then(
                 Self::ext(env::current_account_id())
                     .with_attached_deposit(deposit)
-                    .with_unused_gas_weight(27)
+                    .with_unused_gas_weight(8)
                     .on_check_new_receiver(
                         lic_token,
                         price, asset.token_id,
