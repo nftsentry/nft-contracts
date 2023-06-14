@@ -5,6 +5,8 @@ use common_types::types::{NFTMintResult};
 use common_types::utils::{balance_from_string, format_balance};
 use crate::*;
 
+const SLIPPAGE_PERCENTS: i32 = 3;
+
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MintOpt {
@@ -177,13 +179,20 @@ impl Contract {
             asset_license.price = price_str.clone();
 
             let deposit = env::attached_deposit();
-            let price = balance_from_string(price_str.clone());
+            let mut price = balance_from_string(price_str.clone());
             if deposit < price && !opts.is_gift {
-                return Err(format!(
-                    "Attached deposit of {} NEAR is less than SKU price of {} NEAR",
-                    format_balance(deposit),
-                    price_str,
-                ))
+                let reserved_price = deposit - balance_from_string("0.1".to_string());
+                let minimum_price = price * (100 - SLIPPAGE_PERCENTS) as u128;
+                if reserved_price < minimum_price {
+                    return Err(format!(
+                        "Attached deposit of {} NEAR is less than SKU price of {} NEAR (with {} slippage)",
+                        format_balance(deposit),
+                        price_str,
+                        SLIPPAGE_PERCENTS,
+                    ))
+                }
+                price = reserved_price;
+
             }
 
             let mut lic_token = asset.issue_new_license(inv_license, asset_license, token_id);
