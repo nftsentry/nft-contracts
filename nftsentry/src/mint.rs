@@ -185,7 +185,7 @@ impl Contract {
                 let minimum_price = price * (100 - SLIPPAGE_PERCENTS) as u128 / 100;
                 if reserved_price < minimum_price {
                     return Err(format!(
-                        "Attached deposit of {} NEAR is less than SKU price of {} NEAR (with {} slippage)",
+                        "Attached deposit of {} NEAR is less than SKU price of {} NEAR (with {}% slippage)",
                         format_balance(deposit),
                         price_str,
                         SLIPPAGE_PERCENTS,
