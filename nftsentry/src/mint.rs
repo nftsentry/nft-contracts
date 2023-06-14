@@ -182,7 +182,7 @@ impl Contract {
             let mut price = balance_from_string(price_str.clone());
             if deposit < price && !opts.is_gift {
                 let reserved_price = deposit - balance_from_string("0.1".to_string());
-                let minimum_price = price * (100 - SLIPPAGE_PERCENTS) as u128;
+                let minimum_price = price * (100 - SLIPPAGE_PERCENTS) as u128 / 100;
                 if reserved_price < minimum_price {
                     return Err(format!(
                         "Attached deposit of {} NEAR is less than SKU price of {} NEAR (with {} slippage)",

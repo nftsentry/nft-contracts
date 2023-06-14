@@ -1,6 +1,6 @@
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
-    use near_sdk::AccountId;
+    use near_sdk::{AccountId, Balance};
     use near_sdk::serde_json;
     use crate::policy::{init_policies, Limitation, MaxCount};
     use crate::policy::{ConfigInterface, LEVEL_LICENSES};
@@ -112,6 +112,32 @@ mod tests {
             policy_rules: None,
             upgrade_rules: None,
         }
+    }
+
+    fn check_price(deposit: Balance, mut price: Balance, slippage_percents: i32) -> Result<Balance, String> {
+        let price_str = format_balance(price);
+        let reserved_price = deposit - balance_from_string("0.1".to_string());
+        let minimum_price = price * (100 - slippage_percents) as u128 / 100;
+        if reserved_price < minimum_price {
+            return Err(format!(
+                "Attached deposit of {} NEAR is less than SKU price of {} NEAR (with {}% slippage)",
+                format_balance(deposit),
+                price_str,
+                slippage_percents,
+            ))
+        }
+        price = reserved_price;
+        Ok(price)
+    }
+
+    #[test]
+    fn test_prices() {
+        let res = check_price(
+            balance_from_string("65".to_string()),
+            balance_from_string("66".to_string()),
+            3,
+        );
+        assert_eq!(res.is_ok(), true)
     }
 
     #[test]
