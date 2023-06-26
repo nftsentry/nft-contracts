@@ -813,6 +813,11 @@ impl JsonAssetToken {
                 metadata.media = Some(icon);
             }
         }
+        if let Some(desc) = params.description {
+            if !desc.is_empty() {
+                metadata.description = Some(desc);
+            }
+        }
 
         let sku_id = sku_info.sku_id.unwrap();
         unsafe {
