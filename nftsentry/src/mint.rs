@@ -5,11 +5,20 @@ use common_types::utils::{balance_from_string, format_balance};
 use crate::*;
 
 const SLIPPAGE_PERCENTS: i32 = 3;
+const MINT_METHOD: &str = "nft_mint";
+const MINT_OWNER_METHOD: &str = "nft_mint_owner";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct MintOpt {
     pub is_gift: bool,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OnMintOpt {
+    pub mint_opt: MintOpt,
+    pub from_method: String,
 }
 
 #[near_bindgen]
@@ -41,7 +50,7 @@ impl Contract {
 
         let predecessor_id = env::predecessor_account_id();
         // Important: pass is_gift: false to make sure that price checks and charging work
-        let opt = MintOpt{is_gift: false};
+        let opt = OnMintOpt{mint_opt: MintOpt{is_gift: false}, from_method: MINT_METHOD.to_string()};
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
@@ -85,12 +94,14 @@ impl Contract {
 
         let predecessor_id = env::predecessor_account_id();
         // Important: pass is_gift: false to make sure that price checks and charging work
+
         return promise_inventory.then(
             Self::ext(env::current_account_id())
                 .with_attached_deposit(env::attached_deposit())
                 .with_unused_gas_weight(27)
                 .on_nft_mint(
-                    token_id, sku_id, receiver_id, predecessor_id, opts,
+                    token_id, sku_id, receiver_id, predecessor_id,
+                    OnMintOpt{mint_opt: opts, from_method: MINT_OWNER_METHOD.to_string()},
                 )
         )
     }
@@ -106,7 +117,7 @@ impl Contract {
         sku_id: Option<String>,
         receiver_id: AccountId,
         predecessor_id: AccountId,
-        opts: MintOpt,
+        opts: OnMintOpt,
     ) -> PromiseOrValue<NFTMintResult> {
         let result = self.ensure_nft_mint(
             metadata_res, asset_res, price_res, token_id.clone(), sku_id,
@@ -138,7 +149,7 @@ impl Contract {
         sku_id: Option<String>,
         receiver_id: AccountId,
         predecessor_id: AccountId,
-        opts: MintOpt,
+        opts: OnMintOpt,
         ) -> Result<Promise, String> {
 
         // 1. Check callback results first.
@@ -169,6 +180,10 @@ impl Contract {
             }
             let mut asset_license = (*asset_license_opt.unwrap()).clone();
 
+            if asset_license.hidden.unwrap_or(false) && opts.from_method == MINT_METHOD {
+                return Err(format!("Asset license could not be minted using this method."))
+            }
+
             let full_inventory = self.get_full_inventory(asset.clone(), inv_metadata.metadata.clone());
             let inv_license = inv_metadata.metadata.licenses.iter().find(
                 |x| asset_license.license_id.is_some() && Some(&x.license_id) == asset_license.license_id.as_ref()
@@ -181,7 +196,7 @@ impl Contract {
 
             let deposit = env::attached_deposit();
             let mut price = balance_from_string(price_str.clone());
-            if deposit < price && !opts.is_gift {
+            if deposit < price && !opts.mint_opt.is_gift {
                 let reserved_price = deposit - balance_from_string("0.1".to_string());
                 let minimum_price = price * (100 - SLIPPAGE_PERCENTS) as u128 / 100;
                 if reserved_price < minimum_price {
@@ -232,7 +247,7 @@ impl Contract {
         asset_id: String,
         inventory_owner: AccountId,
         predecessor_id: AccountId,
-        opts: MintOpt,
+        opts: OnMintOpt,
     ) -> NFTMintResult {
         // measure the initial storage being used on the contract
         let initial_storage_usage = env::storage_usage();
@@ -295,7 +310,7 @@ impl Contract {
         // ----- Token mint end -----
 
         // If token is a gift -> no charged prices
-        let charged_price = if opts.is_gift {
+        let charged_price = if opts.mint_opt.is_gift {
             None
         } else {
             Some(asset_license_price.clone())
@@ -327,7 +342,7 @@ impl Contract {
             asset_id, license_sold
         );
         // Process fees only if it is not a gift
-        if !opts.is_gift {
+        if !opts.mint_opt.is_gift {
             self.process_fees(asset_license_price.clone(), inventory_owner);
         }
 
