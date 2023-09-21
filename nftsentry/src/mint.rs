@@ -195,9 +195,11 @@ impl Contract {
             asset_license.price = price_str.clone();
 
             let deposit = env::attached_deposit();
+            let storage_price = balance_from_string("0.1".to_string())
             let mut price = balance_from_string(price_str.clone());
-            if deposit < price && !opts.mint_opt.is_gift {
-                let reserved_price = deposit - balance_from_string("0.1".to_string());
+
+            if deposit < price + storage_price && !opts.mint_opt.is_gift {
+                let reserved_price = deposit - storage_price;
                 let minimum_price = price * (100 - SLIPPAGE_PERCENTS) as u128 / 100;
                 if reserved_price < minimum_price {
                     return Err(format!(
