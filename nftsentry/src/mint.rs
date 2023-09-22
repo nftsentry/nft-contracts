@@ -195,7 +195,7 @@ impl Contract {
             asset_license.price = price_str.clone();
 
             let deposit = env::attached_deposit();
-            let storage_price = balance_from_string("0.1".to_string())
+            let storage_price = balance_from_string("0.1".to_string());
             let mut price = balance_from_string(price_str.clone());
 
             if deposit < price + storage_price && !opts.mint_opt.is_gift {
