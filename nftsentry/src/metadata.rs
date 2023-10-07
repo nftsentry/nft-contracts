@@ -27,12 +27,22 @@ pub struct JsonTokenLicense {
 pub trait NonFungibleTokenMetadata {
     //view call for returning the contract metadata
     fn nft_metadata(&self) -> NFTContractMetadata;
+    fn set_nft_metadata(&mut self, metadata: NFTContractMetadata) -> NFTContractMetadata;
 }
 
 #[near_bindgen]
 impl NonFungibleTokenMetadata for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
         self.metadata.get().unwrap()
+    }
+
+    fn set_nft_metadata(&mut self, metadata: NFTContractMetadata) -> NFTContractMetadata {
+        let sender = env::predecessor_account_id();
+        if sender != self.owner_id && sender != env::current_account_id() && sender != self.inventory_id {
+            env::panic_str("Only the owner or inventory can call this method")
+        }
+        self.metadata.replace(&metadata);
+        metadata
     }
 }
 

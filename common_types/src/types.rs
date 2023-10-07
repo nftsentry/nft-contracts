@@ -27,6 +27,7 @@ pub trait LicenseGeneral {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct NFTContractMetadata {
+    pub skip_policies: Option<bool>,
     pub spec: String,              // required, essentially a version like "nft-1.0.0"
     pub name: String,              // required, ex. "Mosaics"
     pub symbol: String,            // required, ex. "MOSIAC"
@@ -45,7 +46,7 @@ pub struct TokenExtra {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Default, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ShrinkedTokenMetadata {
-    pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
+    // pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
     pub object: Option<String>, // Object data string
     pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
     pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
@@ -90,7 +91,7 @@ impl TokenMetadata {
             expires_at: self.expires_at.clone(),
             issued_at: self.issued_at.clone(),
             from: self.from.clone(),
-            title: self.title.clone(),
+            // title: self.title.clone(),
         }
     }
 }
@@ -193,9 +194,9 @@ pub struct LicenseData {
 pub struct ShrinkedTokenLicense {
     pub id: String,
     pub metadata: ShrinkedLicenseData,
-    pub from: Option<SourceLicenseMeta>,
-    pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
-    pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
+    // pub from: Option<SourceLicenseMeta>,
+    // pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
+    // pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
 }
 
 
@@ -208,7 +209,6 @@ pub struct TokenLicense {
     // pub issuer_id: Option<AccountId>, // AccountId of the license issuer
     pub uri: Option<String>, // URL to associated pdf, preferably to decentralized, content-addressed storage
     pub metadata: LicenseData,
-    pub from: Option<SourceLicenseMeta>,
     pub issued_at: Option<u64>, // When token was issued or minted, Unix epoch in milliseconds
     pub expires_at: Option<u64>, // When token expires, Unix epoch in milliseconds
     pub starts_at: Option<u64>, // When token starts being valid, Unix epoch in milliseconds
@@ -218,10 +218,10 @@ pub struct TokenLicense {
 impl TokenLicense {
     pub fn shrink(&self) -> ShrinkedTokenLicense {
         return ShrinkedTokenLicense{
-            expires_at: self.expires_at.clone(),
+            // expires_at: self.expires_at.clone(),
             id: self.id.clone(),
-            issued_at: self.issued_at.clone(),
-            from: self.from.clone(),
+            // issued_at: self.issued_at.clone(),
+            // from: self.from.clone(),
             metadata: ShrinkedLicenseData{
                 commercial_use: self.metadata.commercial_use.clone(),
                 personal_use: self.metadata.personal_use.clone(),
@@ -425,13 +425,7 @@ impl LicenseGeneral for LicenseToken {
     }
 
     fn sku_id(&self) -> String {
-        unsafe {
-            if self.metadata.from.is_none() {
-                self.license.as_ref().unwrap_unchecked().from.as_ref().unwrap().sku_id.clone().unwrap_or(String::new())
-            } else {
-                self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
-            }
-        }
+        self.metadata.from.as_ref().unwrap().sku_id.clone().unwrap_or(String::new())
     }
 
     fn token_id(&self) -> String {
@@ -511,13 +505,7 @@ impl LicenseGeneral for ShrinkedLicenseToken {
     }
 
     fn sku_id(&self) -> String {
-        unsafe {
-            if self.metadata.from.is_none() {
-                self.license.as_ref().unwrap_unchecked().from.as_ref().unwrap().sku_id.clone().unwrap_or(String::new())
-            } else {
-                self.metadata.from.as_ref().unwrap_unchecked().sku_id.clone().unwrap_or(String::new())
-            }
-        }
+        self.metadata.from.as_ref().unwrap().sku_id.clone().unwrap_or(String::new())
     }
 
     fn token_id(&self) -> String {
@@ -631,7 +619,6 @@ impl InventoryLicense {
                 starts_at: None,
                 updated_at: None,
                 uri: None,
-                from: None,
             }),
             // approved_account_ids: Default::default(),
             // royalty: Default::default(),
@@ -646,7 +633,6 @@ impl InventoryLicense {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct SkuTokenData {
-    pub sku_id: Option<String>,
     pub title: String,
     pub params: Option<String> // Json-serialized AssetLicenseParams
 }
@@ -782,7 +768,6 @@ impl JsonAssetToken {
         metadata.updated_at = Some(env::block_timestamp_ms());
         metadata.starts_at = Some(env::block_timestamp_ms());
         metadata.sku_data = Some(SkuTokenData{
-            sku_id: sku_info.sku_id.clone(),
             title: sku_info.title.clone(),
             params: sku_info.params.clone(),
         });
@@ -835,7 +820,6 @@ impl JsonAssetToken {
         if let Some(inv_license) = inv_license {
             license = Some(TokenLicense{
                 id: inv_license.license_id,
-                from: None,
                 metadata: inv_license.license.clone(),
                 title: Some(inv_license.title),
                 description: None,

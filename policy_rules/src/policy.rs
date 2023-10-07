@@ -405,7 +405,7 @@ impl ConfigInterface for AllPolicies {
         for license in &inventory.inventory_licenses {
             let mut lic_token = license.as_license_token("token".to_string());
             lic_token.metadata.from = Some(SourceLicenseMeta{
-                asset_id: from.asset_id.clone(),
+                // asset_id: from.asset_id.clone(),
                 sku_id: Some(from.sku_id()),
                 inventory_id: "".to_owned(),
                 issuer_id: None,
@@ -460,6 +460,7 @@ impl ConfigInterface for AllPolicies {
         }
 
         let mut available: Vec<SKUAvailability> = Vec::new();
+
 
         for asset_license in &inventory.asset.clone().expect("Expect asset in inventory").licenses.unwrap_or_default() {
             // Optional inventory license
@@ -576,7 +577,7 @@ impl AllPolicies {
         let mut future_state = inventory.clone();
         for token in future_state.issued_licenses.iter_mut() {
             if token.token_id == old.token_id {
-                let (inv_id, asset_id, lic_id, _sku) = token.inventory_asset_license_sku();
+                let (inv_id, _asset_id, lic_id, _sku) = token.inventory_asset_license_sku();
                 if token.license.is_some() {
                     token.license.as_mut().unwrap_unchecked().metadata = new.license.clone().unwrap_unchecked().metadata;
                     // token.license.as_mut().unwrap_unchecked().title = Some(new.license_title());
@@ -587,7 +588,7 @@ impl AllPolicies {
                     // token.license.as_mut().unwrap_unchecked().from.set_id = new.set_id();
                 }
                 token.metadata.from.as_mut().unwrap_unchecked().inventory_id = inv_id.clone();
-                token.metadata.from.as_mut().unwrap_unchecked().asset_id = asset_id.clone();
+                // token.metadata.from.as_mut().unwrap_unchecked().asset_id = asset_id.clone();
                 token.metadata.from.as_mut().unwrap_unchecked().sku_id = Some(new.sku_id());
             }
         }

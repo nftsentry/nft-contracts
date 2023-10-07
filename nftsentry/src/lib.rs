@@ -136,6 +136,7 @@ impl Contract {
                 base_uri: None,
                 reference: None,
                 reference_hash: None,
+                skip_policies: Some(false),
             },
             None,
         )
