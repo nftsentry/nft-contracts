@@ -13,7 +13,6 @@ pub use common_types::types::{InventoryLicense, JsonAssetToken, SKUAvailability}
 pub use common_types::types::{ExtendedInventoryMetadata, FullInventory, InventoryContractMetadata};
 use common_types::types::ShrinkedLicenseToken;
 
-use crate::internal::*;
 pub use crate::metadata::*;
 pub use crate::mint::*;
 pub use crate::nft_core::*;
@@ -189,7 +188,7 @@ impl Contract {
         // Restore metadata
         let mut this = Self::new(owner_id, inventory_id, benefit_config, metadata.clone(), policy_contract);
 
-        let _logs = this._restore_data(metadata, tokens);
+        let _logs = this._restore_data(Some(metadata), tokens);
 
         //calculate the required storage which was the used - initial
         // let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
@@ -205,14 +204,25 @@ impl Contract {
         this
     }
 
+    pub fn restore_tokens(&mut self, tokens: Vec<LicenseToken>) {
+        let sender = env::predecessor_account_id();
+        if sender != self.owner_id && sender != env::current_account_id() && sender != self.inventory_id {
+            env::panic_str("Only the owner or inventory can call this method")
+        }
+        let _logs = self._restore_data(None, tokens);
+
+        env::log_str("Success");
+    }
+
     #[payable]
-    fn _restore_data(&mut self, metadata: NFTContractMetadata, tokens: Vec<LicenseToken>) -> Vec<EventLog> {
+    fn _restore_data(&mut self, metadata: Option<NFTContractMetadata>, tokens: Vec<LicenseToken>) -> Vec<EventLog> {
         let mut logs: Vec<EventLog> = Vec::new();
 
-        self.metadata.replace(&metadata);
+        if let Some(meta) = metadata {
+            self.metadata.replace(&meta);
+        }
 
-        for mut token in tokens {
-            token.migrate_metadata_from();
+        for token in tokens {
             let mint_res = self.internal_mint(token);
             if mint_res.is_err() {
                 unsafe {

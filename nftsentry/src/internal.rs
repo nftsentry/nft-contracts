@@ -145,26 +145,26 @@ impl Contract {
         //if the sender doesn't equal the owner, we check if the sender is in the approval list
 		if sender_id != &token.owner_id {
 			//if the token's approved account IDs doesn't contain the sender, we panic
-			if !token.approved_account_ids.contains_key(sender_id) {
+			// if !token.approved_account_ids.contains_key(sender_id) {
 				env::panic_str("Unauthorized");
-			}
+			// }
 
 			// If they included an approval_id, check if the sender's actual approval_id is the same as the one included
-			if let Some(enforced_approval_id) = approval_id {
-                //get the actual approval ID
-				let actual_approval_id = token
-					.approved_account_ids
-					.get(sender_id)
-                    //if the sender isn't in the map, we panic
-					.expect("Sender is not approved account");
-
-                //make sure that the actual approval ID is the same as the one provided
-                assert_eq!(
-					actual_approval_id, &enforced_approval_id,
-					"The actual approval_id {} is different from the given approval_id {}",
-					actual_approval_id, enforced_approval_id,
-				);
-			}
+			// if let Some(enforced_approval_id) = approval_id {
+            //     //get the actual approval ID
+			// 	let actual_approval_id = token
+			// 		.approved_account_ids
+			// 		.get(sender_id)
+            //         //if the sender isn't in the map, we panic
+			// 		.expect("Sender is not approved account");
+            //
+            //     //make sure that the actual approval ID is the same as the one provided
+            //     assert_eq!(
+			// 		actual_approval_id, &enforced_approval_id,
+			// 		"The actual approval_id {} is different from the given approval_id {}",
+			// 		actual_approval_id, enforced_approval_id,
+			// 	);
+			// }
 		}
 
         //we make sure that the sender isn't sending the token to themselves
@@ -184,8 +184,8 @@ impl Contract {
             owner_id: receiver_id.clone(),
             asset_id: token.asset_id.clone(),
             //reset the approval account IDs
-            approved_account_ids: Default::default(),
-            next_approval_id: token.next_approval_id,
+            // approved_account_ids: Default::default(),
+            // next_approval_id: token.next_approval_id,
             license: token.license.clone(),
             metadata: token.metadata.clone(),
             //we copy over the royalties from the previous token

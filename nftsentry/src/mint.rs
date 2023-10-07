@@ -291,9 +291,6 @@ impl Contract {
             owner_id: lic_token.owner_id.clone(),
             asset_id: asset_id.clone(),
             //we set the approved account IDs to the default value (an empty map)
-            approved_account_ids: Default::default(),
-            //the next approval ID is set to 0
-            next_approval_id: 0,
             license: lic_token.license.clone(),
             metadata: lic_token.metadata.clone(),
             //the map of perpetual royalties for the token (The owner will get 100% - total perpetual royalties)
@@ -382,8 +379,6 @@ impl Contract {
             token_id: lic_token.token_id.clone(),
             asset_id: lic_token.asset_id.clone(),
             owner_id: lic_token.owner_id.clone(),
-            approved_account_ids: lic_token.approved_account_ids.clone(),
-            next_approval_id: 0,
             license: lic_token.license,
             metadata: lic_token.metadata,
             // royalty: lic_token.royalty.clone(),

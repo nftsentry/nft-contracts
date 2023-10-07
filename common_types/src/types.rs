@@ -235,7 +235,6 @@ impl TokenLicense {
 #[serde(crate = "near_sdk::serde")]
 pub struct SourceLicenseMeta {
     pub inventory_id: String,
-    pub asset_id: String,
     pub sku_id: Option<String>,
     pub issuer_id: Option<String>,
 }
@@ -250,9 +249,9 @@ pub struct Token {
     pub license: Option<TokenLicense>,
     pub metadata: TokenMetadata,
     //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
-    pub approved_account_ids: HashMap<AccountId, u64>,
+    // pub approved_account_ids: HashMap<AccountId, u64>,
     //the next approval ID to give out.
-    pub next_approval_id: u64,
+    // pub next_approval_id: u64,
     //keep track of the royalty percentages for the token in a hash map
     // pub royalty: HashMap<AccountId, u32>,
 }
@@ -292,7 +291,7 @@ impl ShrinkedLicenseToken {
             //     asset_id = self.license.as_ref().unwrap_unchecked().from.asset_id.clone();
             // } else {
             inv_id = self.metadata.from.clone().unwrap_unchecked().inventory_id.clone();
-            asset_id = self.metadata.from.clone().unwrap_unchecked().asset_id.clone();
+            asset_id = self.asset_id.clone();
             // }
             return (
                 inv_id,
@@ -321,7 +320,7 @@ pub struct LicenseToken {
     // proposed license
     // pub proposed_license: TokenLicense,
     //list of approved account IDs that have access to transfer the token. This maps an account ID to an approval ID
-    pub approved_account_ids: HashMap<AccountId, u64>,
+    // pub approved_account_ids: HashMap<AccountId, u64>,
     //keep track of the royalty percentages for the token in a hash map
     // pub royalty: HashMap<AccountId, u32>,
 }
@@ -339,7 +338,7 @@ impl LicenseToken {
             //     asset_id = self.license.as_ref().unwrap_unchecked().from.asset_id.clone();
             // } else {
             inv_id = self.metadata.from.clone().unwrap_unchecked().inventory_id.clone();
-            asset_id = self.metadata.from.clone().unwrap_unchecked().asset_id.clone();
+            asset_id = self.asset_id.clone();
             // }
             return (
                 inv_id,
@@ -347,12 +346,6 @@ impl LicenseToken {
                 self.license_id(),
                 self.sku_id(),
             )
-        }
-    }
-
-    pub fn migrate_metadata_from(&mut self) {
-        if self.license.is_some() {
-            self.metadata.from = self.license.as_ref().unwrap().from.clone();
         }
     }
 
@@ -640,7 +633,7 @@ impl InventoryLicense {
                 uri: None,
                 from: None,
             }),
-            approved_account_ids: Default::default(),
+            // approved_account_ids: Default::default(),
             // royalty: Default::default(),
             owner_id: AccountId::new_unchecked("alice".to_string()),
             asset_id: String::new(),
@@ -797,7 +790,6 @@ impl JsonAssetToken {
         let from = SourceLicenseMeta{
             inventory_id: get_inventory_id(self.minter_id.clone().to_string()),
             sku_id: sku_info.sku_id.clone(),
-            asset_id: self.token_id.clone(),
             issuer_id: Some(self.minter_id.to_string()),
         };
         metadata.from = Some(from);
@@ -862,7 +854,7 @@ impl JsonAssetToken {
             license,
             owner_id: AccountId::new_unchecked("alice".to_string()),
             metadata,
-            approved_account_ids: Default::default(),
+            // approved_account_ids: Default::default(),
         }
     }
 }
